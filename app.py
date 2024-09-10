@@ -33,4 +33,8 @@ if __name__ == '__main__':
 
 # Habilitar CORS en toda la app Flask
 CORS(app)
-CORS(app, resources={r"/transcribe": {"origins": "*"}})
+
+
+
+# Permite solicitudes únicamente desde GitHub Pages
+CORS(app, resources={r"/transcribe": {"origins": "https://batjuancrespo.github.io"}})

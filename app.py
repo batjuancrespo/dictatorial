@@ -1,40 +1,29 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
-import whisper
-import os
+import deepspeech
+import numpy as np
+import wave
+import io
 
 app = Flask(__name__)
 
-# Cargar el modelo Whisper una sola vez para evitar recargarlo en cada solicitud
-model = whisper.load_model("tiny")
-
+# Cargar el modelo de DeepSpeech
+model_file_path = 'deepspeech-model.pbmm'
+model = deepspeech.Model(model_file_path)
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
-    # Recibir archivo de audio
-    if 'audio' not in request.files:
-        return jsonify({'error': 'No se envió ningún archivo de audio'})
-
+    # Recibir archivo de audio (en formato WAV)
     audio_data = request.files['audio']
-    audio_file_path = "temp_audio.wav"
-    audio_data.save(audio_file_path)
+    audio_file = wave.open(io.BytesIO(audio_data.read()), 'rb')
 
-    # Transcribir usando Whisper
-    result = model.transcribe(audio_file_path)
-    os.remove(audio_file_path)  # Eliminar archivo temporal después de la transcripción
+    # Extraer frames y convertir a formato compatible con DeepSpeech
+    frames = audio_file.getnframes()
+    buffer = audio_file.readframes(frames)
+    audio = np.frombuffer(buffer, dtype=np.int16)
 
-    return jsonify({'transcription': result['text']})
-
+    # Transcribir usando DeepSpeech
+    text = model.stt(audio)
+    return jsonify({'transcription': text})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
-
-
-# Habilitar CORS en toda la app Flask
-CORS(app)
-
-
-
-# Permite solicitudes únicamente desde GitHub Pages
-CORS(app, resources={r"/transcribe": {"origins": "https://batjuancrespo.github.io"}})

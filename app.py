@@ -33,3 +33,4 @@ if __name__ == '__main__':
 
 # Habilitar CORS en toda la app Flask
 CORS(app)
+CORS(app, resources={r"/transcribe": {"origins": "*"}})

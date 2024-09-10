@@ -1,29 +1,32 @@
 from flask import Flask, request, jsonify
-import deepspeech
-import numpy as np
-import wave
-import io
+from flask_cors import CORS
+import whisper
+import os
 
 app = Flask(__name__)
 
-# Cargar el modelo de DeepSpeech
-model_file_path = 'deepspeech-model.pbmm'
-model = deepspeech.Model(model_file_path)
+# Configurar CORS para permitir solicitudes desde tu frontend en GitHub Pages
+CORS(app, resources={r"/transcribe": {"origins": "https://batjuancrespo.github.io"}})
+
+# Cargar el modelo de Whisper (puedes usar otros modelos como "base", "small", "medium", "large")
+model = whisper.load_model("tiny")
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
-    # Recibir archivo de audio (en formato WAV)
-    audio_data = request.files['audio']
-    audio_file = wave.open(io.BytesIO(audio_data.read()), 'rb')
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file found"}), 400
+    
+    audio_file = request.files['audio']
+    file_path = os.path.join("/tmp", "temp_audio.wav")
+    audio_file.save(file_path)
 
-    # Extraer frames y convertir a formato compatible con DeepSpeech
-    frames = audio_file.getnframes()
-    buffer = audio_file.readframes(frames)
-    audio = np.frombuffer(buffer, dtype=np.int16)
+    # Realizar la transcripción con Whisper
+    result = model.transcribe(file_path, language="es")
 
-    # Transcribir usando DeepSpeech
-    text = model.stt(audio)
-    return jsonify({'transcription': text})
+    # Eliminar el archivo temporal
+    os.remove(file_path)
+
+    return jsonify({"transcription": result['text']})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 
 # Configurar CORS para permitir solicitudes desde tu frontend en GitHub Pages
-CORS(app, resources={r"/transcribe": {"origins": "https://batjuancrespo.github.io"}})
+CORS(app, resources={r"/transcribe": {"origins": "batjuancrespo.github.io/battac/"}})
 
 # Cargar el modelo de Whisper (puedes usar otros modelos como "base", "small", "medium", "large")
 model = whisper.load_model("tiny")

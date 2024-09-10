@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 
 # Cargar el modelo Whisper una sola vez para evitar recargarlo en cada solicitud
-model = whisper.load_model("base")
+model = whisper.load_model("tiny")
 
 
 @app.route('/transcribe', methods=['POST'])

@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import whisper
 import os
 
@@ -27,3 +28,8 @@ def transcribe():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+
+
+# Habilitar CORS en toda la app Flask
+CORS(app)

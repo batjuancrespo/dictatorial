@@ -264,12 +264,12 @@
     }
 
     function processPunctuation(text) {
-      return text.replace(/\s+punto\s+y\s+aparte\s+/gi, '.\n\n')
+      return text.replace(/\s+punto\s+y\s+aparte\s+/gi, '.\n')
                  .replace(/\s+punto\s+/gi, '. ')
                  .replace(/\s+coma\s+/gi, ', ')
                  .replace(/\s+punto$/gi, '.')
                  .replace(/\s+coma$/gi, ',')
-                 .replace(/\s+punto\s+y\s+aparte$/gi, '.\n\n');
+                 .replace(/\s+punto\s+y\s+aparte$/gi, '.\n');
     }
 
     function processText(text) {

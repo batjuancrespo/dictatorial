@@ -420,6 +420,7 @@
         }
       });
 
+      // Modificar el botón "Corregir Dictado" para guardar en Firebase
       correctButton.addEventListener('click', function() {
         let selection = window.getSelection();
         if (selection.rangeCount > 0) {
@@ -428,7 +429,19 @@
             let selectedText = selection.toString();
             let correctedText = prompt(`¿Qué querías decir en lugar de "${selectedText}"?`);
             if (correctedText) {
+              // Almacenar en el diccionario local
               learningDictionary[selectedText.toLowerCase()] = correctedText;
+    
+              // Guardar la corrección en Firebase
+              db.collection("corrections").add({
+                original: selectedText.toLowerCase(),
+                corrected: correctedText
+              }).then((docRef) => {
+                console.log("Corrección guardada con ID: ", docRef.id);
+              }).catch((error) => {
+                console.error("Error al guardar la corrección: ", error);
+              });
+    
               let newText = output.textContent.replace(selectedText, correctedText);
               output.textContent = newText;
               transcript = newText;

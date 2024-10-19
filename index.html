@@ -284,6 +284,11 @@
     }
 
     function integrateNewText(originalText, newText, start, end) {
+      // If there's no selection (start === end), append the new text
+      if (start === end && start === originalText.length) {
+        return removeExtraSpaces(originalText + (originalText ? ' ' : '') + newText);
+      }
+
       let beforeSelection = originalText.substring(0, start);
       let afterSelection = originalText.substring(end);
 
@@ -369,7 +374,14 @@
         annyang.start({ autoRestart: true, continuous: true });
         startButton.textContent = 'Detener Reconocimiento';
         output.classList.add('listening');
-        output.textContent = 'Escuchando...';
+        
+        // Preserve existing text when restarting recognition
+        if (output.textContent && output.textContent !== 'Escuchando...') {
+          transcript = output.textContent;
+        } else {
+          output.textContent = 'Escuchando...';
+        }
+        
         isListening = true;
       }
 
@@ -389,7 +401,17 @@
               isReplacing = true;
               replacementStart = range.startOffset;
               replacementEnd = range.endOffset;
+            } else {
+              // If no valid selection, set up to append text
+              isReplacing = false;
+              replacementStart = output.textContent.length;
+              replacementEnd = output.textContent.length;
             }
+          } else {
+            // If no selection, set up to append text
+            isReplacing = false;
+            replacementStart = output.textContent.length;
+            replacementEnd = output.textContent.length;
           }
           
           startListening();
@@ -397,7 +419,6 @@
           stopListening();
         }
       });
-
 
       correctButton.addEventListener('click', function() {
         let selection = window.getSelection();
@@ -407,19 +428,7 @@
             let selectedText = selection.toString();
             let correctedText = prompt(`¿Qué querías decir en lugar de "${selectedText}"?`);
             if (correctedText) {
-              // Almacenar en el diccionario local
               learningDictionary[selectedText.toLowerCase()] = correctedText;
-
-              // Guardar la corrección en Firebase
-              db.collection("corrections").add({
-                original: selectedText.toLowerCase(),
-                corrected: correctedText
-              }).then((docRef) => {
-                console.log("Corrección guardada con ID: ", docRef.id);
-              }).catch((error) => {
-                console.error("Error al guardar la corrección: ", error);
-              });
-
               let newText = output.textContent.replace(selectedText, correctedText);
               output.textContent = newText;
               transcript = newText;
@@ -429,9 +438,6 @@
           alert("Por favor, selecciona el texto que deseas corregir antes de hacer clic en 'Corregir Dictado'.");
         }
       });
-
-
-
 
       copyButton.addEventListener('click', function() {
         const textToCopy = output.textContent;

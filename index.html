@@ -371,18 +371,18 @@
       });
 
       function startListening() {
-        annyang.start({ autoRestart: true, continuous: true });
-        startButton.textContent = 'Detener Reconocimiento';
-        output.classList.add('listening');
-        
-        // Preserve existing text when restarting recognition
-        if (output.textContent && output.textContent !== 'Escuchando...') {
-          transcript = output.textContent;
-        } else {
-          output.textContent = 'Escuchando...';
-        }
-        
-        isListening = true;
+          annyang.start({ autoRestart: true, continuous: true, interimResults: true }); // Añadir interimResults aquí
+          startButton.textContent = 'Detener Reconocimiento';
+          output.classList.add('listening');
+      
+          // Preserva el texto existente cuando reinicia el reconocimiento
+          if (output.textContent && output.textContent !== 'Escuchando...') {
+              transcript = output.textContent;
+          } else {
+              output.textContent = 'Escuchando...';
+          }
+      
+          isListening = true;
       }
 
       function stopListening() {

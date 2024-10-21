@@ -309,7 +309,7 @@
             let processed = processPunctuation(text);
             processed = capitalizeFirstLetter(processed);
             processed = capitalizeAfterPeriod(processed);
-            processed = processed.replace(/desde el\.\s*De vista de la imagen/gi, 'desde el punto de vista de la imagen');
+            processed = detectAndCorrectErrors(processed);
             return processed;
         }
 
@@ -355,29 +355,67 @@
             return removeExtraSpaces(combinedText);
         }
 
+        function learnFromCorrections(original, corrected) {
+            // Añadir al diccionario de aprendizaje
+            learningDictionary[original.toLowerCase()] = corrected;
+
+            // Guardar en Firebase
+            db.collection("corrections").add({
+                original: original.toLowerCase(),
+                corrected: corrected,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch((error) => {
+                console.error("Error al guardar la corrección: ", error);
+            });
+        }
+
+        function detectAndCorrectErrors(text) {
+            let correctedText = text;
+            
+            // Aplicar correcciones conocidas
+            for (let [original, corrected] of Object.entries(learningDictionary)) {
+                let regex = new RegExp(original, 'gi');
+                correctedText = correctedText.replace(regex, corrected);
+            }
+            
+            // Detectar y corregir errores comunes basados en patrones
+            correctedText = correctedText.replace(/desde el\.\s*De vista/gi, 'desde el punto de vista');
+            
+            // Más patrones de corrección pueden añadirse aquí
+            
+            return correctedText;
+        }
+
+        function silentFeedback(original, corrected) {
+            // Comparar original y corregido para identificar diferencias sutiles
+            if (original.toLowerCase() !== corrected.toLowerCase()) {
+                learnFromCorrections(original, corrected);
+            }
+        }
+
         if (annyang) {
             annyang.setLanguage('es-ES');
 
             annyang.addCallback('result', function(phrases) {
                 if (phrases.length > 0) {
                     let recognizedText = phrases[0];
+                    let correctedText = detectAndCorrectErrors(recognizedText);
                     
-                    for (let key in learningDictionary) {
-                        recognizedText = recognizedText.replace(new RegExp(key, 'gi'), learningDictionary[key]);
-                    }
-
                     if (isReplacing) {
-                        transcript = integrateNewText(output.textContent, recognizedText, replacementStart, replacementEnd);
+                        transcript = integrateNewText(output.textContent, correctedText, replacementStart, replacementEnd);
                     } else {
-                        if (transcript && !recognizedText.match(/^[.!?:;,]/)) {
+                        if (transcript && !correctedText.match(/^[.!?:;,]/)) {
                             transcript += ' ';
                         }
-                        transcript += recognizedText;
+                        transcript += correctedText;
                         transcript = removeExtraSpaces(transcript);
                     }
                     const processedText = processText(transcript);
                     output.textContent = processedText;
                     output.scrollTop = output.scrollHeight;
+
+                    // Retroalimentación silenciosa
+                    silentFeedback(recognizedText, correctedText);
 
                     isReplacing = false;
                     replacementStart = 0;
@@ -446,17 +484,8 @@
                         let selectedText = selection.toString();
                         let correctedText = prompt(`¿Qué querías decir en lugar de "${selectedText}"?`);
                         if (correctedText) {
-                            learningDictionary[selectedText.toLowerCase()] = correctedText;
-                
-                            db.collection("corrections").add({
-                                original: selectedText.toLowerCase(),
-                                corrected: correctedText
-                            }).then((docRef) => {
-                                console.log("Corrección guardada con ID: ", docRef.id);
-                            }).catch((error) => {
-                                console.error("Error al guardar la corrección: ", error);
-                            });
-                
+                            learnFromCorrections(selectedText, correctedText);
+                            
                             // Aplicar la corrección inmediatamente
                             let newText = output.textContent.replace(new RegExp(selectedText, 'gi'), correctedText);
                             output.textContent = newText;
@@ -496,7 +525,10 @@
 
             // Load corrections when the page starts
             window.addEventListener('load', async function() {
-                const querySnapshot = await db.collection("corrections").get();
+                const querySnapshot = await db.collection("corrections")
+                    .orderBy("timestamp", "desc")
+                    .limit(100)  // Limitar a las 100 correcciones más recientes
+                    .get();
                 querySnapshot.forEach((doc) => {
                     let correction = doc.data();
                     learningDictionary[correction.original] = correction.corrected;

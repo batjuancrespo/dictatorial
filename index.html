@@ -2,168 +2,96 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Transcriptor de Audio Whisper</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grabación de Audio y Transcripción</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
             text-align: center;
+            margin-top: 20px;
         }
-        #recording-controls {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin: 20px 0;
-        }
-        button {
+        #startButton, #stopButton, #sendButton {
             padding: 10px 20px;
-            font-size: 16px;
+            margin: 10px;
             cursor: pointer;
         }
-        #transcription-result {
+        #output {
             margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            min-height: 100px;
-            background-color: #f9f9f9;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <h1>Grabador de Audio y Transcripción</h1>
+    <h1>Grabación de Audio y Transcripción</h1>
+    <button id="startButton">Iniciar Grabación</button>
+    <button id="stopButton" disabled>Detener Grabación</button>
+    <button id="sendButton" disabled>Enviar para Transcripción</button>
     
-    <div id="recording-controls">
-        <button id="startRecording">Iniciar Grabación</button>
-        <button id="stopRecording" disabled>Detener Grabación</button>
-    </div>
-
-    <input type="file" id="audioFile" accept="audio/*" style="display:none;">
-
-    <div id="transcription-result">
-        La transcripción aparecerá aquí
-    </div>
-
+    <div id="output"></div>
+    
     <script>
-        const BASE_URL = 'https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space';
-        
         let mediaRecorder;
         let audioChunks = [];
-        
-        const startRecordingBtn = document.getElementById('startRecording');
-        const stopRecordingBtn = document.getElementById('stopRecording');
-        const audioFileInput = document.getElementById('audioFile');
-        const transcriptionResult = document.getElementById('transcription-result');
+        let audioBlob;
+        let audioUrl;
+        let audio;
 
-        startRecordingBtn.addEventListener('click', startRecording);
-        stopRecordingBtn.addEventListener('click', stopRecording);
-        audioFileInput.addEventListener('change', handleFileUpload);
-
-        async function startRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Obtener acceso al micrófono
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
                 mediaRecorder = new MediaRecorder(stream);
-                
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
+                mediaRecorder.ondataavailable = event => {
                     audioChunks.push(event.data);
                 };
-                
-                mediaRecorder.onstop = createAudioFile;
-                
-                mediaRecorder.start();
-                
-                startRecordingBtn.disabled = true;
-                stopRecordingBtn.disabled = false;
-                transcriptionResult.textContent = 'Grabando...';
-            } catch (err) {
-                console.error('Error al iniciar la grabación:', err);
-                transcriptionResult.textContent = 'No se pudo acceder al micrófono.';
-            }
-        }
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    audioUrl = URL.createObjectURL(audioBlob);
+                    audio = new Audio(audioUrl);
+                    document.getElementById('sendButton').disabled = false;
+                };
+            })
+            .catch(error => {
+                document.getElementById('output').innerText = 'Error al acceder al micrófono: ' + error.message;
+            });
 
-        function stopRecording() {
+        // Iniciar grabación
+        document.getElementById('startButton').onclick = () => {
+            mediaRecorder.start();
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+            document.getElementById('output').innerText = 'Grabando...';
+        };
+
+        // Detener grabación
+        document.getElementById('stopButton').onclick = () => {
             mediaRecorder.stop();
-            startRecordingBtn.disabled = false;
-            stopRecordingBtn.disabled = true;
-        }
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+            document.getElementById('output').innerText = 'Grabación detenida. Puedes enviar el audio.';
+        };
 
-        function createAudioFile() {
-            if (audioChunks.length === 0) return;
-
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const audioFile = new File([audioBlob], 'grabacion.webm', { type: 'audio/webm' });
-            
-            // Simular selección de archivo
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(audioFile);
-            audioFileInput.files = dataTransfer.files;
-            
-            // Disparar transcripción
-            handleFileUpload();
-        }
-
-        async function handleFileUpload() {
-            const file = audioFileInput.files[0];
-            if (!file) return;
-
-            transcriptionResult.textContent = 'Preparando transcripción...';
+        // Enviar audio al servidor para transcripción
+        document.getElementById('sendButton').onclick = async () => {
+            const formData = new FormData();
+            formData.append("param_0", audioBlob, "audio.wav");
 
             try {
-                // Primero, unirse a la cola
-                const queueResponse = await axios.post(`${BASE_URL}/gradio_api/queue/join?__theme=light`, {
-                    data: [],
-                    event_id: null,
-                    fn_index: 0,
-                    trigger_id: null
+                // Llamada a la API de Whisper (reemplaza la URL con la correcta)
+                const response = await fetch("https://huggingface.co/spaces/batjuancrespo/openai-whisper-large-v3-turbo/+/predict", {
+                    method: "POST",
+                    body: formData
                 });
 
-                const { event_id, frontend_ws } = queueResponse.data;
-
-                // Preparar el archivo para la transcripción
-                const formData = new FormData();
-                formData.append('file', file);
-
-                // Enviar la solicitud de predicción
-                const predictResponse = await axios.post(`${BASE_URL}/gradio_api/run/predict`, 
-                    formData, 
-                    {
-                        headers: {
-                            'Content-Type': 'multipart/form-data'
-                        },
-                        params: {
-                            __theme: 'light',
-                            event_id: event_id
-                        }
-                    }
-                );
-
-                // Procesar la respuesta
-                if (predictResponse.data && predictResponse.data.data) {
-                    const transcription = predictResponse.data.data[0];
-                    
-                    transcriptionResult.innerHTML = `
-                        <h3>Transcripción:</h3>
-                        <p>${transcription}</p>
-                    `;
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('output').innerText = "Transcripción: " + result.data;
                 } else {
-                    throw new Error('Respuesta inesperada');
+                    document.getElementById('output').innerText = 'Error en la transcripción: ' + response.statusText;
                 }
-                
-                // Limpiar input de archivo
-                audioFileInput.value = '';
             } catch (error) {
-                console.error('Error en la transcripción:', error);
-                transcriptionResult.innerHTML = `
-                    <h3>Error</h3>
-                    <p>Ocurrió un error al transcribir el audio.</p>
-                    <p>Detalles: ${error.message}</p>
-                `;
+                document.getElementById('output').innerText = 'Error al enviar el audio: ' + error.message;
             }
-        }
+        };
     </script>
 </body>
 </html>

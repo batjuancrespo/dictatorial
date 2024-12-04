@@ -47,7 +47,7 @@
     </div>
 
     <script>
-        const HUGGING_FACE_SPACE_URL = 'https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space/run/predict';
+        const BASE_URL = 'https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space';
         
         let mediaRecorder;
         let audioChunks = [];
@@ -110,29 +110,48 @@
             const file = audioFileInput.files[0];
             if (!file) return;
 
-            const formData = new FormData();
-            formData.append('data', JSON.stringify([{
-                name: file.name,
-                size: file.size,
-                type: file.type
-            }]));
-            formData.append('file', file);
-
-            transcriptionResult.textContent = 'Transcribiendo...';
+            transcriptionResult.textContent = 'Preparando transcripción...';
 
             try {
-                const response = await axios.post(HUGGING_FACE_SPACE_URL, formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data'
-                    }
+                // Primero, unirse a la cola
+                const queueResponse = await axios.post(`${BASE_URL}/gradio_api/queue/join?__theme=light`, {
+                    data: [],
+                    event_id: null,
+                    fn_index: 0,
+                    trigger_id: null
                 });
-                
-                const transcription = response.data.data[0];
-                
-                transcriptionResult.innerHTML = `
-                    <h3>Transcripción:</h3>
-                    <p>${transcription}</p>
-                `;
+
+                const { event_id, frontend_ws } = queueResponse.data;
+
+                // Preparar el archivo para la transcripción
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Enviar la solicitud de predicción
+                const predictResponse = await axios.post(`${BASE_URL}/gradio_api/run/predict`, 
+                    formData, 
+                    {
+                        headers: {
+                            'Content-Type': 'multipart/form-data'
+                        },
+                        params: {
+                            __theme: 'light',
+                            event_id: event_id
+                        }
+                    }
+                );
+
+                // Procesar la respuesta
+                if (predictResponse.data && predictResponse.data.data) {
+                    const transcription = predictResponse.data.data[0];
+                    
+                    transcriptionResult.innerHTML = `
+                        <h3>Transcripción:</h3>
+                        <p>${transcription}</p>
+                    `;
+                } else {
+                    throw new Error('Respuesta inesperada');
+                }
                 
                 // Limpiar input de archivo
                 audioFileInput.value = '';

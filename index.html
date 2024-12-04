@@ -45,6 +45,15 @@
     </div>
 
     <script>
+        // Favicon fix
+        const link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            const linkEl = document.createElement('link');
+            linkEl.rel = 'icon';
+            linkEl.href = 'data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGFQggv8oAhPVTFSzEgAA4AUMAOG2mCEAAAAASUVORK5CYII=';
+            document.head.appendChild(linkEl);
+        }
+
         const HUGGING_FACE_SPACE_URL = 'https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space/run/predict';
         
         let mediaRecorder;
@@ -61,6 +70,8 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
+                
+                audioChunks = []; // Reiniciar chunks
                 
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
@@ -94,10 +105,10 @@
             const formData = new FormData();
             formData.append('data', JSON.stringify([
                 {
-                    "path": audioFile.name,
-                    "display_name": audioFile.name,
-                    "size": audioFile.size,
-                    "type": audioFile.type
+                    path: audioFile.name,
+                    display_name: audioFile.name,
+                    size: audioFile.size,
+                    type: audioFile.type
                 }
             ]));
             formData.append('file', audioFile);
@@ -105,9 +116,14 @@
             transcriptionResult.textContent = 'Transcribiendo...';
 
             try {
-                const response = await axios.post(HUGGING_FACE_SPACE_URL, formData, {
+                // Usar un proxy CORS si es necesario
+                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+                const targetUrl = HUGGING_FACE_SPACE_URL;
+
+                const response = await axios.post(proxyUrl + targetUrl, formData, {
                     headers: {
-                        'Content-Type': 'multipart/form-data'
+                        'Content-Type': 'multipart/form-data',
+                        'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
                 
@@ -122,7 +138,11 @@
                 audioChunks = [];
             } catch (error) {
                 console.error('Error en la transcripción:', error);
-                transcriptionResult.textContent = 'Ocurrió un error al transcribir el audio.';
+                transcriptionResult.innerHTML = `
+                    <h3>Error</h3>
+                    <p>Ocurrió un error al transcribir el audio.</p>
+                    <p>Detalles: ${error.message}</p>
+                `;
             }
         }
     </script>

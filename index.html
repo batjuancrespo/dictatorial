@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Grabador de Audio con Transcripción</title>
+    <title>Transcriptor de Audio Whisper</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
     <style>
         body {
@@ -40,20 +40,13 @@
         <button id="stopRecording" disabled>Detener Grabación</button>
     </div>
 
+    <input type="file" id="audioFile" accept="audio/*" style="display:none;">
+
     <div id="transcription-result">
         La transcripción aparecerá aquí
     </div>
 
     <script>
-        // Favicon fix
-        const link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            const linkEl = document.createElement('link');
-            linkEl.rel = 'icon';
-            linkEl.href = 'data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGFQggv8oAhPVTFSzEgAA4AUMAOG2mCEAAAAASUVORK5CYII=';
-            document.head.appendChild(linkEl);
-        }
-
         const HUGGING_FACE_SPACE_URL = 'https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space/run/predict';
         
         let mediaRecorder;
@@ -61,23 +54,25 @@
         
         const startRecordingBtn = document.getElementById('startRecording');
         const stopRecordingBtn = document.getElementById('stopRecording');
+        const audioFileInput = document.getElementById('audioFile');
         const transcriptionResult = document.getElementById('transcription-result');
 
         startRecordingBtn.addEventListener('click', startRecording);
         stopRecordingBtn.addEventListener('click', stopRecording);
+        audioFileInput.addEventListener('change', handleFileUpload);
 
         async function startRecording() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 
-                audioChunks = []; // Reiniciar chunks
+                audioChunks = [];
                 
                 mediaRecorder.ondataavailable = (event) => {
                     audioChunks.push(event.data);
                 };
                 
-                mediaRecorder.onstop = transcribeAudio;
+                mediaRecorder.onstop = createAudioFile;
                 
                 mediaRecorder.start();
                 
@@ -96,34 +91,39 @@
             stopRecordingBtn.disabled = true;
         }
 
-        async function transcribeAudio() {
+        function createAudioFile() {
             if (audioChunks.length === 0) return;
 
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             const audioFile = new File([audioBlob], 'grabacion.webm', { type: 'audio/webm' });
             
+            // Simular selección de archivo
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(audioFile);
+            audioFileInput.files = dataTransfer.files;
+            
+            // Disparar transcripción
+            handleFileUpload();
+        }
+
+        async function handleFileUpload() {
+            const file = audioFileInput.files[0];
+            if (!file) return;
+
             const formData = new FormData();
-            formData.append('data', JSON.stringify([
-                {
-                    path: audioFile.name,
-                    display_name: audioFile.name,
-                    size: audioFile.size,
-                    type: audioFile.type
-                }
-            ]));
-            formData.append('file', audioFile);
+            formData.append('data', JSON.stringify([{
+                name: file.name,
+                size: file.size,
+                type: file.type
+            }]));
+            formData.append('file', file);
 
             transcriptionResult.textContent = 'Transcribiendo...';
 
             try {
-                // Usar un proxy CORS si es necesario
-                const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-                const targetUrl = HUGGING_FACE_SPACE_URL;
-
-                const response = await axios.post(proxyUrl + targetUrl, formData, {
+                const response = await axios.post(HUGGING_FACE_SPACE_URL, formData, {
                     headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'Content-Type': 'multipart/form-data'
                     }
                 });
                 
@@ -134,8 +134,8 @@
                     <p>${transcription}</p>
                 `;
                 
-                // Reiniciar los chunks de audio
-                audioChunks = [];
+                // Limpiar input de archivo
+                audioFileInput.value = '';
             } catch (error) {
                 console.error('Error en la transcripción:', error);
                 transcriptionResult.innerHTML = `

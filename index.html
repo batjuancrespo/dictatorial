@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Transcripción de Audio - Whisper</title>
-    <script src="https://cdn.jsdelivr.net/npm/@gradio/client@0.8.0/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client@0.14.4/dist/umd.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -68,7 +68,7 @@
         async function transcribeAudio(audioBlob) {
             try {
                 // Conectar al Space de Hugging Face
-                const client = await Client.connect("batjuancrespo/openai-whisper-large-v3-turbo");
+                const client = await gradio.Client.connect("batjuancrespo/openai-whisper-large-v3-turbo");
                 
                 // Subir y transcribir
                 const result = await client.predict("/predict", { 

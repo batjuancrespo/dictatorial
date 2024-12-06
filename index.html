@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Transcripción de Audio - Whisper</title>
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client@0.14.4/dist/umd.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,6 +31,9 @@
     <div id="transcription">La transcripción aparecerá aquí</div>
 
     <script>
+        // Importación directa de Client
+        const { Client } = gradio;
+
         let mediaRecorder;
         let audioChunks = [];
         const recordButton = document.getElementById('record-button');
@@ -66,24 +70,16 @@
         // Función para transcribir audio
         async function transcribeAudio(audioBlob) {
             try {
-                // Crear FormData para subir el archivo
-                const formData = new FormData();
-                formData.append('param_0', audioBlob, 'recording.wav');
-
-                // Endpoint del Space de Hugging Face
-                const response = await fetch('https://batjuancrespo-openai-whisper-large-v3-turbo.hf.space/api/predict', {
-                    method: 'POST',
-                    body: formData
+                // Conectar al Space de Hugging Face
+                const client = await Client.connect("batjuancrespo/openai-whisper-large-v3-turbo");
+                
+                // Subir y transcribir
+                const result = await client.predict("/predict", { 
+                    param_0: audioBlob 
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-
-                // Mostrar transcripción (asumiendo que el resultado está en result.data[0])
-                transcriptionDiv.textContent = result.data[0] || 'No se pudo transcribir';
+                // Mostrar transcripción
+                transcriptionDiv.textContent = result.data || 'No se pudo transcribir';
             } catch (error) {
                 console.error('Error en la transcripción:', error);
                 transcriptionDiv.textContent = 'Error en la transcripción: ' + error.message;

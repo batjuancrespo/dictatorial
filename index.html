@@ -1,80 +1,87 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gradio Audio Transcription</title>
-  <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    const recordButton = document.getElementById('record');
-    const stopButton = document.getElementById('stop');
-    const statusText = document.getElementById('status');
-    const transcriptionText = document.getElementById('transcription');
-
-    recordButton.addEventListener('click', async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      mediaRecorder.addEventListener('dataavailable', event => {
-        audioChunks.push(event.data);
-      });
-
-      mediaRecorder.addEventListener('stop', async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        await sendAudioToSpace(audioBlob);
-      });
-
-      mediaRecorder.start();
-      statusText.textContent = "Estado: Grabando";
-      recordButton.disabled = true;
-      stopButton.disabled = false;
-    });
-
-    stopButton.addEventListener('click', () => {
-      mediaRecorder.stop();
-      statusText.textContent = "Estado: Procesando...";
-      recordButton.disabled = false;
-      stopButton.disabled = true;
-    });
-
-    // Enviar el archivo de audio a tu Space para transcripción usando fetch
-    async function sendAudioToSpace(audioBlob) {
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'audio.wav');
-
-      try {
-        const response = await fetch('https://api-inference.huggingface.co/models/batjuancrespo/openai-whisper-large-v3-turbo', { // Reemplaza con la URL de tu Space
-          method: 'POST',
-          
-          headers: {
-            'Authorization': `Bearer YOUR_HUGGINGFACE_API_TOKEN` // Si tu espacio es privado
-          },
-          body: formData,
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          transcriptionText.textContent = `Transcripción: ${result.transcription}`;
-          statusText.textContent = "Estado: Completado";
-        } else {
-          transcriptionText.textContent = "Error en la transcripción.";
-          statusText.textContent = "Estado: Error";
+    <meta charset="UTF-8">
+    <title>Transcripción de Audio - Whisper</title>
+    <script src="https://cdn.jsdelivr.net/npm/@gradio/client@0.8.0/dist/index.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
         }
-      } catch (error) {
-        transcriptionText.textContent = "Error al enviar el archivo.";
-        statusText.textContent = "Estado: Error";
-        console.error(error);
-      }
-    }
-  </script>
+        #transcription {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 50px;
+        }
+        #record-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Grabar y Transcribir</h1>
-  <button id="record">Iniciar Grabación</button>
-  <button id="stop" disabled>Detener Grabación</button>
-  <p id="status">Estado: Inactivo</p>
-  <p id="transcription">Transcripción: </p>
+    <h1>Transcripción de Audio</h1>
+    <button id="record-button">Iniciar Grabación</button>
+    <div id="transcription">La transcripción aparecerá aquí</div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        const recordButton = document.getElementById('record-button');
+        const transcriptionDiv = document.getElementById('transcription');
+
+        // Configuración de la grabación de audio
+        recordButton.addEventListener('click', async () => {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        await transcribeAudio(audioBlob);
+                    };
+
+                    mediaRecorder.start();
+                    recordButton.textContent = 'Detener Grabación';
+                } catch (err) {
+                    alert('Error al acceder al micrófono: ' + err);
+                }
+            } else {
+                mediaRecorder.stop();
+                recordButton.textContent = 'Iniciar Grabación';
+            }
+        });
+
+        // Función para transcribir audio
+        async function transcribeAudio(audioBlob) {
+            try {
+                // Conectar al Space de Hugging Face
+                const client = await Client.connect("batjuancrespo/openai-whisper-large-v3-turbo");
+                
+                // Subir y transcribir
+                const result = await client.predict("/predict", { 
+                    param_0: audioBlob 
+                });
+
+                // Mostrar transcripción
+                transcriptionDiv.textContent = result.data || 'No se pudo transcribir';
+            } catch (error) {
+                console.error('Error en la transcripción:', error);
+                transcriptionDiv.textContent = 'Error en la transcripción: ' + error.message;
+            }
+        }
+    </script>
 </body>
 </html>

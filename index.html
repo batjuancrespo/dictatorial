@@ -1,336 +1,281 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <base href="https://websim.ai">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistente de transcripción radiológico mejorado</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-    :root {
-        --bg-color: #f8f8f8;
-        --text-color: #333;
-        --primary-color: #2c3e50;
-        --secondary-color: #34495e;
-        --container-bg: #ffffff;
-        --border-color: #e0e0e0;
-        --listening-bg-color: #e8f5e9;
-        --button-hover-color: #3498db;
-        --error-color: #e74c3c;
-        --success-color: #2ecc71;
-    }
+<html><head><base href="https://websim.ai"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Asistente de transcripción radiológico mejorado</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet"><style>
+:root {
+    --bg-color: #f8f8f8;
+    --text-color: #333;
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --container-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --listening-bg-color: #e8f5e9;
+    --button-hover-color: #3498db;
+    --error-color: #e74c3c;
+    --success-color: #2ecc71;
+}
 
-    body.dark-mode {
-        --bg-color: #1a1a1a;
-        --text-color: #e0e0e0;
-        --primary-color: #3498db;
-        --secondary-color: #2980b9;
-        --container-bg: #2c2c2c;
-        --border-color: #444;
-        --listening-bg-color: #1b5e20;
-        --button-hover-color: #2980b9;
-        --error-color: #c0392b;
-        --success-color: #27ae60;
-    }
+body.dark-mode {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --primary-color: #3498db;
+    --secondary-color: #2980b9;
+    --container-bg: #2c2c2c;
+    --border-color: #444;
+    --listening-bg-color: #1b5e20;
+    --button-hover-color: #2980b9;
+    --error-color: #c0392b;
+    --success-color: #27ae60;
+}
 
-    body {
-        font-family: 'Roboto', sans-serif;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        transition: all 0.3s ease;
-    }
+body {
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
 
-    /* Nuevo estilo para el contenedor principal */
-    .main-wrapper {
-        display: flex;
-        width: 100%;
-        max-width: 1400px;
-        margin: 0 auto;
-        position: relative;
-    }
+.container {
+    text-align: center;
+    padding: 3rem;
+    background-color: var(--container-bg);
+    border-radius: 15px;
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 1200px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
 
-    .container {
-        text-align: center;
-        padding: 3rem;
-        background-color: var(--container-bg);
-        border-radius: 15px;
-        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
-        width: 90%;
-        max-width: 1200px;
-        height: 90vh;
-        display: flex;
-        flex-direction: column;
-        margin-right: 180px; /* Espacio para los botones laterales */
-    }
+h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    margin-bottom: 2rem;
+    letter-spacing: 1px;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+}
 
-    /* Estilo para el panel lateral */
-    .side-panel {
-        position: fixed;
-        right: 20px;
-        top: 50%;
-        transform: translateY(-50%);
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        z-index: 1000;
-    }
+#output {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    flex-grow: 1;
+    overflow-y: auto;
+    text-align: left;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    transition: background-color 0.3s ease;
+}
 
-    .template-button {
-        background-color: #3498db;
-        color: white;
-        border: none;
-        padding: 10px 15px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 14px;
-        width: 150px;
-        text-align: center;
-    }
+#output.listening {
+    background-color: var(--listening-bg-color);
+}
 
-    .template-button:hover {
-        background-color: #2980b9;
-    }
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
 
-    .template-button.active {
-        background-color: #2980b9;
-        box-shadow: 0 0 5px rgba(0,0,0,0.3);
-    }
+button {
+    background-color: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 12px 24px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
 
-    h1 {
-        font-family: 'Playfair Display', serif;
-        font-size: 2.5rem;
-        color: var(--primary-color);
-        margin-bottom: 2rem;
-        letter-spacing: 1px;
-        border-bottom: 2px solid var(--primary-color);
-        padding-bottom: 0.5rem;
-    }
+button:hover {
+    background-color: var(--button-hover-color);
+    color: var(--container-bg);
+}
 
-    #output {
-        margin-top: 1.5rem;
-        padding: 1.5rem;
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        flex-grow: 1;
-        overflow-y: auto;
-        text-align: left;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        background-color: var(--container-bg);
-        color: var(--text-color);
-        font-size: 1.1rem;
-        line-height: 1.6;
-        transition: background-color 0.3s ease;
-    }
+#correctButton {
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
 
-    #output.listening {
-        background-color: var(--listening-bg-color);
-    }
+#correctButton:hover {
+    background-color: var(--secondary-color);
+}
 
-    .button-container {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-        margin-top: 1.5rem;
-    }
+#copyButton {
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
 
-    button {
-        background-color: transparent;
-        border: 2px solid var(--primary-color);
-        color: var(--primary-color);
-        padding: 12px 24px;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        font-size: 16px;
-        margin: 4px 2px;
-        cursor: pointer;
-        border-radius: 4px;
-        transition: all 0.3s ease;
-        font-family: 'Roboto', sans-serif;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
+#copyButton:hover {
+    background-color: var(--success-color);
+}
 
-    button:hover {
-        background-color: var(--button-hover-color);
-        color: var(--container-bg);
-    }
+.theme-switch-wrapper {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
 
-    #correctButton {
-        border-color: var(--secondary-color);
-        color: var(--secondary-color);
-    }
+.theme-switch-wrapper i {
+    margin: 0 5px;
+    font-size: 1.2rem;
+    color: var(--text-color);
+    transition: opacity 0.3s ease;
+}
 
-    #correctButton:hover {
-        background-color: var(--secondary-color);
-    }
+.theme-switch-wrapper i.fa-sun {
+    opacity: 1;
+}
 
-    #copyButton {
-        border-color: var(--success-color);
-        color: var(--success-color);
-    }
+.theme-switch-wrapper i.fa-moon {
+    opacity: 0.5;
+}
 
-    #copyButton:hover {
-        background-color: var(--success-color);
-    }
+body.dark-mode .theme-switch-wrapper i.fa-sun {
+    opacity: 0.5;
+}
 
-    .theme-switch-wrapper {
-        display: flex;
-        align-items: center;
-        position: absolute;
-        top: 20px;
-        right: 20px;
-    }
+body.dark-mode .theme-switch-wrapper i.fa-moon {
+    opacity: 1;
+}
 
-    .theme-switch-wrapper i {
-        margin: 0 5px;
-        font-size: 1.2rem;
-        color: var(--text-color);
-        transition: opacity 0.3s ease;
-    }
+.theme-switch {
+    display: inline-block;
+    height: 34px;
+    position: relative;
+    width: 60px;
+}
 
-    .theme-switch-wrapper i.fa-sun {
-        opacity: 1;
-    }
+.theme-switch input {
+    display: none;
+}
 
-    .theme-switch-wrapper i.fa-moon {
-        opacity: 0.5;
-    }
+.slider {
+    background-color: #ccc;
+    bottom: 0;
+    cursor: pointer;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    transition: .4s;
+}
 
-    body.dark-mode .theme-switch-wrapper i.fa-sun {
-        opacity: 0.5;
-    }
+.slider:before {
+    background-color: #fff;
+    bottom: 4px;
+    content: "";
+    height: 26px;
+    left: 4px;
+    position: absolute;
+    transition: .4s;
+    width: 26px;
+}
 
-    body.dark-mode .theme-switch-wrapper i.fa-moon {
-        opacity: 1;
-    }
+input:checked + .slider {
+    background-color: var(--primary-color);
+}
 
-    .theme-switch {
-        display: inline-block;
-        height: 34px;
-        position: relative;
-        width: 60px;
-    }
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
 
-    .theme-switch input {
-        display: none;
-    }
+.slider.round {
+    border-radius: 34px;
+}
 
-    .slider {
-        background-color: #ccc;
-        bottom: 0;
-        cursor: pointer;
-        left: 0;
-        position: absolute;
-        right: 0;
-        top: 0;
-        transition: .4s;
-    }
+.slider.round:before {
+    border-radius: 50%;
+}
 
-    .slider:before {
-        background-color: #fff;
-        bottom: 4px;
-        content: "";
-        height: 26px;
-        left: 4px;
-        position: absolute;
-        transition: .4s;
-        width: 26px;
-    }
+#notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 5px;
+    color: #fff;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
 
-    input:checked + .slider {
-        background-color: var(--primary-color);
-    }
+#notification.success {
+    background-color: var(--success-color);
+}
 
-    input:checked + .slider:before {
-        transform: translateX(26px);
-    }
+#notification.error {
+    background-color: var(--error-color);
+}
 
-    .slider.round {
-        border-radius: 34px;
-    }
+#notification.info {
+    background-color: #3498db;
+}
 
-    .slider.round:before {
-        border-radius: 50%;
-    }
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; }
+}
 
-    #notification {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 10px 20px;
-        border-radius: 5px;
-        color: #fff;
-        font-weight: bold;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
+#notification.show {
+    animation: fadeInOut 3s ease;
+}
 
-    #notification.success {
-        background-color: var(--success-color);
-    }
+.loading-indicator {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
 
-    #notification.error {
-        background-color: var(--error-color);
-    }
+.loading-indicator:after {
+    content: " ";
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border-radius: 50%;
+    border: 6px solid var(--primary-color);
+    border-color: var(--primary-color) transparent var(--primary-color) transparent;
+    animation: loading-indicator 1.2s linear infinite;
+}
 
-    #notification.info {
-        background-color: #3498db;
+@keyframes loading-indicator {
+    0% {
+        transform: rotate(0deg);
     }
-
-    @keyframes fadeInOut {
-        0% { opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { opacity: 0; }
+    100% {
+        transform: rotate(360deg);
     }
-
-    #notification.show {
-        animation: fadeInOut 3s ease;
-    }
-
-    .loading-indicator {
-        display: none;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-    }
-
-    .loading-indicator:after {
-        content: " ";
-        display: block;
-        width: 64px;
-        height: 64px;
-        margin: 8px;
-        border-radius: 50%;
-        border: 6px solid var(--primary-color);
-        border-color: var(--primary-color) transparent var(--primary-color) transparent;
-        animation: loading-indicator 1.2s linear infinite;
-    }
-
-    @keyframes loading-indicator {
-        0% {
-            transform: rotate(0deg);
-        }
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-    </style>
-</head>
-<body>
+}
+</style></head><body>
     <div class="theme-switch-wrapper">
         <i class="fas fa-sun"></i>
         <label class="theme-switch" for="checkbox">
@@ -339,28 +284,15 @@
         </label>
         <i class="fas fa-moon"></i>
     </div>
-
-    <div class="main-wrapper">
-        <div class="container">
-            <h1>Asistente de transcripción radiológico</h1>
-            <div class="button-container">
-                <button id="startButton">Iniciar Reconocimiento</button>
-                <button id="correctButton">Corregir Dictado</button>
-                <button id="copyButton">Copiar al Portapapeles</button>
-            </div>
-            <div id="output" contenteditable="true"></div>
+    <div class="container">
+        <h1>Asistente de transcripción radiológico</h1>
+        <div class="button-container">
+            <button id="startButton">Iniciar Reconocimiento</button>
+            <button id="correctButton">Corregir Dictado</button>
+            <button id="copyButton">Copiar al Portapapeles</button>
         </div>
-        
-        <div class="side-panel">
-            <button class="template-button" data-template="texto libre 1">TAC abd art</button>
-            <button class="template-button" data-template="texto libre 2">TAC abd art y port</button>
-            <button class="template-button" data-template="texto libre 3">TAC TAP art y port</button>
-            <button class="template-button" data-template="texto libre 4">TAC 3 fases</button>
-            <button class="template-button" data-template="texto libre 5">TAC sin cte</button>
-            <button class="template-button" data-template="texto libre 6">TAC hernia</button>
-        </div>
+        <div id="output" contenteditable="true"></div>
     </div>
-
     <div id="notification"></div>
     <div class="loading-indicator"></div>
 
@@ -380,365 +312,347 @@
         measurementId: "G-6PQSKYMDP0"
     };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-const startButton = document.getElementById('startButton');
-const correctButton = document.getElementById('correctButton');
-const copyButton = document.getElementById('copyButton');
-const output = document.getElementById('output');
-const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
-const notification = document.getElementById('notification');
-const loadingIndicator = document.querySelector('.loading-indicator');
+    const startButton = document.getElementById('startButton');
+    const correctButton = document.getElementById('correctButton');
+    const copyButton = document.getElementById('copyButton');
+    const output = document.getElementById('output');
+    const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+    const notification = document.getElementById('notification');
+    const loadingIndicator = document.querySelector('.loading-indicator');
 
-let isListening = false;
-let transcript = '';
-let isReplacing = false;
-let replacementStart = 0;
-let replacementEnd = 0;
-let learningDictionary = {};
+    let isListening = false;
+    let transcript = '';
+    let isReplacing = false;
+    let replacementStart = 0;
+    let replacementEnd = 0;
+    let learningDictionary = {};
 
-function switchTheme(e) {
-    if (e.target.checked) {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('theme', 'dark');
-    } else {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('theme', 'light');
-    }    
-}
-
-toggleSwitch.addEventListener('change', switchTheme, false);
-
-// Check for saved user preference, if any, on load of the website
-const currentTheme = localStorage.getItem('theme');
-if (currentTheme) {
-    document.body.classList[currentTheme === 'dark' ? 'add' : 'remove']('dark-mode');
-    toggleSwitch.checked = currentTheme === 'dark';
-}
-
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
-function capitalizeAfterPeriod(text) {
-    return text.replace(/\.\s*([a-zá-úñ])/gi, match => match.toUpperCase());
-}
-
-function processPunctuation(text) {
-    return text.replace(/\s+punto\s+y\s+aparte\s+/gi, '.\n')
-               .replace(/\s+punto\s+/gi, '. ')
-               .replace(/\s+coma\s+/gi, ', ')
-               .replace(/\s+punto$/gi, '.')
-               .replace(/\s+coma$/gi, ',')
-               .replace(/\s+punto\s+y\s+aparte$/gi, '.\n');
-}
-
-function processText(text) {
-    let processed = processPunctuation(text);
-    processed = capitalizeFirstLetter(processed);
-    processed = capitalizeAfterPeriod(processed);
-    processed = detectAndCorrectErrors(processed);
-    return processed;
-}
-
-function removeExtraSpaces(text) {
-    return text.replace(/[^\S\n]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
-}
-
-function integrateNewText(originalText, newText, start, end) {
-    if (start === end && start === originalText.length) {
-        return removeExtraSpaces(originalText + (originalText ? ' ' : '') + newText);
-    }
-
-    // If no specific range is provided, always append to the end
-    if (start === end && start === 0) {
-        start = end = originalText.length;
-    }
-
-    let beforeSelection = originalText.substring(0, start);
-    let afterSelection = originalText.substring(end);
-
-    newText = newText.trim();
-
-    // Aplicar correcciones del diccionario
-    for (let key in learningDictionary) {
-        newText = newText.replace(new RegExp(key, 'gi'), learningDictionary[key]);
-    }
-
-    let leadingNewline = newText.startsWith('\n') ? '\n' : '';
-    let trailingNewline = newText.endsWith('\n') ? '\n' : '';
-    newText = newText.replace(/^\n+|\n+$/g, '');
-
-    let spaceBeforeNew = ' ';
-    if (beforeSelection.match(/[\n.!?:;,]$/) || beforeSelection.length === 0) {
-        spaceBeforeNew = '';
-    }
-
-    if (beforeSelection.trim().endsWith('.')) {
-        newText = capitalizeFirstLetter(newText);
-    }
-
-    let spaceAfterNew = afterSelection.match(/^\S/) && !trailingNewline ? ' ' : '';
-
-    let combinedText = beforeSelection + leadingNewline + spaceBeforeNew + newText + trailingNewline + spaceAfterNew + afterSelection;
-
-    combinedText = combinedText.replace(/  +/g, ' ');
-    combinedText = combinedText.replace(/\n +/g, '\n').replace(/ +\n/g, '\n');
-
-    return removeExtraSpaces(combinedText);
-}
-
-function learnFromCorrections(original, corrected) {
-    // Añadir al diccionario de aprendizaje
-    learningDictionary[original.toLowerCase()] = corrected;
-
-    // Guardar en Firebase
-    db.collection("corrections").add({
-        original: original.toLowerCase(),
-        corrected: corrected,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-        showNotification('Corrección guardada con éxito', 'success');
-    }).catch((error) => {
-        console.error("Error al guardar la corrección: ", error);
-        showNotification('Error al guardar la corrección', 'error');
-    });
-}
-
-function detectAndCorrectErrors(text) {
-    let correctedText = text;
-    
-    // Aplicar correcciones conocidas
-    for (let [original, corrected] of Object.entries(learningDictionary)) {
-        let regex = new RegExp(original, 'gi');
-        correctedText = correctedText.replace(regex, corrected);
-    }
-    
-    correctedText = correctedText.replace(/desde el\.\s*De vista/gi, 'desde el punto de vista');
-    
-    return correctedText;
-}
-
-function silentFeedback(original, corrected) {
-    if (original.toLowerCase() !== corrected.toLowerCase()) {
-        learnFromCorrections(original, corrected);
-    }
-}
-
-function showNotification(message, type) {
-    notification.textContent = message;
-    notification.className = type;
-    notification.classList.add('show');
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
-
-function showLoading() {
-    loadingIndicator.style.display = 'block';
-}
-
-function hideLoading() {
-    loadingIndicator.style.display = 'none';
-}
-
-if (annyang) {
-    annyang.setLanguage('es-ES');
-
-    annyang.addCallback('result', function(phrases) {
-        if (phrases.length > 0) {
-            let recognizedText = phrases[0];
-            let correctedText = detectAndCorrectErrors(recognizedText);
-            
-            if (isReplacing) {
-                transcript = integrateNewText(output.textContent, correctedText, replacementStart, replacementEnd);
-            } else {
-                if (transcript && !correctedText.match(/^[.!?:;,]/)) {
-                    transcript += ' ';
-                }
-                transcript += correctedText;
-                transcript = removeExtraSpaces(transcript);
-            }
-            const processedText = processText(transcript);
-            output.textContent = processedText;
-            output.scrollTop = output.scrollHeight;
-
-            silentFeedback(recognizedText, correctedText);
-
-            isReplacing = false;
-            replacementStart = 0;
-            replacementEnd = 0;
-        }
-    });
-
-    annyang.addCallback('soundstart', function() {
-        if (output.textContent === 'Escuchando...') {
-            output.textContent = '';
-        }
-    });
-
-    function startListening() {
-        annyang.start({ autoRestart: true, continuous: true });
-        startButton.textContent = 'Detener Reconocimiento';
-        output.classList.add('listening');
-        
-        if (output.textContent && output.textContent !== 'Escuchando...') {
-            transcript = output.textContent;
+    function switchTheme(e) {
+        if (e.target.checked) {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('theme', 'dark');
         } else {
-            output.textContent = 'Escuchando...';
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('theme', 'light');
+        }    
+    }
+
+    toggleSwitch.addEventListener('change', switchTheme, false);
+
+    // Check for saved user preference, if any, on load of the website
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme) {
+        document.body.classList[currentTheme === 'dark' ? 'add' : 'remove']('dark-mode');
+        toggleSwitch.checked = currentTheme === 'dark';
+    }
+
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    function capitalizeAfterPeriod(text) {
+        return text.replace(/\.\s*([a-zá-úñ])/gi, match => match.toUpperCase());
+    }
+
+    function processPunctuation(text) {
+        return text.replace(/\s+punto\s+y\s+aparte\s+/gi, '.\n')
+                   .replace(/\s+punto\s+/gi, '. ')
+                   .replace(/\s+coma\s+/gi, ', ')
+                   .replace(/\s+punto$/gi, '.')
+                   .replace(/\s+coma$/gi, ',')
+                   .replace(/\s+punto\s+y\s+aparte$/gi, '.\n');
+    }
+
+    function processText(text) {
+        let processed = processPunctuation(text);
+        processed = capitalizeFirstLetter(processed);
+        processed = capitalizeAfterPeriod(processed);
+        processed = detectAndCorrectErrors(processed);
+        return processed;
+    }
+
+    function removeExtraSpaces(text) {
+        return text.replace(/[^\S\n]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim();
+    }
+
+    function integrateNewText(originalText, newText, start, end) {
+        if (start === end && start === originalText.length) {
+            return removeExtraSpaces(originalText + (originalText ? ' ' : '') + newText);
+        }
+
+        // If no specific range is provided, always append to the end
+        if (start === end && start === 0) {
+            start = end = originalText.length;
+        }
+
+        let beforeSelection = originalText.substring(0, start);
+        let afterSelection = originalText.substring(end);
+
+        newText = newText.trim();
+
+        // Aplicar correcciones del diccionario
+        for (let key in learningDictionary) {
+            newText = newText.replace(new RegExp(key, 'gi'), learningDictionary[key]);
+        }
+
+        let leadingNewline = newText.startsWith('\n') ? '\n' : '';
+        let trailingNewline = newText.endsWith('\n') ? '\n' : '';
+        newText = newText.replace(/^\n+|\n+$/g, '');
+
+        let spaceBeforeNew = ' ';
+        if (beforeSelection.match(/[\n.!?:;,]$/) || beforeSelection.length === 0) {
+            spaceBeforeNew = '';
+        }
+
+        if (beforeSelection.trim().endsWith('.')) {
+            newText = capitalizeFirstLetter(newText);
+        }
+
+        let spaceAfterNew = afterSelection.match(/^\S/) && !trailingNewline ? ' ' : '';
+
+        let combinedText = beforeSelection + leadingNewline + spaceBeforeNew + newText + trailingNewline + spaceAfterNew + afterSelection;
+
+        combinedText = combinedText.replace(/  +/g, ' ');
+        combinedText = combinedText.replace(/\n +/g, '\n').replace(/ +\n/g, '\n');
+
+        return removeExtraSpaces(combinedText);
+    }
+
+    function learnFromCorrections(original, corrected) {
+        // Añadir al diccionario de aprendizaje
+        learningDictionary[original.toLowerCase()] = corrected;
+
+        // Guardar en Firebase
+        db.collection("corrections").add({
+            original: original.toLowerCase(),
+            corrected: corrected,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            showNotification('Corrección guardada con éxito', 'success');
+        }).catch((error) => {
+            console.error("Error al guardar la corrección: ", error);
+            showNotification('Error al guardar la corrección', 'error');
+        });
+    }
+
+    function detectAndCorrectErrors(text) {
+        let correctedText = text;
+        
+        // Aplicar correcciones conocidas
+        for (let [original, corrected] of Object.entries(learningDictionary)) {
+            let regex = new RegExp(original, 'gi');
+            correctedText = correctedText.replace(regex, corrected);
         }
         
-        isListening = true;
-        showNotification('Reconocimiento de voz iniciado', 'success');
+        // Detectar y corregir errores comunes basados en patrones
+        correctedText = correctedText.replace(/desde el\.\s*De vista/gi, 'desde el punto de vista');
+        
+        // Más patrones de corrección pueden añadirse aquí
+        
+        return correctedText;
     }
 
-    function stopListening() {
-        annyang.abort();
-        startButton.textContent = 'Iniciar Reconocimiento';
-        output.classList.remove('listening');
-        isListening = false;
-        showNotification('Reconocimiento de voz detenido', 'success');
-    }
-
-    document.addEventListener('keydown', function(event) {
-        if (event.shiftKey && event.metaKey && event.key === 'Shift') {
-            event.preventDefault();
-            startButton.click();
+    function silentFeedback(original, corrected) {
+        // Comparar original y corregido para identificar diferencias sutiles
+        if (original.toLowerCase() !== corrected.toLowerCase()) {
+            learnFromCorrections(original, corrected);
         }
-    });
+    }
 
-    function toggleListening() {
-        if (!isListening) {
-            let selection = window.getSelection();
-            if (selection.rangeCount > 0 && selection.toString().trim() !== '') {
-                let range = selection.getRangeAt(0);
-                if (range.startContainer === output || output.contains(range.startContainer)) {
-                    isReplacing = true;
-                    replacementStart = range.startOffset;
-                    replacementEnd = range.endOffset;
-                    showNotification('El nuevo texto reemplazará la selección', 'info');
+    function showNotification(message, type) {
+        notification.textContent = message;
+        notification.className = type;
+        notification.classList.add('show');
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+
+    function showLoading() {
+        loadingIndicator.style.display = 'block';
+    }
+
+    function hideLoading() {
+        loadingIndicator.style.display = 'none';
+    }
+
+    if (annyang) {
+        annyang.setLanguage('es-ES');
+
+        annyang.addCallback('result', function(phrases) {
+            if (phrases.length > 0) {
+                let recognizedText = phrases[0];
+                let correctedText = detectAndCorrectErrors(recognizedText);
+                
+                if (isReplacing) {
+                    transcript = integrateNewText(output.textContent, correctedText, replacementStart, replacementEnd);
+                } else {
+                    if (transcript && !correctedText.match(/^[.!?:;,]/)) {
+                        transcript += ' ';
+                    }
+                    transcript += correctedText;
+                    transcript = removeExtraSpaces(transcript);
+                }
+                const processedText = processText(transcript);
+                output.textContent = processedText;
+                output.scrollTop = output.scrollHeight;
+
+                // Retroalimentación silenciosa
+                silentFeedback(recognizedText, correctedText);
+
+                isReplacing = false;
+                replacementStart = 0;
+                replacementEnd = 0;
+            }
+        });
+
+        annyang.addCallback('soundstart', function() {
+            if (output.textContent === 'Escuchando...') {
+                output.textContent = '';
+            }
+        });
+
+        function startListening() {
+            annyang.start({ autoRestart: true, continuous: true });
+            startButton.textContent = 'Detener Reconocimiento';
+            output.classList.add('listening');
+            
+            if (output.textContent && output.textContent !== 'Escuchando...') {
+                transcript = output.textContent;
+            } else {
+                output.textContent = 'Escuchando...';
+            }
+            
+            isListening = true;
+            showNotification('Reconocimiento de voz iniciado', 'success');
+        }
+
+        function stopListening() {
+            annyang.abort();
+            startButton.textContent = 'Iniciar Reconocimiento';
+            output.classList.remove('listening');
+            isListening = false;
+            showNotification('Reconocimiento de voz detenido', 'success');
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.shiftKey && event.metaKey && event.key === 'Shift') {
+                event.preventDefault();
+                startButton.click();
+            }
+        });
+
+        function toggleListening() {
+            if (!isListening) {
+                let selection = window.getSelection();
+                if (selection.rangeCount > 0 && selection.toString().trim() !== '') {
+                    let range = selection.getRangeAt(0);
+                    if (range.startContainer === output || output.contains(range.startContainer)) {
+                        isReplacing = true;
+                        replacementStart = range.startOffset;
+                        replacementEnd = range.endOffset;
+                        showNotification('El nuevo texto reemplazará la selección', 'info');
+                    } else {
+                        isReplacing = false;
+                        replacementStart = output.textContent.length;
+                        replacementEnd = output.textContent.length;
+                        showNotification('El nuevo texto se agregará al final', 'info');
+                    }
                 } else {
                     isReplacing = false;
                     replacementStart = output.textContent.length;
                     replacementEnd = output.textContent.length;
                     showNotification('El nuevo texto se agregará al final', 'info');
                 }
+                
+                startListening();
             } else {
-                isReplacing = false;
-                replacementStart = output.textContent.length;
-                replacementEnd = output.textContent.length;
-                showNotification('El nuevo texto se agregará al final', 'info');
+                stopListening();
             }
-            
-            startListening();
-        } else {
-            stopListening();
         }
-    }
 
-    startButton.addEventListener('click', toggleListening);
+        startButton.addEventListener('click', toggleListening);
 
-    correctButton.addEventListener('click', function() {
-        let selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            let range = selection.getRangeAt(0);
-            if (range.startContainer === output || output.contains(range.startContainer)) {
-                let selectedText = selection.toString();
-                let correctedText = prompt(`¿Qué querías decir en lugar de "${selectedText}"?`);
-                if (correctedText) {
-                    learnFromCorrections(selectedText, correctedText);
-                    
-                    let newText = output.textContent.replace(new RegExp(selectedText, 'gi'), correctedText);
-                    output.textContent = newText;
-                    transcript = newText;
-                    showNotification('Texto corregido con éxito', 'success');
+        correctButton.addEventListener('click', function() {
+            let selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                let range = selection.getRangeAt(0);
+                if (range.startContainer === output || output.contains(range.startContainer)) {
+                    let selectedText = selection.toString();
+                    let correctedText = prompt(`¿Qué querías decir en lugar de "${selectedText}"?`);
+                    if (correctedText) {
+                        learnFromCorrections(selectedText, correctedText);
+                        
+                        // Aplicar la corrección inmediatamente
+                        let newText = output.textContent.replace(new RegExp(selectedText, 'gi'), correctedText);
+                        output.textContent = newText;
+                        transcript = newText;
+                        showNotification('Texto corregido con éxito', 'success');
+                    }
                 }
+            } else {
+                showNotification('Por favor, selecciona el texto que deseas corregir', 'error');
             }
-        } else {
-            showNotification('Por favor, selecciona el texto que deseas corregir', 'error');
-        }
-    });
-
-    copyButton.addEventListener('click', function() {
-        const textToCopy = output.textContent;
-        navigator.clipboard.writeText(textToCopy).then(function() {
-            showNotification('Texto copiado al portapapeles', 'success');
-        }, function(err) {
-            console.error('Error al copiar el texto: ', err);
-            showNotification('No se pudo copiar el texto', 'error');
         });
-    });
 
-    output.addEventListener('input', function() {
-        transcript = output.textContent;
-    });
-
-    output.addEventListener('mouseup', function() {
-        let selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            let range = selection.getRangeAt(0);
-            if (range.startContainer === output || output.contains(range.startContainer)) {
-                isReplacing = true;
-                replacementStart = range.startOffset;
-                replacementEnd = range.endOffset;
-            }
-        }
-    });
-
-    // Añadir el nuevo código para los botones de plantilla
-    document.querySelectorAll('.template-button').forEach(button => {
-        button.addEventListener('click', function() {
-            // Eliminar la clase active de todos los botones
-            document.querySelectorAll('.template-button').forEach(btn => {
-                btn.classList.remove('active');
+        copyButton.addEventListener('click', function() {
+            const textToCopy = output.textContent;
+            navigator.clipboard.writeText(textToCopy).then(function() {
+                showNotification('Texto copiado al portapapeles', 'success');
+            }, function(err) {
+                console.error('Error al copiar el texto: ', err);
+                showNotification('No se pudo copiar el texto', 'error');
             });
-            
-            // Añadir la clase active al botón clickeado
-            this.classList.add('active');
-            
-            // Obtener el texto actual del output
-            let currentText = output.textContent;
-            
-            // Eliminar cualquier "texto libre X" existente al principio
-            currentText = currentText.replace(/^texto libre \d+\n+/, '');
-            
-            // Insertar el nuevo texto libre al principio
-            let newTemplate = this.getAttribute('data-template');
-            output.textContent = newTemplate + '\n' + currentText;
-            
-            // Actualizar la transcripción
+        });
+
+        output.addEventListener('input', function() {
             transcript = output.textContent;
         });
-    });
 
-    // Load corrections when the page starts
-    window.addEventListener('load', async function() {
-        showLoading();
-        try {
-            const querySnapshot = await db.collection("corrections")
-                .orderBy("timestamp", "desc")
-                .limit(100)  // Limitar a las 100 correcciones más recientes
-                .get();
-            querySnapshot.forEach((doc) => {
-                let correction = doc.data();
-                learningDictionary[correction.original] = correction.corrected;
-            });
-            console.log("Correcciones cargadas:", learningDictionary);
-            showNotification('Correcciones cargadas con éxito', 'success');
-        } catch (error) {
-            console.error("Error al cargar las correcciones:", error);
-            showNotification('Error al cargar las correcciones', 'error');
-        } finally {
-            hideLoading();
-        }
-    });
+        output.addEventListener('mouseup', function() {
+            let selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                let range = selection.getRangeAt(0);
+                if (range.startContainer === output || output.contains(range.startContainer)) {
+                    isReplacing = true;
+                    replacementStart = range.startOffset;
+                    replacementEnd = range.endOffset;
+                }
+            }
+        });
 
-} else {
-    startButton.style.display = 'none';
-    correctButton.style.display = 'none';
-    copyButton.style.display = 'none';
-    output.textContent = 'Lo siento, tu navegador no soporta el reconocimiento de voz.';
-    showNotification('Tu navegador no soporta el reconocimiento de voz', 'error');
-}
+        // Load corrections when the page starts
+        window.addEventListener('load', async function() {
+            showLoading();
+            try {
+                const querySnapshot = await db.collection("corrections")
+                    .orderBy("timestamp", "desc")
+                    .limit(100)  // Limitar a las 100 correcciones más recientes
+                    .get();
+                querySnapshot.forEach((doc) => {
+                    let correction = doc.data();
+                    learningDictionary[correction.original] = correction.corrected;
+                });
+                console.log("Correcciones cargadas:", learningDictionary);
+                showNotification('Correcciones cargadas con éxito', 'success');
+            } catch (error) {
+                console.error("Error al cargar las correcciones:", error);
+                showNotification('Error al cargar las correcciones', 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+    } else {
+        startButton.style.display = 'none';
+        correctButton.style.display = 'none';
+        copyButton.style.display = 'none';
+        output.textContent = 'Lo siento, tu navegador no soporta el reconocimiento de voz.';
+        showNotification('Tu navegador no soporta el reconocimiento de voz', 'error');
+    }
+    </script>
+</body></html>

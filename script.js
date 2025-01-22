@@ -448,33 +448,6 @@ async function copyToClipboard() {
 }
 
 
-// Modify the saveCorrection function to handle offline mode
-async function saveCorrection(db, original, correction) {
-  try {
-    if (!firestoreConnection) {
-      throw new Error('No internet connection');
-    }
-
-    await db.collection('corrections').add({
-      original,
-      correction,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    corrections.set(original, correction);
-    localStorage.setItem('corrections', JSON.stringify([...corrections]));
-    console.log('Correction saved to Firestore');
-    return true;
-
-  } catch (error) {
-    console.error('Error saving correction:', error);
-    corrections.set(original, correction);
-    localStorage.setItem('corrections', JSON.stringify([...corrections]));
-    showSuccessMessage('Corrección guardada localmente. Se sincronizará cuando haya conexión.', {type: 'warning'});
-    return false;
-  }
-}
-
 // Apply corrections to text
 function applyCorrections(text) {
   console.log('Applying corrections to text:', text);

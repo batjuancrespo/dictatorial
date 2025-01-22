@@ -447,35 +447,6 @@ async function copyToClipboard() {
   }
 }
 
-// Modify the loadCorrections function to handle connection issues
-async function loadCorrections(db) {
-  try {
-    if (!firestoreConnection) {
-      console.log('Firestore not connected, checking local storage...');
-      const localCorrections = localStorage.getItem('corrections');
-      if (localCorrections) {
-        corrections = new Map(JSON.parse(localCorrections));
-        console.log('Corrections loaded from local storage', corrections);
-        return;
-      }
-      throw new Error('No internet connection and no local data');
-    }
-
-    const snapshot = await db.collection('corrections').get();
-    corrections.clear();
-    snapshot.forEach(doc => {
-      corrections.set(doc.data().original, doc.data().correction);
-    });
-    
-    // Save to local storage as backup
-    localStorage.setItem('corrections', JSON.stringify([...corrections]));
-    console.log('Corrections loaded from Firestore:', corrections);
-
-  } catch (error) {
-    console.error('Error loading corrections:', error);
-    showSuccessMessage('Error cargando correcciones. Usando modo offline.');
-  }
-}
 
 // Modify the saveCorrection function to handle offline mode
 async function saveCorrection(db, original, correction) {

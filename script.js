@@ -12,6 +12,7 @@ const firebaseConfig = {
 // Initialize Firebase with connection monitoring
 let firestoreConnection = null;
 let db = null;
+let corrections = new Map();
 
 async function initializeFirebase() {
   try {
@@ -55,8 +56,8 @@ function runInOfflineMode() {
   showSuccessMessage('Modo offline activado', { type: 'warning' });
 }
 
-// Modify the loadCorrections function to handle connection issues
-async function loadCorrections(db) {
+// Load corrections from Firestore or local storage
+async function loadCorrectionsFromDatabase(db) {
   try {
     if (!firestoreConnection) {
       console.log('Firestore not connected, checking local storage...');
@@ -85,7 +86,7 @@ async function loadCorrections(db) {
   }
 }
 
-// Modify the saveCorrection function to handle offline mode
+// Save a correction to Firestore or locally
 async function saveCorrection(db, original, correction) {
   try {
     if (!firestoreConnection) {
@@ -119,12 +120,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initializeRecording(); // Wait for recording initialization
 
     if (db) {
-      await loadCorrections(db).then(() => {
+      await loadCorrectionsFromDatabase(db).then(() => {
         console.log('Corrections loaded successfully');
       });
     } else {
       console.log('Using offline mode');
-      await loadCorrections();
+      await loadCorrectionsFromDatabase();
     }
   } catch (error) {
     console.error('Error during initialization:', error);

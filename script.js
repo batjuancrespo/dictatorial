@@ -9,54 +9,6 @@ const firebaseConfig = {
   measurementId: "G-6PQSKYMDP0"
 };
 
-// Initialize Firebase with connection monitoring
-let firestoreConnection = false;
-let db = null;
-
-async function initializeFirebase() {
-  try {
-    // Check if Firebase is already initialized
-    if (!firebase.apps.length) {
-      const app = firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      
-      // Configure Firestore settings first
-      db.settings({
-        ignoreUndefinedProperties: true,
-        merge: true,
-        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-      });
-
-      // Then enable offline persistence
-      await db.enablePersistence({
-        synchronizeTabs: true
-      }).catch(err => {
-        console.warn('Offline persistence error:', err.code);
-      });
-
-      // Monitor connection state 
-      db.enableNetwork();
-      
-      db.onSnapshotsInSync(() => {
-        firestoreConnection = true;
-        console.log('Firestore connection successful');
-        showSuccessMessage('Conectado a Firestore');
-      });
-      
-      return db;
-    } else {
-      console.log('Firebase already initialized');
-      db = firebase.firestore();
-      return db;
-    }
-
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-    runInOfflineMode();
-    return null;
-  }
-}
-
 // API configuration
 const API_URL = 'https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo';
 const API_KEY = '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';
@@ -65,6 +17,18 @@ const API_KEY = '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';
 const AI_API_KEY = 'uFJi9MKJxz6ENwWkQcSFXNykjoeYyT3G';
 const AI_AGENT_ID = 'ag:973cb1c2:20241203:asistente-radiologico:5542a3d9';
 
+// Global variables and DOM elements
+let firestoreConnection = false;
+let db = null;
+let unsubscribeSnapshot = null;
+let mediaRecorder;
+let audioChunks = [];
+let startTime;
+let timerInterval;
+let isRecording = false;
+let corrections = new Map();
+
+// DOM Elements
 const toggleButton = document.getElementById('toggleRecord');
 const statusElement = document.getElementById('recordingStatus');
 const timerElement = document.getElementById('timer');
@@ -84,165 +48,84 @@ const textComparisonDiv = document.getElementById('textComparison');
 const acceptAllChangesButton = document.getElementById('acceptAllChanges');
 const cancelChangesButton = document.getElementById('cancelChanges');
 
-let mediaRecorder;
-let audioChunks = [];
-let startTime;
-let timerInterval;
-let isRecording = false;
+// Firebase initialization and management
+async function initializeFirebase() {
+  try {
+    if (!firebase.apps.length) {
+      const app = firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      
+      db.settings({
+        ignoreUndefinedProperties: true,
+        merge: true,
+        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+      });
 
-let corrections = new Map();
+      await db.enablePersistence({
+        synchronizeTabs: true
+      }).catch(err => {
+        console.warn('Offline persistence error:', err.code);
+      });
 
-function getSelectionInfo() {
-  const selection = window.getSelection();
-  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-  
-  if (range && transcriptionElement.contains(range.commonAncestorContainer)) {
-    return {
-      text: selection.toString(),
-      range: range
-    };
+      // Single connection state monitor
+      const unsubscribeConnection = db.onSnapshotsInSync(() => {
+        if (!firestoreConnection) {
+          firestoreConnection = true;
+          console.log('Firestore connection successful');
+          showSuccessMessage('Conectado a Firestore');
+          loadCorrections(); // Load corrections once when first connected
+        }
+      });
+
+      return db;
+    }
+    
+    console.log('Firebase already initialized');
+    db = firebase.firestore();
+    return db;
+
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return null;
   }
-  return null;
 }
 
-async function loadCorrections(db) {
+// Corrections management
+async function loadCorrections() {
   console.log('Loading corrections...');
   try {
-    if (!db || !firestoreConnection) {
-      console.log('No database connection available, waiting for Firebase...');
+    if (!db) {
+      console.log('No database connection available');
       return;
     }
 
-    const snapshot = await db.collection('corrections').get();
-    corrections.clear();
-    let loadedCorrections = [];
-    snapshot.forEach(doc => {
-      const correction = doc.data();
-      corrections.set(correction.original, correction.correction);
-      loadedCorrections.push({ original: correction.original, correction: correction.correction });
-    });
-    
-    console.log('Corrections loaded from Firestore:', loadedCorrections);
-    console.log('Current corrections Map:', Array.from(corrections.entries()));
+    // Clean up existing snapshot listener if any
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+    }
+
+    // Set up a single snapshot listener for corrections
+    unsubscribeSnapshot = db.collection('corrections')
+      .onSnapshot((snapshot) => {
+        corrections.clear();
+        snapshot.forEach(doc => {
+          const correction = doc.data();
+          corrections.set(correction.original, correction.correction);
+        });
+        console.log('Corrections updated:', Array.from(corrections.entries()));
+      }, (error) => {
+        console.error('Error in corrections snapshot:', error);
+      });
 
   } catch (error) {
     console.error('Error loading corrections:', error);
-    corrections = new Map(); // Initialize empty Map if loading fails
+    corrections = new Map();
     showSuccessMessage('Error cargando correcciones', {type: 'error'});
   }
 }
 
-function processText(text) {
-  console.log('Original text:', text);
 
-  // Step 1: Remove dots and commas, convert to lowercase
-  let processed = text.toLowerCase().replace(/[.,]/g, '');
-  console.log('Step 1 - Lowercase and remove punctuation:', processed);
-
-  // Step 2: Handle "punto y aparte", "punto", and "coma"
-  processed = processed
-    // Handle "punto y aparte" first
-    .replace(/punto y aparte/gi, '.\n');
-  console.log('Step 2a - After punto y aparte:', processed);
-    
-  processed = processed
-    // Then handle single "punto"
-    .replace(/\b(?<!y\s)punto\b/gi, '.');
-  console.log('Step 2b - After punto:', processed);
-    
-  processed = processed
-    // Handle "coma"
-    .replace(/\bcoma\b/gi, ',');
-  console.log('Step 2c - After coma:', processed);
-
-  // Step 3: Add period at end of lines and fix comma spacing
-  processed = processed
-    .split('\n')
-    .map(line => {
-      line = line.trim();
-      if (!line.endsWith('.')) {
-        line += '.';
-      }
-      line = line.replace(/\s*,\s*/g, ',');
-      return line;
-    })
-    .join('\n');
-  console.log('Step 3 - After line endings and comma spacing:', processed);
-
-  // Step 4: Capitalize properly
-  processed = processed
-    .split('\n')
-    .map(paragraph => {
-      return paragraph
-        .split('. ')
-        .map(sentence => {
-          sentence = sentence.trim();
-          if (sentence) {
-            console.log('Capitalizing sentence:', sentence);
-            let capitalized = sentence.charAt(0).toUpperCase() + sentence.slice(1);
-            console.log('After capitalization:', capitalized);
-            return capitalized;
-          }
-          return sentence;
-        })
-        .join('. ');
-    })
-    .join('\n');
-  console.log('Step 4 - After capitalization:', processed);
-
-  // Step 5: Add proper spacing after punctuation
-  processed = processed
-    .replace(/,(\S)/g, ', $1')
-    .replace(/\.(\S)/g, '. $1');
-  console.log('Step 5 - After punctuation spacing:', processed);
-
-  // Step 6: Remove duplicate punctuation
-  processed = processed
-    .replace(/\.+/g, '.')
-    .replace(/,+/g, ',');
-  console.log('Step 6 - After removing duplicate punctuation:', processed);
-
-  // Step 7: Final cleanup and apply corrections
-  processed = processed
-    .split('\n')
-    .map(paragraph => {
-      console.log('Cleaning up paragraph:', paragraph);
-      paragraph = paragraph.replace(/\s+([.,])/g, '$1');
-      paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2');
-      paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
-      paragraph = paragraph.trim();
-      console.log('After cleanup:', paragraph);
-      return paragraph;
-    })
-    .join('\n')
-    .replace(/\n\s*\n/g, '\n');
-
-  console.log('Before applying corrections:', processed);
-  console.log('Available corrections:', Array.from(corrections.entries()));
-  
-  if (corrections.size > 0) {
-    console.log('Starting to apply corrections...');
-    
-    corrections.forEach((correction, original) => {
-      console.log(`Attempting to apply correction: "${original}" -> "${correction}"`);
-      const regex = new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const before = processed;
-      processed = processed.replace(regex, correction);
-      if (before !== processed) {
-        console.log(`Successfully applied correction: "${original}" -> "${correction}"`);
-        console.log('Text after correction:', processed);
-      } else {
-        console.log(`No matches found for correction: "${original}"`);
-      }
-    });
-  } else {
-    console.log('No corrections available to apply');
-  }
-  
-  console.log('Final processed text:', processed);
-  return processed;
-}
-
+// Audio Recording Functions
 async function initializeRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -263,7 +146,7 @@ async function initializeRecording() {
     console.error('Error al acceder al micrófono:', error);
     statusElement.textContent = 'Error: No se pudo acceder al micrófono';
     statusElement.classList.add('error');
-    toggleButton.disabled = true; // Disable button if mic access fails
+    toggleButton.disabled = true;
   }
 }
 
@@ -379,13 +262,11 @@ async function transcribeAudio(audioBlob) {
     let finalText;
     
     if (selectionInfo) {
-      // Replace selected text
       const currentContent = transcriptionElement.textContent;
       const beforeSelection = currentContent.substring(0, selectionInfo.range.startOffset);
       const afterSelection = currentContent.substring(selectionInfo.range.endOffset);
       finalText = beforeSelection + processedText + afterSelection;
     } else {
-      // Append text
       const currentContent = transcriptionElement.textContent;
       const separator = currentContent && !currentContent.endsWith('\n') ? '\n' : '';
       finalText = currentContent + separator + processedText;
@@ -408,15 +289,97 @@ async function transcribeAudio(audioBlob) {
   }
 }
 
-async function copyToClipboard() {
-  try {
-    await navigator.clipboard.writeText(transcriptionElement.textContent);
-    showSuccessMessage('Texto copiado al portapapeles');
-  } catch (err) {
-    console.error('Error al copiar:', err);
+function getSelectionInfo() {
+  const selection = window.getSelection();
+  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+  
+  if (range && transcriptionElement.contains(range.commonAncestorContainer)) {
+    return {
+      text: selection.toString(),
+      range: range
+    };
   }
+  return null;
 }
 
+
+// Text Processing Functions
+function processText(text) {
+  console.log('Original text:', text);
+
+  // Step 1: Remove dots and commas, convert to lowercase
+  let processed = text.toLowerCase().replace(/[.,]/g, '');
+  
+  // Step 2: Handle "punto y aparte", "punto", and "coma"
+  processed = processed
+    .replace(/punto y aparte/gi, '.\n')
+    .replace(/\b(?<!y\s)punto\b/gi, '.')
+    .replace(/\bcoma\b/gi, ',');
+
+  // Step 3: Add period at end of lines and fix comma spacing
+  processed = processed
+    .split('\n')
+    .map(line => {
+      line = line.trim();
+      if (!line.endsWith('.')) {
+        line += '.';
+      }
+      line = line.replace(/\s*,\s*/g, ',');
+      return line;
+    })
+    .join('\n');
+
+  // Step 4: Capitalize properly
+  processed = processed
+    .split('\n')
+    .map(paragraph => {
+      return paragraph
+        .split('. ')
+        .map(sentence => {
+          sentence = sentence.trim();
+          if (sentence) {
+            return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+          }
+          return sentence;
+        })
+        .join('. ');
+    })
+    .join('\n');
+
+  // Step 5: Add proper spacing after punctuation
+  processed = processed
+    .replace(/,(\S)/g, ', $1')
+    .replace(/\.(\S)/g, '. $1');
+
+  // Step 6: Remove duplicate punctuation
+  processed = processed
+    .replace(/\.+/g, '.')
+    .replace(/,+/g, ',');
+
+  // Step 7: Final cleanup and apply corrections
+  processed = processed
+    .split('\n')
+    .map(paragraph => {
+      paragraph = paragraph.replace(/\s+([.,])/g, '$1');
+      paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2');
+      paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
+      return paragraph.trim();
+    })
+    .join('\n')
+    .replace(/\n\s*\n/g, '\n');
+
+  // Apply corrections if available
+  if (corrections.size > 0) {
+    corrections.forEach((correction, original) => {
+      const regex = new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      processed = processed.replace(regex, correction);
+    });
+  }
+  
+  return processed;
+}
+
+// Correction Functions
 async function saveCorrection(original, correction) {
   try {
     if (!db || !firestoreConnection) {
@@ -462,10 +425,7 @@ function hideCorrectionModal() {
   correctionTextArea.value = '';
 }
 
-correctTextButton.addEventListener('click', showCorrectionModal);
-cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
-
-saveCorrectionBtn.addEventListener('click', async () => {
+async function handleSaveCorrection() {
   const originalText = selectedTextElement.textContent;
   const correctionText = correctionTextArea.value.trim();
 
@@ -476,16 +436,15 @@ saveCorrectionBtn.addEventListener('click', async () => {
 
   const success = await saveCorrection(originalText, correctionText);
   if (success) {
-    // Apply the correction to the current text
     const currentText = transcriptionElement.textContent;
     transcriptionElement.textContent = currentText.replace(originalText, correctionText);
     hideCorrectionModal();
     showSuccessMessage('Corrección guardada');
-  } else {
-    alert('Error al guardar la corrección');
   }
-});
+}
 
+
+// AI Improvement Functions
 async function improveWithAI() {
   const originalText = transcriptionElement.textContent.trim();
   if (!originalText) {
@@ -543,10 +502,8 @@ async function improveWithAI() {
 }
 
 function showImprovedText(original, improved) {
-  // Clear previous content
   textComparisonDiv.innerHTML = '';
 
-  // Create two text areas side by side
   const container = document.createElement('div');
   container.className = 'improved-text-container';
 
@@ -564,21 +521,10 @@ function showImprovedText(original, improved) {
   container.appendChild(improvedTextArea);
   textComparisonDiv.appendChild(container);
 
-  // Show modal
   comparisonModal.classList.remove('hidden');
 }
 
-function applyChanges() {
-  const improvedText = document.querySelector('.improved-text').value;
-  transcriptionElement.textContent = improvedText;
-  comparisonModal.classList.add('hidden');
-  showSuccessMessage('Cambios aplicados correctamente');
-}
-
-function cancelAIChanges() {
-  comparisonModal.classList.add('hidden');
-}
-
+// Utility Functions
 function showSuccessMessage(message, options = {}) {
   const container = document.querySelector('.container');
   const {type = 'success'} = options;
@@ -598,12 +544,42 @@ function showSuccessMessage(message, options = {}) {
   }, 3000);
 }
 
-toggleButton.addEventListener('click', toggleRecording);
-copyButton.addEventListener('click', copyToClipboard);
-improveWithAIButton.addEventListener('click', improveWithAI);
-acceptAllChangesButton.addEventListener('click', applyChanges);
-cancelChangesButton.addEventListener('click', cancelAIChanges);
+// Cleanup Function
+function cleanup() {
+  if (unsubscribeSnapshot) {
+    unsubscribeSnapshot();
+  }
+  
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+  }
+}
 
+// Event Listeners
+toggleButton.addEventListener('click', toggleRecording);
+copyButton.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(transcriptionElement.textContent);
+    showSuccessMessage('Texto copiado al portapapeles');
+  } catch (err) {
+    console.error('Error al copiar:', err);
+  }
+});
+correctTextButton.addEventListener('click', showCorrectionModal);
+cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
+saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
+improveWithAIButton.addEventListener('click', improveWithAI);
+acceptAllChangesButton.addEventListener('click', () => {
+  const improvedText = document.querySelector('.improved-text').value;
+  transcriptionElement.textContent = improvedText;
+  comparisonModal.classList.add('hidden');
+  showSuccessMessage('Cambios aplicados correctamente');
+});
+cancelChangesButton.addEventListener('click', () => {
+  comparisonModal.classList.add('hidden');
+});
+
+// Keyboard Shortcuts
 document.addEventListener('keydown', function(event) {
   if (event.shiftKey && event.metaKey && event.key === 'Shift') {
     event.preventDefault();
@@ -611,6 +587,7 @@ document.addEventListener('keydown', function(event) {
   }
 });
 
+// Initialize Application
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('Initializing application...');
@@ -619,24 +596,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Initializing Firebase...');
     db = await initializeFirebase();
     
-    if (db) {
-      console.log('Firebase initialized successfully');
-      if (firestoreConnection) {
-        console.log('Firebase connected, loading corrections...');
-        await loadCorrections(db);
-      } else {
-        console.log('Waiting for Firebase connection before loading corrections...');
-        // Wait for connection event
-        db.onSnapshotsInSync(() => {
-          console.log('Firebase connected, now loading corrections...');
-          loadCorrections(db);
-        });
-      }
-    } else {
+    if (!db) {
       console.error('Failed to initialize Firebase');
+      showSuccessMessage('Error durante la inicialización', {type: 'error'});
     }
   } catch (error) {
     console.error('Error during initialization:', error);
     showSuccessMessage('Error durante la inicialización', {type: 'error'});
   }
 });
+
+// Cleanup on page unload
+window.addEventListener('unload', cleanup);

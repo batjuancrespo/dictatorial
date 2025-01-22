@@ -17,7 +17,13 @@ async function initializeFirebase() {
   try {
     const app = firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    
+
+    // Configure Firestore before performing any operations
+    db.settings({
+      ignoreUndefinedProperties: true,
+      merge: true
+    });
+
     // Enable offline persistence with merge option
     await db.enablePersistence({
       merge: true
@@ -25,21 +31,15 @@ async function initializeFirebase() {
       console.warn('Offline persistence disabled:', err.code);
     });
 
-    // Monitor connection state 
+    // Enable network and set up listeners
     db.enableNetwork();
-    
+
     db.onSnapshotsInSync(() => {
       firestoreConnection = true;
       console.log('Firestore connection successful');
       showSuccessMessage('Conectado a Firestore');
     });
 
-    // Update settings with merge option
-    db.settings({
-      ignoreUndefinedProperties: true,
-      merge: true
-    });
-    
     return db;
 
   } catch (error) {
@@ -52,8 +52,85 @@ async function initializeFirebase() {
 function runInOfflineMode() {
   firestoreConnection = false;
   console.log('Running in offline mode');
-  showSuccessMessage('Modo offline activado', {type: 'warning'});
+  showSuccessMessage('Modo offline activado', { type: 'warning' });
 }
+
+// Modify the loadCorrections function to handle connection issues
+async function loadCorrections(db) {
+  try {
+    if (!firestoreConnection) {
+      console.log('Firestore not connected, checking local storage...');
+      const localCorrections = localStorage.getItem('corrections');
+      if (localCorrections) {
+        corrections = new Map(JSON.parse(localCorrections));
+        console.log('Corrections loaded from local storage', corrections);
+        return;
+      }
+      throw new Error('No internet connection and no local data');
+    }
+
+    const snapshot = await db.collection('corrections').get();
+    corrections.clear();
+    snapshot.forEach(doc => {
+      corrections.set(doc.data().original, doc.data().correction);
+    });
+
+    // Save to local storage as backup
+    localStorage.setItem('corrections', JSON.stringify([...corrections]));
+    console.log('Corrections loaded from Firestore:', corrections);
+
+  } catch (error) {
+    console.error('Error loading corrections:', error);
+    showSuccessMessage('Error cargando correcciones. Usando modo offline.');
+  }
+}
+
+// Modify the saveCorrection function to handle offline mode
+async function saveCorrection(db, original, correction) {
+  try {
+    if (!firestoreConnection) {
+      throw new Error('No internet connection');
+    }
+
+    await db.collection('corrections').add({
+      original,
+      correction,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    corrections.set(original, correction);
+    localStorage.setItem('corrections', JSON.stringify([...corrections]));
+    console.log('Correction saved to Firestore');
+    return true;
+
+  } catch (error) {
+    console.error('Error saving correction:', error);
+    corrections.set(original, correction);
+    localStorage.setItem('corrections', JSON.stringify([...corrections]));
+    showSuccessMessage('Corrección guardada localmente. Se sincronizará cuando haya conexión.', { type: 'warning' });
+    return false;
+  }
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    db = await initializeFirebase();
+    await initializeRecording(); // Wait for recording initialization
+
+    if (db) {
+      await loadCorrections(db).then(() => {
+        console.log('Corrections loaded successfully');
+      });
+    } else {
+      console.log('Using offline mode');
+      await loadCorrections();
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    showSuccessMessage('Error durante la inicialización', { type: 'error' });
+  }
+});
 
 // API configuration
 const API_URL = 'https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo';

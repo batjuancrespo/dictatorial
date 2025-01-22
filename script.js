@@ -166,7 +166,7 @@ let startTime;
 let timerInterval;
 let isRecording = false;
 
-corrections = new Map();
+
 
 function getSelectionInfo() {
   const selection = window.getSelection();

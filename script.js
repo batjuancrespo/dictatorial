@@ -310,11 +310,22 @@ function processText(text) {
   // Step 1: Remove dots and commas, convert to lowercase
   let processed = text.toLowerCase().replace(/[.,]/g, '');
   
-  // Step 2: Handle "punto y aparte", "punto", and "coma"
+  // Step 2: Handle "punto y aparte", "punto y seguido", and "punto"
   processed = processed
-    .replace(/punto y aparte/gi, '.\n')
-    .replace(/\b(?<!y\s)punto\b/gi, '.')
+    // Handle "punto y aparte" first
+    .replace(/punto y aparte/gi, '.\n');
+  console.log('Step 2a - After punto y aparte:', processed);
+    
+  processed = processed
+    // Then handle "punto y seguido" and single "punto"
+    .replace(/punto y seguido/gi, '.')
+    .replace(/\b(?<!y\s)punto\b/gi, '.');
+  console.log('Step 2b - After punto y seguido and punto:', processed);
+    
+  processed = processed
+    // Handle "coma"
     .replace(/\bcoma\b/gi, ',');
+  console.log('Step 2c - After coma:', processed);
 
   // Step 3: Add period at end of lines and fix comma spacing
   processed = processed

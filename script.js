@@ -457,7 +457,7 @@ async function improveWithAI() {
 
   try {
     const requestBody = {
-      max_tokens: 150,
+      max_tokens: 3000,
       stream: false,
       messages: [{
         role: "system",

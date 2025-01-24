@@ -329,3 +329,60 @@ h1 {
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
+/* New Side Buttons Styles */
+.side-buttons {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+}
+
+.side-buttons.right {
+  right: 20px;
+}
+
+.side-buttons.left {
+  left: 20px;
+}
+
+.side-button {
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.side-button:hover {
+  background-color: #e0e0e0;
+}
+
+.side-button.red {
+  background-color: #ffebee;
+  border-color: #ef9a9a;
+}
+
+.side-button.red:hover {
+  background-color: #ffcdd2;
+}
+
+.side-button.active {
+  background-color: #2196f3;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .side-buttons {
+    display: none;
+  }
+}

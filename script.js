@@ -90,6 +90,25 @@ async function initializeFirebase() {
   }
 }
 
+// Updated Side Buttons Event Listener
+document.querySelectorAll('.side-button').forEach(button => {
+  button.addEventListener('click', () => {
+    const textToInsert = button.getAttribute('data-text');
+    
+    // Remove active state from all buttons
+    document.querySelectorAll('.side-button').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    
+    // Mark current button as active
+    button.classList.add('active');
+    
+    // Set the text at the beginning of the transcription
+    transcriptionElement.textContent = textToInsert + '\n\n';
+  });
+});
+
+
 // Corrections management
 async function loadCorrections() {
   console.log('Loading corrections...');

@@ -1,17 +1,25 @@
-<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dictado de Voz a Texto</title>
+  <title>Transcripción Médica - Dictado de Voz</title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+  <div class="theme-switch-wrapper">
+    <label class="theme-switch">
+      <input type="checkbox" id="themeToggle">
+      <span class="slider"></span>
+    </label>
+    <span id="themeLabel">🌙</span>
+  </div>
+
   <div class="container">
-    <h1>Dictado de Voz a Texto</h1>
+    <h1>Sistema de Transcripción Médica</h1>
     
     <div class="recorder">
       <button id="toggleRecord" class="btn">
@@ -75,6 +83,7 @@
     <div id="comparisonModal" class="modal hidden">
       <div class="modal-content comparison-content">
         <h3>Revisión de Mejoras</h3>
+        <p>Las palabras subrayadas en rojo se eliminarán y las resaltadas en verde se añadirán.</p>
         <div id="textComparison" class="text-comparison"></div>
         <div class="modal-actions">
           <button id="acceptAllChanges" class="btn">Aceptar Todo</button>

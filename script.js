@@ -27,26 +27,23 @@ let startTime;
 let timerInterval;
 let isRecording = false;
 let corrections = new Map();
-
-// DOM Elements
-const toggleButton = document.getElementById('toggleRecord');
-const statusElement = document.getElementById('recordingStatus');
-const timerElement = document.getElementById('timer');
-const transcriptionElement = document.getElementById('transcription');
-const loadingElement = document.getElementById('loading');
-const copyButton = document.getElementById('copyText');
-const saveCorrectionsButton = document.getElementById('saveCorrections');
-const correctTextButton = document.getElementById('correctText');
-const correctionModal = document.getElementById('correctionModal');
-const selectedTextElement = document.getElementById('selectedText');
-const correctionTextArea = document.getElementById('correctionText');
-const saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
-const cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-const improveWithAIButton = document.getElementById('improveWithAI');
-const comparisonModal = document.getElementById('comparisonModal');
-const textComparisonDiv = document.getElementById('textComparison');
-const acceptAllChangesButton = document.getElementById('acceptAllChanges');
-const cancelChangesButton = document.getElementById('cancelChanges');
+let transcriptionElement;
+let toggleButton;
+let statusElement;
+let timerElement;
+let loadingElement;
+let copyButton;
+let correctTextButton;
+let correctionModal;
+let selectedTextElement;
+let correctionTextArea;
+let saveCorrectionBtn;
+let cancelCorrectionBtn;
+let improveWithAIButton;
+let comparisonModal;
+let textComparisonDiv;
+let acceptAllChangesButton;
+let cancelChangesButton;
 
 // Firebase initialization and management
 async function initializeFirebase() {
@@ -91,23 +88,123 @@ async function initializeFirebase() {
 }
 
 // Updated Side Buttons Event Listener
-document.querySelectorAll('.side-button').forEach(button => {
-  button.addEventListener('click', () => {
-    const textToInsert = button.getAttribute('data-text');
-    
-    // Remove active state from all buttons
-    document.querySelectorAll('.side-button').forEach(btn => {
-      btn.classList.remove('active');
-    });
-    
-    // Mark current button as active
-    button.classList.add('active');
-    
-    // Set the text at the beginning of the transcription
-    transcriptionElement.textContent = textToInsert + '\n\n';
-  });
-});
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize all DOM element references
+  transcriptionElement = document.getElementById('transcription');
+  toggleButton = document.getElementById('toggleRecord');
+  statusElement = document.getElementById('recordingStatus');
+  timerElement = document.getElementById('timer');
+  loadingElement = document.getElementById('loading');
+  copyButton = document.getElementById('copyText');
+  correctTextButton = document.getElementById('correctText');
+  correctionModal = document.getElementById('correctionModal');
+  selectedTextElement = document.getElementById('selectedText');
+  correctionTextArea = document.getElementById('correctionText');
+  saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
+  cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
+  improveWithAIButton = document.getElementById('improveWithAI');
+  comparisonModal = document.getElementById('comparisonModal');
+  textComparisonDiv = document.getElementById('textComparison');
+  acceptAllChangesButton = document.getElementById('acceptAllChanges');
+  cancelChangesButton = document.getElementById('cancelChanges');
 
+  // Set up side button event listeners
+  document.querySelectorAll('.side-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const textToInsert = button.getAttribute('data-text');
+      
+      // Remove active state from all buttons
+      document.querySelectorAll('.side-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Mark current button as active
+      button.classList.add('active');
+      
+      // Get current transcription content
+      const currentText = transcriptionElement.textContent;
+
+      // If there is existing text, try to replace the template at start only
+      if (currentText) {
+        // Match any of the templates at the start of the text
+        const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
+        const match = currentText.match(templateRegex);
+        
+        if (match) {
+          // Replace only the matched template at start
+          transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
+        } else {
+          // No template found at start, insert new text at beginning
+          transcriptionElement.textContent = textToInsert + '\n\n' + currentText;
+        }
+      } else {
+        // Empty transcription, just insert the new text
+        transcriptionElement.textContent = textToInsert;
+      }
+    });
+  });
+
+  // Initialize other event listeners
+  if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
+  
+  if (copyButton) {
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(transcriptionElement?.textContent || '');
+        showSuccessMessage('Texto copiado al portapapeles');
+      } catch (err) {
+        console.error('Error al copiar:', err);
+      }
+    });
+  }
+
+  if (correctTextButton) correctTextButton.addEventListener('click', showCorrectionModal);
+  if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
+  if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
+  if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
+  
+  if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
+    acceptAllChangesButton.addEventListener('click', () => {
+      // Get the stored improved text instead of trying to parse the diff
+      const improvedText = textComparisonDiv.getAttribute('data-improved-text');
+      if (improvedText) {
+        transcriptionElement.textContent = improvedText;
+        comparisonModal.classList.add('hidden');
+        showSuccessMessage('Cambios aplicados correctamente');
+      }
+    });
+  }
+
+  if (cancelChangesButton && comparisonModal) {
+    cancelChangesButton.addEventListener('click', () => {
+      comparisonModal.classList.add('hidden');
+    });
+  }
+
+  // Initialize application
+  initializeTheme();
+  
+  try {
+    console.log('Initializing application...');
+    await initializeRecording();
+    
+    console.log('Initializing Firebase...');
+    db = await initializeFirebase();
+    
+    if (!db) {
+      console.error('Failed to initialize Firebase');
+      showSuccessMessage('Error durante la inicialización', {type: 'error'});
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    showSuccessMessage('Error durante la inicialización', {type: 'error'});
+  }
+  
+  if (transcriptionElement) {
+    transcriptionElement.style.whiteSpace = 'pre-wrap';
+    transcriptionElement.style.wordBreak = 'break-word';
+  }
+});
 
 // Corrections management
 async function loadCorrections() {
@@ -142,7 +239,6 @@ async function loadCorrections() {
     showSuccessMessage('Error cargando correcciones', {type: 'error'});
   }
 }
-
 
 // Audio Recording Functions
 async function initializeRecording() {
@@ -244,6 +340,7 @@ function updateTimer() {
   timerElement.textContent = `${minutes}:${seconds}`;
 }
 
+// Text Processing Functions
 async function transcribeAudio(audioBlob) {
   loadingElement.classList.remove('hidden');
   statusElement.textContent = 'Transcribiendo audio...';
@@ -276,22 +373,55 @@ async function transcribeAudio(audioBlob) {
     const processedText = processText(rawText);
     console.log('Final processed and corrected text:', processedText);
     
-    // Handle text replacement or append
-    const selectionInfo = getSelectionInfo();
-    let finalText;
+    // Get current selection or cursor position info
+    const selection = window.getSelection();
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
     
-    if (selectionInfo) {
+    // Only consider selection if it's within our transcription element
+    const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
+    const isAtEnd = isSelectionInTranscription && 
+      range.startContainer === transcriptionElement && 
+      range.startOffset === transcriptionElement.childNodes.length;
+
+    if (isAtEnd || !isSelectionInTranscription) {
+      // Cursor at end or no valid selection - always append
       const currentContent = transcriptionElement.textContent;
-      const beforeSelection = currentContent.substring(0, selectionInfo.range.startOffset);
-      const afterSelection = currentContent.substring(selectionInfo.range.endOffset);
-      finalText = beforeSelection + processedText + afterSelection;
+      transcriptionElement.textContent = currentContent + 
+        (currentContent ? ' ' : '') + processedText.trim();
+    } else if (selection.toString().length > 0) {
+      // Text is selected - replace selection with smart formatting
+      const currentContent = transcriptionElement.textContent;
+      const formattedText = getSmartFormattedText(
+        currentContent, 
+        processedText, 
+        range.startOffset
+      );
+      transcriptionElement.textContent = 
+        currentContent.substring(0, range.startOffset) +
+        formattedText +
+        currentContent.substring(range.endOffset);
     } else {
+      // Cursor is positioned - insert at cursor with smart formatting
       const currentContent = transcriptionElement.textContent;
-      const separator = currentContent && !currentContent.endsWith('\n') ? '\n' : '';
-      finalText = currentContent + separator + processedText;
+      const formattedText = getSmartFormattedText(
+        currentContent, 
+        processedText, 
+        range.startOffset
+      );
+      transcriptionElement.textContent = 
+        currentContent.substring(0, range.startOffset) +
+        formattedText +
+        currentContent.substring(range.startOffset);
     }
     
-    transcriptionElement.textContent = finalText;
+    // Move cursor to the end
+    const newRange = document.createRange();
+    newRange.selectNodeContents(transcriptionElement);
+    newRange.collapse(false); // collapse to end
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+    transcriptionElement.focus();
+    
     statusElement.textContent = 'Transcripción completada';
 
   } catch (error) {
@@ -308,21 +438,6 @@ async function transcribeAudio(audioBlob) {
   }
 }
 
-function getSelectionInfo() {
-  const selection = window.getSelection();
-  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-  
-  if (range && transcriptionElement.contains(range.commonAncestorContainer)) {
-    return {
-      text: selection.toString(),
-      range: range
-    };
-  }
-  return null;
-}
-
-
-// Text Processing Functions
 function processText(text) {
   console.log('Original text:', text);
 
@@ -332,39 +447,32 @@ function processText(text) {
   // Step 2: Handle "punto y aparte", "punto y seguido", and "punto"
   processed = processed
     // Handle "punto y aparte" first
-    .replace(/punto y aparte/gi, '.\n');
-  console.log('Step 2a - After punto y aparte:', processed);
-    
-  processed = processed
+    .replace(/punto y aparte/gi, '.\n\n')
     // Then handle "punto y seguido" and single "punto"
     .replace(/punto y seguido/gi, '.')
     .replace(/\b(?<!y\s)punto\b/gi, '.');
-  console.log('Step 2b - After punto y seguido and punto:', processed);
+  console.log('Step 2 - After punto replacements:', processed);
     
   processed = processed
     // Handle "coma"
     .replace(/\bcoma\b/gi, ',');
   console.log('Step 2c - After coma:', processed);
 
-  // Step 3: Add period at end of lines and fix comma spacing
+  // Step 3: Handle line spacing but don't automatically add periods 
   processed = processed
-    .split('\n')
+    .split(/\n+/)
     .map(line => {
       line = line.trim();
-      if (!line.endsWith('.')) {
-        line += '.';
-      }
-      line = line.replace(/\s*,\s*/g, ',');
       return line;
     })
-    .join('\n');
+    .join('\n\n');  // Add double newline between paragraphs
 
   // Step 4: Capitalize properly
   processed = processed
-    .split('\n')
+    .split(/\n+/)
     .map(paragraph => {
       return paragraph
-        .split('. ')
+        .split(/\.\s+/)
         .map(sentence => {
           sentence = sentence.trim();
           if (sentence) {
@@ -374,7 +482,7 @@ function processText(text) {
         })
         .join('. ');
     })
-    .join('\n');
+    .join('\n\n');  // Ensure paragraphs are separated by double newline
 
   // Step 5: Add proper spacing after punctuation
   processed = processed
@@ -388,15 +496,15 @@ function processText(text) {
 
   // Step 7: Final cleanup and apply corrections
   processed = processed
-    .split('\n')
+    .split(/\n+/)
     .map(paragraph => {
       paragraph = paragraph.replace(/\s+([.,])/g, '$1');
       paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2');
       paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
       return paragraph.trim();
     })
-    .join('\n')
-    .replace(/\n\s*\n/g, '\n');
+    .join('\n')  // Double newline between paragraphs
+    .replace(/\n\s*\n\s*\n+/g, '\n\n'); // Remove excessive newlines
 
   // Apply corrections if available
   if (corrections.size > 0) {
@@ -405,8 +513,34 @@ function processText(text) {
       processed = processed.replace(regex, correction);
     });
   }
-  
+
   return processed;
+}
+
+function getSmartFormattedText(existingText, newText, position) {
+  // Remove any trailing periods from the new text
+  newText = newText.trim().replace(/\.$/, '');
+  
+  // Determine if we should capitalize based on context
+  const shouldCapitalize = position === 0 || 
+    (position > 0 && existingText.charAt(position - 1) === '.');
+  
+  // Add space if needed (not at start and previous char isn't space, period or newline)
+  const needsSpace = position > 0 && 
+    ![' ', '.', '\n'].includes(existingText.charAt(position - 1));
+
+  let formattedText = newText.trim();
+  if (shouldCapitalize) {
+    formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
+  } else {
+    formattedText = formattedText.charAt(0).toLowerCase() + formattedText.slice(1);
+  }
+  
+  if (needsSpace) {
+    formattedText = ' ' + formattedText;
+  }
+  
+  return formattedText;
 }
 
 // Correction Functions
@@ -473,10 +607,9 @@ async function handleSaveCorrection() {
   }
 }
 
-
 // AI Improvement Functions
 async function improveWithAI() {
-  const originalText = transcriptionElement.textContent.trim();
+  const originalText = transcriptionElement?.textContent?.trim();
   if (!originalText) {
     showSuccessMessage('No hay texto para mejorar');
     return;
@@ -532,24 +665,89 @@ async function improveWithAI() {
 }
 
 function showImprovedText(original, improved) {
-  textComparisonDiv.innerHTML = '';
-
-  const container = document.createElement('div');
-  container.className = 'improved-text-container';
-
-  const originalTextArea = document.createElement('textarea');
-  originalTextArea.className = 'text-diff original-text';
-  originalTextArea.value = original;
-  originalTextArea.readOnly = true;
-
-  const improvedTextArea = document.createElement('textarea');
-  improvedTextArea.className = 'text-diff improved-text';
-  improvedTextArea.value = improved;
-  improvedTextArea.readOnly = true;
-
-  container.appendChild(originalTextArea);
-  container.appendChild(improvedTextArea);
-  textComparisonDiv.appendChild(container);
+  // Create arrays of words
+  const originalWords = original.split(/(\s+)/);
+  const improvedWords = improved.split(/(\s+)/);
+  
+  // Initialize variables for the diff
+  let diffHtml = '';
+  let i = 0;
+  let j = 0;
+  
+  while (i < originalWords.length || j < improvedWords.length) {
+    if (i >= originalWords.length) {
+      // All remaining words in improved are additions
+      while (j < improvedWords.length) {
+        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
+        j++;
+      }
+      break;
+    }
+    
+    if (j >= improvedWords.length) {
+      // All remaining words in original are removals
+      while (i < originalWords.length) {
+        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
+        i++;
+      }
+      break;
+    }
+    
+    if (originalWords[i] === improvedWords[j]) {
+      // Words match, keep as is
+      diffHtml += originalWords[i];
+      i++;
+      j++;
+    } else {
+      // Words differ, try to find next match
+      let found = false;
+      
+      // Look ahead in improved text
+      for (let k = j + 1; k < improvedWords.length && k < j + 3; k++) {
+        if (originalWords[i] === improvedWords[k]) {
+          // Found match, mark intermediate words as added
+          while (j < k) {
+            diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
+            j++;
+          }
+          found = true;
+          break;
+        }
+      }
+      
+      if (!found) {
+        // Look ahead in original text
+        for (let k = i + 1; k < originalWords.length && k < i + 3; k++) {
+          if (originalWords[k] === improvedWords[j]) {
+            // Found match, mark intermediate words as removed
+            while (i < k) {
+              diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
+              i++;
+            }
+            found = true;
+            break;
+          }
+        }
+      }
+      
+      if (!found) {
+        // No match found within window, mark current words as removed/added
+        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
+        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
+        i++;
+        j++;
+      }
+    }
+  }
+  
+  // Store the improved text in a data attribute for later use
+  textComparisonDiv.setAttribute('data-improved-text', improved);
+  
+  textComparisonDiv.innerHTML = `
+    <div class="text-diff">
+      ${diffHtml}
+    </div>
+  `;
 
   comparisonModal.classList.remove('hidden');
 }
@@ -585,54 +783,41 @@ function cleanup() {
   }
 }
 
-// Event Listeners
-toggleButton.addEventListener('click', toggleRecording);
-copyButton.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(transcriptionElement.textContent);
-    showSuccessMessage('Texto copiado al portapapeles');
-  } catch (err) {
-    console.error('Error al copiar:', err);
+// Theme Management
+function initializeTheme() {
+  const themeToggle = document.getElementById('themeToggle');
+  const themeLabel = document.getElementById('themeLabel');
+  
+  // Check for saved theme preference or system preference
+  const savedTheme = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  
+  // Set initial theme
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    themeToggle.checked = true;
+    themeLabel.textContent = '☀️';
   }
-});
-correctTextButton.addEventListener('click', showCorrectionModal);
-cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
-saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
-improveWithAIButton.addEventListener('click', improveWithAI);
-acceptAllChangesButton.addEventListener('click', () => {
-  const improvedText = document.querySelector('.improved-text').value;
-  transcriptionElement.textContent = improvedText;
-  comparisonModal.classList.add('hidden');
-  showSuccessMessage('Cambios aplicados correctamente');
-});
-cancelChangesButton.addEventListener('click', () => {
-  comparisonModal.classList.add('hidden');
-});
+
+  // Theme toggle handler
+  themeToggle.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeLabel.textContent = '☀️';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('theme', 'light');
+      themeLabel.textContent = '🌙';
+    }
+  });
+}
 
 // Keyboard Shortcuts
 document.addEventListener('keydown', function(event) {
   if (event.shiftKey && event.metaKey && event.key === 'Shift') {
     event.preventDefault();
     toggleButton.click();
-  }
-});
-
-// Initialize Application
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('Initializing application...');
-    await initializeRecording();
-    
-    console.log('Initializing Firebase...');
-    db = await initializeFirebase();
-    
-    if (!db) {
-      console.error('Failed to initialize Firebase');
-      showSuccessMessage('Error durante la inicialización', {type: 'error'});
-    }
-  } catch (error) {
-    console.error('Error during initialization:', error);
-    showSuccessMessage('Error durante la inicialización', {type: 'error'});
   }
 });
 

@@ -17,6 +17,9 @@ const API_KEY = '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';
 const AI_API_KEY = 'uFJi9MKJxz6ENwWkQcSFXNykjoeYyT3G';
 const AI_AGENT_ID = 'ag:973cb1c2:20241203:asistente-radiologico:5542a3d9';
 
+// Constants for audio chunking
+const MAX_CHUNK_DURATION = 30000; // 30 seconds in milliseconds
+
 // Global variables and DOM elements
 let firestoreConnection = false;
 let db = null;
@@ -45,214 +48,89 @@ let textComparisonDiv;
 let acceptAllChangesButton;
 let cancelChangesButton;
 
-// Firebase initialization and management
-async function initializeFirebase() {
+// New variables for chunk handling
+let recordingStartTime = null;
+let currentChunkStartTime = null;
+let processedChunks = [];
+let chunkCounter = 0;
+
+// Audio Processing Functions
+async function processAudioChunk(chunk, isLastChunk = false) {
+  const chunkNumber = ++chunkCounter;
+  console.log(`Processing chunk ${chunkNumber}${isLastChunk ? ' (final chunk)' : ''}`);
+  
   try {
-    if (!firebase.apps.length) {
-      const app = firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      
-      db.settings({
-        ignoreUndefinedProperties: true,
-        merge: true,
-        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-      });
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'audio/wav'
+      },
+      body: chunk
+    });
 
-      await db.enablePersistence({
-        synchronizeTabs: true
-      }).catch(err => {
-        console.warn('Offline persistence error:', err.code);
-      });
-
-      // Single connection state monitor
-      const unsubscribeConnection = db.onSnapshotsInSync(() => {
-        if (!firestoreConnection) {
-          firestoreConnection = true;
-          console.log('Firestore connection successful');
-          showSuccessMessage('Conectado a Firestore');
-          loadCorrections(); // Load corrections once when first connected
-        }
-      });
-
-      return db;
+    if (!response.ok) {
+      throw new Error(`Chunk ${chunkNumber} transcription failed: ${response.status}`);
     }
-    
-    console.log('Firebase already initialized');
-    db = firebase.firestore();
-    return db;
 
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(`API Error in chunk ${chunkNumber}: ${result.error}`);
+    }
+
+    console.log(`Chunk ${chunkNumber} transcribed successfully`);
+    return result.text || '';
   } catch (error) {
-    console.error('Firebase initialization error:', error);
-    return null;
+    console.error(`Error processing chunk ${chunkNumber}:`, error);
+    throw error;
   }
 }
 
-// Updated Side Buttons Event Listener
-document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize all DOM element references
-  transcriptionElement = document.getElementById('transcription');
-  toggleButton = document.getElementById('toggleRecord');
-  statusElement = document.getElementById('recordingStatus');
-  timerElement = document.getElementById('timer');
-  loadingElement = document.getElementById('loading');
-  copyButton = document.getElementById('copyText');
-  correctTextButton = document.getElementById('correctText');
-  correctionModal = document.getElementById('correctionModal');
-  selectedTextElement = document.getElementById('selectedText');
-  correctionTextArea = document.getElementById('correctionText');
-  saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
-  cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-  improveWithAIButton = document.getElementById('improveWithAI');
-  comparisonModal = document.getElementById('comparisonModal');
-  textComparisonDiv = document.getElementById('textComparison');
-  acceptAllChangesButton = document.getElementById('acceptAllChanges');
-  cancelChangesButton = document.getElementById('cancelChanges');
-
-  // Set up side button event listeners
-  document.querySelectorAll('.side-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const textToInsert = button.getAttribute('data-text');
-      
-      // Remove active state from all buttons
-      document.querySelectorAll('.side-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      // Mark current button as active
-      button.classList.add('active');
-      
-      // Get current transcription content
-      const currentText = transcriptionElement.textContent;
-
-      // If there is existing text, try to replace the template at start only
-      if (currentText) {
-        // Match any of the templates at the start of the text
-        const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
-        const match = currentText.match(templateRegex);
-        
-        if (match) {
-          // Replace only the matched template at start
-          transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
-        } else {
-          // No template found at start, insert new text at beginning
-          transcriptionElement.textContent = textToInsert + '\n\n' + currentText;
-        }
-      } else {
-        // Empty transcription, just insert the new text
-        transcriptionElement.textContent = textToInsert;
-      }
-    });
-  });
-
-  // Initialize other event listeners
-  if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
+async function processAllChunks(chunks) {
+  console.log(`Starting processing of ${chunks.length} chunks`);
+  const transcriptions = [];
   
-  if (copyButton) {
-    copyButton.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(transcriptionElement?.textContent || '');
-        showSuccessMessage('Texto copiado al portapapeles');
-      } catch (err) {
-        console.error('Error al copiar:', err);
-      }
-    });
-  }
-
-  if (correctTextButton) correctTextButton.addEventListener('click', showCorrectionModal);
-  if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
-  if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
-  if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
-  
-  if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
-    acceptAllChangesButton.addEventListener('click', () => {
-      // Get the stored improved text instead of trying to parse the diff
-      const improvedText = textComparisonDiv.getAttribute('data-improved-text');
-      if (improvedText) {
-        transcriptionElement.textContent = improvedText;
-        comparisonModal.classList.add('hidden');
-        showSuccessMessage('Cambios aplicados correctamente');
-      }
-    });
-  }
-
-  if (cancelChangesButton && comparisonModal) {
-    cancelChangesButton.addEventListener('click', () => {
-      comparisonModal.classList.add('hidden');
-    });
-  }
-
-  // Initialize application
-  initializeTheme();
-  
-  try {
-    console.log('Initializing application...');
-    await initializeRecording();
-    
-    console.log('Initializing Firebase...');
-    db = await initializeFirebase();
-    
-    if (!db) {
-      console.error('Failed to initialize Firebase');
-      showSuccessMessage('Error durante la inicialización', {type: 'error'});
+  for (let i = 0; i < chunks.length; i++) {
+    const isLastChunk = i === chunks.length - 1;
+    try {
+      const text = await processAudioChunk(chunks[i], isLastChunk);
+      transcriptions.push(text);
+    } catch (error) {
+      console.error(`Error processing chunk ${i + 1}:`, error);
+      showSuccessMessage(`Error en chunk ${i + 1}`, {type: 'error'});
     }
-  } catch (error) {
-    console.error('Error during initialization:', error);
-    showSuccessMessage('Error durante la inicialización', {type: 'error'});
   }
-  
-  if (transcriptionElement) {
-    transcriptionElement.style.whiteSpace = 'pre-wrap';
-    transcriptionElement.style.wordBreak = 'break-word';
-  }
-});
 
-// Corrections management
-async function loadCorrections() {
-  console.log('Loading corrections...');
-  try {
-    if (!db) {
-      console.log('No database connection available');
-      return;
-    }
-
-    // Clean up existing snapshot listener if any
-    if (unsubscribeSnapshot) {
-      unsubscribeSnapshot();
-    }
-
-    // Set up a single snapshot listener for corrections
-    unsubscribeSnapshot = db.collection('corrections')
-      .onSnapshot((snapshot) => {
-        corrections.clear();
-        snapshot.forEach(doc => {
-          const correction = doc.data();
-          corrections.set(correction.original, correction.correction);
-        });
-        console.log('Corrections updated:', Array.from(corrections.entries()));
-      }, (error) => {
-        console.error('Error in corrections snapshot:', error);
-      });
-
-  } catch (error) {
-    console.error('Error loading corrections:', error);
-    corrections = new Map();
-    showSuccessMessage('Error cargando correcciones', {type: 'error'});
-  }
+  console.log('All chunks processed, combining transcriptions');
+  return transcriptions.join(' ');
 }
 
-// Audio Recording Functions
+// Modified Recording Functions
 async function initializeRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
     
     mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+        
+        // Calculate chunk duration
+        const currentTime = Date.now();
+        const chunkDuration = currentTime - (currentChunkStartTime || recordingStartTime);
+        console.log(`Chunk recorded: ${(chunkDuration / 1000).toFixed(1)} seconds`);
+        
+        // Update chunk start time
+        currentChunkStartTime = currentTime;
+      }
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      await transcribeAudio(audioBlob);
+      const totalDuration = Date.now() - recordingStartTime;
+      console.log(`Total recording duration: ${(totalDuration / 1000).toFixed(1)} seconds`);
+      
+      // Process chunks
+      await handleRecordingComplete();
     };
 
     toggleButton.disabled = false;
@@ -265,20 +143,6 @@ async function initializeRecording() {
   }
 }
 
-function toggleRecording() {
-  if (!mediaRecorder) {
-    console.error('MediaRecorder no está inicializado');
-    showSuccessMessage('Error: El micrófono no está disponible', {type: 'error'});
-    return;
-  }
-
-  if (!isRecording) {
-    startRecording();
-  } else {
-    stopRecording();
-  }
-}
-
 function startRecording() {
   if (!mediaRecorder || mediaRecorder.state === 'recording') {
     console.error('MediaRecorder no está listo o ya está grabando');
@@ -287,7 +151,15 @@ function startRecording() {
 
   try {
     audioChunks = [];
-    mediaRecorder.start();
+    processedChunks = [];
+    chunkCounter = 0;
+    recordingStartTime = Date.now();
+    currentChunkStartTime = recordingStartTime;
+    
+    // Set up chunk interval
+    mediaRecorder.start(MAX_CHUNK_DURATION);
+    
+    console.log('Recording started');
     isRecording = true;
     toggleButton.classList.add('recording');
     toggleButton.innerHTML = `
@@ -307,38 +179,96 @@ function startRecording() {
   }
 }
 
-function stopRecording() {
-  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
-    console.error('MediaRecorder no está grabando');
+async function handleRecordingComplete() {
+  if (audioChunks.length === 0) {
+    console.log('No audio chunks recorded');
     return;
   }
 
+  loadingElement.classList.remove('hidden');
+  statusElement.textContent = 'Procesando audio...';
+
   try {
-    mediaRecorder.stop();
-    isRecording = false;
-    toggleButton.classList.remove('recording');
-    toggleButton.innerHTML = `
-      <svg class="mic-icon" viewBox="0 0 24 24">
-        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-      </svg>
-      Iniciar Grabación
-    `;
-    statusElement.textContent = 'Grabación detenida';
+    // Convert chunks to blobs
+    const audioBlobs = audioChunks.map(chunk => new Blob([chunk], { type: 'audio/wav' }));
+    console.log(`Processing ${audioBlobs.length} audio chunks`);
+
+    // Process all chunks and get combined transcription
+    const transcribedText = await processAllChunks(audioBlobs);
+    console.log('Transcription completed, processing text');
+
+    // Process the transcribed text
+    const processedText = processText(transcribedText);
     
-    clearInterval(timerInterval);
+    // Update the transcription element
+    updateTranscriptionElement(processedText);
+    
+    statusElement.textContent = 'Transcripción completada';
   } catch (error) {
-    console.error('Error al detener la grabación:', error);
-    showSuccessMessage('Error al detener la grabación', {type: 'error'});
+    console.error('Error en el procesamiento del audio:', error);
+    statusElement.textContent = 'Error en la transcripción';
+    statusElement.classList.add('error');
+    showSuccessMessage('Error en la transcripción', {type: 'error'});
+  } finally {
+    loadingElement.classList.add('hidden');
+    setTimeout(() => {
+      statusElement.classList.remove('error');
+      statusElement.textContent = 'Listo para grabar';
+    }, 3000);
   }
 }
 
-function updateTimer() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-  const seconds = (elapsed % 60).toString().padStart(2, '0');
-  timerElement.textContent = `${minutes}:${seconds}`;
+function updateTranscriptionElement(processedText) {
+  // Get current selection or cursor position info
+  const selection = window.getSelection();
+  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+  
+  // Only consider selection if it's within our transcription element
+  const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
+  const isAtEnd = isSelectionInTranscription && 
+    range.startContainer === transcriptionElement && 
+    range.startOffset === transcriptionElement.childNodes.length;
+
+  if (isAtEnd || !isSelectionInTranscription) {
+    // Cursor at end or no valid selection - always append
+    const currentContent = transcriptionElement.textContent;
+    transcriptionElement.textContent = currentContent + 
+      (currentContent ? ' ' : '') + processedText.trim();
+  } else if (selection.toString().length > 0) {
+    // Text is selected - replace selection with smart formatting
+    const currentContent = transcriptionElement.textContent;
+    const formattedText = getSmartFormattedText(
+      currentContent, 
+      processedText, 
+      range.startOffset
+    );
+    transcriptionElement.textContent = 
+      currentContent.substring(0, range.startOffset) +
+      formattedText +
+      currentContent.substring(range.endOffset);
+  } else {
+    // Cursor is positioned - insert at cursor with smart formatting
+    const currentContent = transcriptionElement.textContent;
+    const formattedText = getSmartFormattedText(
+      currentContent, 
+      processedText, 
+      range.startOffset
+    );
+    transcriptionElement.textContent = 
+      currentContent.substring(0, range.startOffset) +
+      formattedText +
+      currentContent.substring(range.startOffset);
+  }
+
+  // Move cursor to end
+  const newRange = document.createRange();
+  newRange.selectNodeContents(transcriptionElement);
+  newRange.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+  transcriptionElement.focus();
 }
+
 
 // Text Processing Functions
 async function transcribeAudio(audioBlob) {
@@ -346,81 +276,19 @@ async function transcribeAudio(audioBlob) {
   statusElement.textContent = 'Transcribiendo audio...';
   
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'audio/wav'
-      },
-      body: audioBlob
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error en la transcripción: ${response.status} ${errorText}`);
-    }
-
-    const result = await response.json();
+    // Convert single blob to array for consistent processing
+    const result = await processAllChunks([audioBlob]);
     
-    if (result.error) {
-      throw new Error(`Error API: ${result.error}`);
+    if (!result) {
+      throw new Error('No se obtuvo resultado de la transcripción');
     }
-    
-    const rawText = result.text || 'No se detectó texto en el audio';
-    console.log('Raw text from API:', rawText);
     
     // Process the text and apply corrections
-    const processedText = processText(rawText);
+    const processedText = processText(result);
     console.log('Final processed and corrected text:', processedText);
     
-    // Get current selection or cursor position info
-    const selection = window.getSelection();
-    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-    
-    // Only consider selection if it's within our transcription element
-    const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
-    const isAtEnd = isSelectionInTranscription && 
-      range.startContainer === transcriptionElement && 
-      range.startOffset === transcriptionElement.childNodes.length;
-
-    if (isAtEnd || !isSelectionInTranscription) {
-      // Cursor at end or no valid selection - always append
-      const currentContent = transcriptionElement.textContent;
-      transcriptionElement.textContent = currentContent + 
-        (currentContent ? ' ' : '') + processedText.trim();
-    } else if (selection.toString().length > 0) {
-      // Text is selected - replace selection with smart formatting
-      const currentContent = transcriptionElement.textContent;
-      const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
-        range.startOffset
-      );
-      transcriptionElement.textContent = 
-        currentContent.substring(0, range.startOffset) +
-        formattedText +
-        currentContent.substring(range.endOffset);
-    } else {
-      // Cursor is positioned - insert at cursor with smart formatting
-      const currentContent = transcriptionElement.textContent;
-      const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
-        range.startOffset
-      );
-      transcriptionElement.textContent = 
-        currentContent.substring(0, range.startOffset) +
-        formattedText +
-        currentContent.substring(range.startOffset);
-    }
-    
-    // Move cursor to the end
-    const newRange = document.createRange();
-    newRange.selectNodeContents(transcriptionElement);
-    newRange.collapse(false); // collapse to end
-    selection.removeAllRanges();
-    selection.addRange(newRange);
-    transcriptionElement.focus();
+    // Update transcription element
+    updateTranscriptionElement(processedText);
     
     statusElement.textContent = 'Transcripción completada';
 
@@ -543,6 +411,200 @@ function getSmartFormattedText(existingText, newText, position) {
   return formattedText;
 }
 
+// Firebase initialization and management
+async function initializeFirebase() {
+  try {
+    if (!firebase.apps.length) {
+      const app = firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      
+      db.settings({
+        ignoreUndefinedProperties: true,
+        merge: true,
+        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
+      });
+
+      await db.enablePersistence({
+        synchronizeTabs: true
+      }).catch(err => {
+        console.warn('Offline persistence error:', err.code);
+      });
+
+      // Single connection state monitor
+      const unsubscribeConnection = db.onSnapshotsInSync(() => {
+        if (!firestoreConnection) {
+          firestoreConnection = true;
+          console.log('Firestore connection successful');
+          showSuccessMessage('Conectado a Firestore');
+          loadCorrections(); // Load corrections once when first connected
+        }
+      });
+
+      return db;
+    }
+    
+    console.log('Firebase already initialized');
+    db = firebase.firestore();
+    return db;
+
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return null;
+  }
+}
+
+// Updated Side Buttons Event Listener
+document.addEventListener('DOMContentLoaded', async () => {
+  // Initialize all DOM element references
+  transcriptionElement = document.getElementById('transcription');
+  toggleButton = document.getElementById('toggleRecord');
+  statusElement = document.getElementById('recordingStatus');
+  timerElement = document.getElementById('timer');
+  loadingElement = document.getElementById('loading');
+  copyButton = document.getElementById('copyText');
+  correctTextButton = document.getElementById('correctText');
+  correctionModal = document.getElementById('correctionModal');
+  selectedTextElement = document.getElementById('selectedText');
+  correctionTextArea = document.getElementById('correctionText');
+  saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
+  cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
+  improveWithAIButton = document.getElementById('improveWithAI');
+  comparisonModal = document.getElementById('comparisonModal');
+  textComparisonDiv = document.getElementById('textComparison');
+  acceptAllChangesButton = document.getElementById('acceptAllChanges');
+  cancelChangesButton = document.getElementById('cancelChanges');
+
+  // Set up side button event listeners
+  document.querySelectorAll('.side-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const textToInsert = button.getAttribute('data-text');
+      
+      // Remove active state from all buttons
+      document.querySelectorAll('.side-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Mark current button as active
+      button.classList.add('active');
+      
+      // Get current transcription content
+      const currentText = transcriptionElement.textContent;
+
+      // If there is existing text, try to replace the template at start only
+      if (currentText) {
+        // Match any of the templates at the start of the text
+        const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
+        const match = currentText.match(templateRegex);
+        
+        if (match) {
+          // Replace only the matched template at start
+          transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
+        } else {
+          // No template found at start, insert new text at beginning
+          transcriptionElement.textContent = textToInsert + '\n\n' + currentText;
+        }
+      } else {
+        // Empty transcription, just insert the new text
+        transcriptionElement.textContent = textToInsert;
+      }
+    });
+  });
+
+  // Initialize other event listeners
+  if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
+  
+  if (copyButton) {
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(transcriptionElement?.textContent || '');
+        showSuccessMessage('Texto copiado al portapapeles');
+      } catch (err) {
+        console.error('Error al copiar:', err);
+      }
+    });
+  }
+
+  if (correctTextButton) correctTextButton.addEventListener('click', showCorrectionModal);
+  if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
+  if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
+  if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
+  
+  if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
+    acceptAllChangesButton.addEventListener('click', () => {
+      const improvedText = textComparisonDiv.getAttribute('data-improved-text');
+      if (improvedText) {
+        transcriptionElement.textContent = improvedText;
+        comparisonModal.classList.add('hidden');
+        showSuccessMessage('Cambios aplicados correctamente');
+      }
+    });
+  }
+
+  if (cancelChangesButton && comparisonModal) {
+    cancelChangesButton.addEventListener('click', () => {
+      comparisonModal.classList.add('hidden');
+    });
+  }
+
+  // Initialize application
+  initializeTheme();
+  
+  try {
+    console.log('Initializing application...');
+    await initializeRecording();
+    
+    console.log('Initializing Firebase...');
+    db = await initializeFirebase();
+    
+    if (!db) {
+      console.error('Failed to initialize Firebase');
+      showSuccessMessage('Error durante la inicialización', {type: 'error'});
+    }
+  } catch (error) {
+    console.error('Error during initialization:', error);
+    showSuccessMessage('Error durante la inicialización', {type: 'error'});
+  }
+  
+  if (transcriptionElement) {
+    transcriptionElement.style.whiteSpace = 'pre-wrap';
+    transcriptionElement.style.wordBreak = 'break-word';
+  }
+});
+
+// Corrections management
+async function loadCorrections() {
+  console.log('Loading corrections...');
+  try {
+    if (!db) {
+      console.log('No database connection available');
+      return;
+    }
+
+    // Clean up existing snapshot listener if any
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+    }
+
+    // Set up a single snapshot listener for corrections
+    unsubscribeSnapshot = db.collection('corrections')
+      .onSnapshot((snapshot) => {
+        corrections.clear();
+        snapshot.forEach(doc => {
+          const correction = doc.data();
+          corrections.set(correction.original, correction.correction);
+        });
+        console.log('Corrections updated:', Array.from(corrections.entries()));
+      }, (error) => {
+        console.error('Error in corrections snapshot:', error);
+      });
+
+  } catch (error) {
+    console.error('Error loading corrections:', error);
+    corrections = new Map();
+    showSuccessMessage('Error cargando correcciones', {type: 'error'});
+  }
+}
+
 // Correction Functions
 async function saveCorrection(original, correction) {
   try {
@@ -568,6 +630,7 @@ async function saveCorrection(original, correction) {
     return false;
   }
 }
+
 
 function showCorrectionModal() {
   const selection = window.getSelection();

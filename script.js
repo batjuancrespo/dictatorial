@@ -1,7 +1,7 @@
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo",
-  authDomain: "almacena-correcciones-dictado.firebaseapp.com", 
+  authDomain: "almacena-correcciones-dictado.firebaseapp.com",
   projectId: "almacena-correcciones-dictado",
   storageBucket: "almacena-correcciones-dictado.appspot.com",
   messagingSenderId: "209194920272",
@@ -51,7 +51,7 @@ async function initializeFirebase() {
     if (!firebase.apps.length) {
       const app = firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
-      
+
       db.settings({
         ignoreUndefinedProperties: true,
         merge: true,
@@ -76,7 +76,7 @@ async function initializeFirebase() {
 
       return db;
     }
-    
+
     console.log('Firebase already initialized');
     db = firebase.firestore();
     return db;
@@ -87,333 +87,126 @@ async function initializeFirebase() {
   }
 }
 
-// Updated Side Buttons Event Listener
-document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize all DOM element references
-  transcriptionElement = document.getElementById('transcription');
-  toggleButton = document.getElementById('toggleRecord');
-  statusElement = document.getElementById('recordingStatus');
-  timerElement = document.getElementById('timer');
-  loadingElement = document.getElementById('loading');
-  copyButton = document.getElementById('copyText');
-  correctTextButton = document.getElementById('correctText');
-  correctionModal = document.getElementById('correctionModal');
-  selectedTextElement = document.getElementById('selectedText');
-  correctionTextArea = document.getElementById('correctionText');
-  saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
-  cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-  improveWithAIButton = document.getElementById('improveWithAI');
-  comparisonModal = document.getElementById('comparisonModal');
-  textComparisonDiv = document.getElementById('textComparison');
-  acceptAllChangesButton = document.getElementById('acceptAllChanges');
-  cancelChangesButton = document.getElementById('cancelChanges');
+// Function to split audio into chunks
+async function splitAudioIntoChunks(audioBlob, chunkDuration = 30) {
+  const audioContext = new AudioContext();
+  const buffer = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
+  const sampleRate = buffer.sampleRate;
+  const totalSamples = buffer.length;
+  const chunkSize = chunkDuration * sampleRate;
 
-  // Set up side button event listeners
-  document.querySelectorAll('.side-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const textToInsert = button.getAttribute('data-text');
-      
-      // Remove active state from all buttons
-      document.querySelectorAll('.side-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      // Mark current button as active
-      button.classList.add('active');
-      
-      // Get current transcription content
-      const currentText = transcriptionElement.textContent;
+  let chunks = [];
 
-      // If there is existing text, try to replace the template at start only
-      if (currentText) {
-        // Match any of the templates at the start of the text
-        const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
-        const match = currentText.match(templateRegex);
-        
-        if (match) {
-          // Replace only the matched template at start
-          transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
-        } else {
-          // No template found at start, insert new text at beginning
-          transcriptionElement.textContent = textToInsert + '\n\n' + currentText;
-        }
-      } else {
-        // Empty transcription, just insert the new text
-        transcriptionElement.textContent = textToInsert;
+  for (let i = 0; i < totalSamples; i += chunkSize) {
+    const chunkBuffer = audioContext.createBuffer(
+      buffer.numberOfChannels,
+      Math.min(chunkSize, totalSamples - i),
+      sampleRate
+    );
+
+    for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+      const channelData = buffer.getChannelData(channel);
+      const chunkData = chunkBuffer.getChannelData(channel);
+      for (let j = 0; j < chunkBuffer.length; j++) {
+        chunkData[j] = channelData[i + j];
       }
-    });
+    }
+
+    const chunkBlob = await bufferToBlob(chunkBuffer);
+    chunks.push(chunkBlob);
+  }
+
+  return chunks;
+}
+
+async function bufferToBlob(buffer) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Blob([reader.result], { type: 'audio/wav' }));
+    reader.readAsArrayBuffer(buffer);
   });
-
-  // Initialize other event listeners
-  if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
-  
-  if (copyButton) {
-    copyButton.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(transcriptionElement?.textContent || '');
-        showSuccessMessage('Texto copiado al portapapeles');
-      } catch (err) {
-        console.error('Error al copiar:', err);
-      }
-    });
-  }
-
-  if (correctTextButton) correctTextButton.addEventListener('click', showCorrectionModal);
-  if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
-  if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
-  if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
-  
-  if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
-    acceptAllChangesButton.addEventListener('click', () => {
-      // Get the stored improved text instead of trying to parse the diff
-      const improvedText = textComparisonDiv.getAttribute('data-improved-text');
-      if (improvedText) {
-        transcriptionElement.textContent = improvedText;
-        comparisonModal.classList.add('hidden');
-        showSuccessMessage('Cambios aplicados correctamente');
-      }
-    });
-  }
-
-  if (cancelChangesButton && comparisonModal) {
-    cancelChangesButton.addEventListener('click', () => {
-      comparisonModal.classList.add('hidden');
-    });
-  }
-
-  // Initialize application
-  initializeTheme();
-  
-  try {
-    console.log('Initializing application...');
-    await initializeRecording();
-    
-    console.log('Initializing Firebase...');
-    db = await initializeFirebase();
-    
-    if (!db) {
-      console.error('Failed to initialize Firebase');
-      showSuccessMessage('Error durante la inicialización', {type: 'error'});
-    }
-  } catch (error) {
-    console.error('Error during initialization:', error);
-    showSuccessMessage('Error durante la inicialización', {type: 'error'});
-  }
-  
-  if (transcriptionElement) {
-    transcriptionElement.style.whiteSpace = 'pre-wrap';
-    transcriptionElement.style.wordBreak = 'break-word';
-  }
-});
-
-// Corrections management
-async function loadCorrections() {
-  console.log('Loading corrections...');
-  try {
-    if (!db) {
-      console.log('No database connection available');
-      return;
-    }
-
-    // Clean up existing snapshot listener if any
-    if (unsubscribeSnapshot) {
-      unsubscribeSnapshot();
-    }
-
-    // Set up a single snapshot listener for corrections
-    unsubscribeSnapshot = db.collection('corrections')
-      .onSnapshot((snapshot) => {
-        corrections.clear();
-        snapshot.forEach(doc => {
-          const correction = doc.data();
-          corrections.set(correction.original, correction.correction);
-        });
-        console.log('Corrections updated:', Array.from(corrections.entries()));
-      }, (error) => {
-        console.error('Error in corrections snapshot:', error);
-      });
-
-  } catch (error) {
-    console.error('Error loading corrections:', error);
-    corrections = new Map();
-    showSuccessMessage('Error cargando correcciones', {type: 'error'});
-  }
 }
 
-// Audio Recording Functions
-async function initializeRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      await transcribeAudio(audioBlob);
-    };
-
-    toggleButton.disabled = false;
-    statusElement.textContent = 'Listo para grabar';
-  } catch (error) {
-    console.error('Error al acceder al micrófono:', error);
-    statusElement.textContent = 'Error: No se pudo acceder al micrófono';
-    statusElement.classList.add('error');
-    toggleButton.disabled = true;
-  }
-}
-
-function toggleRecording() {
-  if (!mediaRecorder) {
-    console.error('MediaRecorder no está inicializado');
-    showSuccessMessage('Error: El micrófono no está disponible', {type: 'error'});
-    return;
-  }
-
-  if (!isRecording) {
-    startRecording();
-  } else {
-    stopRecording();
-  }
-}
-
-function startRecording() {
-  if (!mediaRecorder || mediaRecorder.state === 'recording') {
-    console.error('MediaRecorder no está listo o ya está grabando');
-    return;
-  }
-
-  try {
-    audioChunks = [];
-    mediaRecorder.start();
-    isRecording = true;
-    toggleButton.classList.add('recording');
-    toggleButton.innerHTML = `
-      <svg class="stop-icon" viewBox="0 0 24 24">
-        <rect x="6" y="6" width="12" height="12"/>
-      </svg>
-      Detener Grabación
-    `;
-    statusElement.textContent = 'Grabando...';
-    
-    startTime = Date.now();
-    updateTimer();
-    timerInterval = setInterval(updateTimer, 1000);
-  } catch (error) {
-    console.error('Error al iniciar la grabación:', error);
-    showSuccessMessage('Error al iniciar la grabación', {type: 'error'});
-  }
-}
-
-function stopRecording() {
-  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
-    console.error('MediaRecorder no está grabando');
-    return;
-  }
-
-  try {
-    mediaRecorder.stop();
-    isRecording = false;
-    toggleButton.classList.remove('recording');
-    toggleButton.innerHTML = `
-      <svg class="mic-icon" viewBox="0 0 24 24">
-        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-      </svg>
-      Iniciar Grabación
-    `;
-    statusElement.textContent = 'Grabación detenida';
-    
-    clearInterval(timerInterval);
-  } catch (error) {
-    console.error('Error al detener la grabación:', error);
-    showSuccessMessage('Error al detener la grabación', {type: 'error'});
-  }
-}
-
-function updateTimer() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-  const seconds = (elapsed % 60).toString().padStart(2, '0');
-  timerElement.textContent = `${minutes}:${seconds}`;
-}
-
-// Text Processing Functions
+// Updated transcribeAudio function to handle long audio
 async function transcribeAudio(audioBlob) {
   loadingElement.classList.remove('hidden');
   statusElement.textContent = 'Transcribiendo audio...';
-  
+
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'audio/wav'
-      },
-      body: audioBlob
-    });
+    // Split audio into chunks
+    const audioChunks = await splitAudioIntoChunks(audioBlob);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error en la transcripción: ${response.status} ${errorText}`);
+    let fullTranscription = '';
+
+    // Transcribe each chunk
+    for (const chunk of audioChunks) {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'audio/wav'
+        },
+        body: chunk
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error en la transcripción: ${response.status} ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(`Error API: ${result.error}`);
+      }
+
+      const rawText = result.text || '';
+      fullTranscription += rawText + ' '; // Concatenate transcriptions
     }
 
-    const result = await response.json();
-    
-    if (result.error) {
-      throw new Error(`Error API: ${result.error}`);
-    }
-    
-    const rawText = result.text || 'No se detectó texto en el audio';
-    console.log('Raw text from API:', rawText);
-    
-    // Process the text and apply corrections
-    const processedText = processText(rawText);
+    // Process the full transcription
+    const processedText = processText(fullTranscription.trim());
     console.log('Final processed and corrected text:', processedText);
-    
-    // Get current selection or cursor position info
+
+    // Insert the text into the transcription element
     const selection = window.getSelection();
     const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-    
-    // Only consider selection if it's within our transcription element
     const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
-    const isAtEnd = isSelectionInTranscription && 
-      range.startContainer === transcriptionElement && 
+    const isAtEnd = isSelectionInTranscription &&
+      range.startContainer === transcriptionElement &&
       range.startOffset === transcriptionElement.childNodes.length;
 
     if (isAtEnd || !isSelectionInTranscription) {
-      // Cursor at end or no valid selection - always append
+      // Cursor at end or no valid selection - append
       const currentContent = transcriptionElement.textContent;
-      transcriptionElement.textContent = currentContent + 
+      transcriptionElement.textContent = currentContent +
         (currentContent ? ' ' : '') + processedText.trim();
     } else if (selection.toString().length > 0) {
-      // Text is selected - replace selection with smart formatting
+      // Text is selected - replace selection
       const currentContent = transcriptionElement.textContent;
       const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
+        currentContent,
+        processedText,
         range.startOffset
       );
-      transcriptionElement.textContent = 
+      transcriptionElement.textContent =
         currentContent.substring(0, range.startOffset) +
         formattedText +
         currentContent.substring(range.endOffset);
     } else {
-      // Cursor is positioned - insert at cursor with smart formatting
+      // Cursor is positioned - insert at cursor
       const currentContent = transcriptionElement.textContent;
       const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
+        currentContent,
+        processedText,
         range.startOffset
       );
-      transcriptionElement.textContent = 
+      transcriptionElement.textContent =
         currentContent.substring(0, range.startOffset) +
         formattedText +
         currentContent.substring(range.startOffset);
     }
-    
+
     // Move cursor to the end
     const newRange = document.createRange();
     newRange.selectNodeContents(transcriptionElement);
@@ -421,7 +214,7 @@ async function transcribeAudio(audioBlob) {
     selection.removeAllRanges();
     selection.addRange(newRange);
     transcriptionElement.focus();
-    
+
     statusElement.textContent = 'Transcripción completada';
 
   } catch (error) {
@@ -438,12 +231,13 @@ async function transcribeAudio(audioBlob) {
   }
 }
 
+// Text Processing Functions
 function processText(text) {
   console.log('Original text:', text);
 
   // Step 1: Remove dots and commas, convert to lowercase
   let processed = text.toLowerCase().replace(/[.,]/g, '');
-  
+
   // Step 2: Handle "punto y aparte", "punto y seguido", and "punto"
   processed = processed
     // Handle "punto y aparte" first
@@ -452,13 +246,13 @@ function processText(text) {
     .replace(/punto y seguido/gi, '.')
     .replace(/\b(?<!y\s)punto\b/gi, '.');
   console.log('Step 2 - After punto replacements:', processed);
-    
+
   processed = processed
     // Handle "coma"
     .replace(/\bcoma\b/gi, ',');
   console.log('Step 2c - After coma:', processed);
 
-  // Step 3: Handle line spacing but don't automatically add periods 
+  // Step 3: Handle line spacing but don't automatically add periods
   processed = processed
     .split(/\n+/)
     .map(line => {
@@ -520,13 +314,13 @@ function processText(text) {
 function getSmartFormattedText(existingText, newText, position) {
   // Remove any trailing periods from the new text
   newText = newText.trim().replace(/\.$/, '');
-  
+
   // Determine if we should capitalize based on context
-  const shouldCapitalize = position === 0 || 
+  const shouldCapitalize = position === 0 ||
     (position > 0 && existingText.charAt(position - 1) === '.');
-  
+
   // Add space if needed (not at start and previous char isn't space, period or newline)
-  const needsSpace = position > 0 && 
+  const needsSpace = position > 0 &&
     ![' ', '.', '\n'].includes(existingText.charAt(position - 1));
 
   let formattedText = newText.trim();
@@ -535,228 +329,119 @@ function getSmartFormattedText(existingText, newText, position) {
   } else {
     formattedText = formattedText.charAt(0).toLowerCase() + formattedText.slice(1);
   }
-  
+
   if (needsSpace) {
     formattedText = ' ' + formattedText;
   }
-  
+
   return formattedText;
 }
 
-// Correction Functions
-async function saveCorrection(original, correction) {
+// Audio Recording Functions
+async function initializeRecording() {
   try {
-    if (!db || !firestoreConnection) {
-      console.error('No database connection available');
-      showSuccessMessage('Error: No hay conexión a la base de datos', {type: 'error'});
-      return false;
-    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
 
-    await db.collection('corrections').add({
-      original,
-      correction,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    corrections.set(original, correction);
-    console.log('Correction saved to Firestore');
-    return true;
-
-  } catch (error) {
-    console.error('Error saving correction:', error);
-    showSuccessMessage('Error al guardar la corrección', {type: 'error'});
-    return false;
-  }
-}
-
-function showCorrectionModal() {
-  const selection = window.getSelection();
-  const selectedText = selection.toString().trim();
-
-  if (!selectedText) {
-    alert('Por favor, selecciona el texto que deseas corregir');
-    return;
-  }
-
-  selectedTextElement.textContent = selectedText;
-  correctionTextArea.value = selectedText;
-  correctionModal.classList.remove('hidden');
-}
-
-function hideCorrectionModal() {
-  correctionModal.classList.add('hidden');
-  selectedTextElement.textContent = '';
-  correctionTextArea.value = '';
-}
-
-async function handleSaveCorrection() {
-  const originalText = selectedTextElement.textContent;
-  const correctionText = correctionTextArea.value.trim();
-
-  if (originalText === correctionText) {
-    alert('La corrección es igual al texto original');
-    return;
-  }
-
-  const success = await saveCorrection(originalText, correctionText);
-  if (success) {
-    const currentText = transcriptionElement.textContent;
-    transcriptionElement.textContent = currentText.replace(originalText, correctionText);
-    hideCorrectionModal();
-    showSuccessMessage('Corrección guardada');
-  }
-}
-
-// AI Improvement Functions
-async function improveWithAI() {
-  const originalText = transcriptionElement?.textContent?.trim();
-  if (!originalText) {
-    showSuccessMessage('No hay texto para mejorar');
-    return;
-  }
-
-  loadingElement.classList.remove('hidden');
-  statusElement.textContent = 'Mejorando texto con IA...';
-
-  try {
-    const requestBody = {
-      max_tokens: 3000,
-      stream: false,
-      messages: [{
-        role: "system",
-        content: "Eres un experto asistente de transcripción de textos médicos. Este es un texto de dictado bruto de tipo médico, en concreto un informe radiológico. Los signos de puntuación están incluidos en el dictado, no añadas ningun otro y capitaliza el texto correctamente. Ten en cuenta que la expresion punto o punto y seguido no implicaran poner un salto de linea, pero si lo haras si se usa la expresión puno y aparte. Además harasuna interpretación del texto pudiendo cambiar palabras si crees que el dictado bruto queria decir otra cosa. Por ultimo quiero que me devuelvas la transcripción corregida como tal, sin otros comentarios adicionales tuyos"
-      }, {
-        role: "user",
-        content: originalText
-      }],
-      response_format: {
-        type: "text"
-      },
-      agent_id: AI_AGENT_ID
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
     };
 
-    const response = await fetch('https://api.mistral.ai/v1/agents/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AI_API_KEY}`
-      },
-      body: JSON.stringify(requestBody)
-    });
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      await transcribeAudio(audioBlob);
+    };
 
-    if (!response.ok) {
-      throw new Error(`Error API: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const improvedText = data.choices[0].message.content;
-      showImprovedText(originalText, improvedText);
-    } else {
-      throw new Error('Formato de respuesta inválido');
-    }
-  } catch (error) {
-    console.error('Error al mejorar el texto:', error);
-    showSuccessMessage('Error al procesar el texto con IA');
-  } finally {
-    loadingElement.classList.add('hidden');
+    toggleButton.disabled = false;
     statusElement.textContent = 'Listo para grabar';
+  } catch (error) {
+    console.error('Error al acceder al micrófono:', error);
+    statusElement.textContent = 'Error: No se pudo acceder al micrófono';
+    statusElement.classList.add('error');
+    toggleButton.disabled = true;
   }
 }
 
-function showImprovedText(original, improved) {
-  // Create arrays of words
-  const originalWords = original.split(/(\s+)/);
-  const improvedWords = improved.split(/(\s+)/);
-  
-  // Initialize variables for the diff
-  let diffHtml = '';
-  let i = 0;
-  let j = 0;
-  
-  while (i < originalWords.length || j < improvedWords.length) {
-    if (i >= originalWords.length) {
-      // All remaining words in improved are additions
-      while (j < improvedWords.length) {
-        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-        j++;
-      }
-      break;
-    }
-    
-    if (j >= improvedWords.length) {
-      // All remaining words in original are removals
-      while (i < originalWords.length) {
-        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-        i++;
-      }
-      break;
-    }
-    
-    if (originalWords[i] === improvedWords[j]) {
-      // Words match, keep as is
-      diffHtml += originalWords[i];
-      i++;
-      j++;
-    } else {
-      // Words differ, try to find next match
-      let found = false;
-      
-      // Look ahead in improved text
-      for (let k = j + 1; k < improvedWords.length && k < j + 3; k++) {
-        if (originalWords[i] === improvedWords[k]) {
-          // Found match, mark intermediate words as added
-          while (j < k) {
-            diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-            j++;
-          }
-          found = true;
-          break;
-        }
-      }
-      
-      if (!found) {
-        // Look ahead in original text
-        for (let k = i + 1; k < originalWords.length && k < i + 3; k++) {
-          if (originalWords[k] === improvedWords[j]) {
-            // Found match, mark intermediate words as removed
-            while (i < k) {
-              diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-              i++;
-            }
-            found = true;
-            break;
-          }
-        }
-      }
-      
-      if (!found) {
-        // No match found within window, mark current words as removed/added
-        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-        i++;
-        j++;
-      }
-    }
+function toggleRecording() {
+  if (!mediaRecorder) {
+    console.error('MediaRecorder no está inicializado');
+    showSuccessMessage('Error: El micrófono no está disponible', { type: 'error' });
+    return;
   }
-  
-  // Store the improved text in a data attribute for later use
-  textComparisonDiv.setAttribute('data-improved-text', improved);
-  
-  textComparisonDiv.innerHTML = `
-    <div class="text-diff">
-      ${diffHtml}
-    </div>
-  `;
 
-  comparisonModal.classList.remove('hidden');
+  if (!isRecording) {
+    startRecording();
+  } else {
+    stopRecording();
+  }
+}
+
+function startRecording() {
+  if (!mediaRecorder || mediaRecorder.state === 'recording') {
+    console.error('MediaRecorder no está listo o ya está grabando');
+    return;
+  }
+
+  try {
+    audioChunks = [];
+    mediaRecorder.start();
+    isRecording = true;
+    toggleButton.classList.add('recording');
+    toggleButton.innerHTML = `
+      <svg class="stop-icon" viewBox="0 0 24 24">
+        <rect x="6" y="6" width="12" height="12"/>
+      </svg>
+      Detener Grabación
+    `;
+    statusElement.textContent = 'Grabando...';
+
+    startTime = Date.now();
+    updateTimer();
+    timerInterval = setInterval(updateTimer, 1000);
+  } catch (error) {
+    console.error('Error al iniciar la grabación:', error);
+    showSuccessMessage('Error al iniciar la grabación', { type: 'error' });
+  }
+}
+
+function stopRecording() {
+  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+    console.error('MediaRecorder no está grabando');
+    return;
+  }
+
+  try {
+    mediaRecorder.stop();
+    isRecording = false;
+    toggleButton.classList.remove('recording');
+    toggleButton.innerHTML = `
+      <svg class="mic-icon" viewBox="0 0 24 24">
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+      </svg>
+      Iniciar Grabación
+    `;
+    statusElement.textContent = 'Grabación detenida';
+
+    clearInterval(timerInterval);
+  } catch (error) {
+    console.error('Error al detener la grabación:', error);
+    showSuccessMessage('Error al detener la grabación', { type: 'error' });
+  }
+}
+
+function updateTimer() {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const seconds = (elapsed % 60).toString().padStart(2, '0');
+  timerElement.textContent = `${minutes}:${seconds}`;
 }
 
 // Utility Functions
 function showSuccessMessage(message, options = {}) {
   const container = document.querySelector('.container');
-  const {type = 'success'} = options;
-  
+  const { type = 'success' } = options;
+
   const successMessage = document.createElement('div');
   successMessage.className = `status-message ${type}`;
   successMessage.textContent = message;
@@ -777,7 +462,7 @@ function cleanup() {
   if (unsubscribeSnapshot) {
     unsubscribeSnapshot();
   }
-  
+
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
   }
@@ -787,11 +472,11 @@ function cleanup() {
 function initializeTheme() {
   const themeToggle = document.getElementById('themeToggle');
   const themeLabel = document.getElementById('themeLabel');
-  
+
   // Check for saved theme preference or system preference
   const savedTheme = localStorage.getItem('theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
+
   // Set initial theme
   if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
     document.documentElement.setAttribute('data-theme', 'dark');
@@ -814,12 +499,6 @@ function initializeTheme() {
 }
 
 // Keyboard Shortcuts
-document.addEventListener('keydown', function(event) {
+document.addEventListener('keydown', function (event) {
   if (event.shiftKey && event.metaKey && event.key === 'Shift') {
-    event.preventDefault();
-    toggleButton.click();
-  }
-});
-
-// Cleanup on page unload
-window.addEventListener('unload', cleanup);
+   

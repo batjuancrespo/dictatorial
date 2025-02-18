@@ -1,7 +1,7 @@
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo",
-  authDomain: "almacena-correcciones-dictado.firebaseapp.com",
+  authDomain: "almacena-correcciones-dictado.firebaseapp.com", 
   projectId: "almacena-correcciones-dictado",
   storageBucket: "almacena-correcciones-dictado.appspot.com",
   messagingSenderId: "209194920272",
@@ -45,16 +45,13 @@ let textComparisonDiv;
 let acceptAllChangesButton;
 let cancelChangesButton;
 
-const maxChunkSize = 30 * 16000; // 30 seconds at 16kHz sample rate (adjust if needed)
-let currentChunk = [];
-
 // Firebase initialization and management
 async function initializeFirebase() {
   try {
     if (!firebase.apps.length) {
       const app = firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
-
+      
       db.settings({
         ignoreUndefinedProperties: true,
         merge: true,
@@ -79,7 +76,7 @@ async function initializeFirebase() {
 
       return db;
     }
-
+    
     console.log('Firebase already initialized');
     db = firebase.firestore();
     return db;
@@ -115,15 +112,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.side-button').forEach(button => {
     button.addEventListener('click', () => {
       const textToInsert = button.getAttribute('data-text');
-
+      
       // Remove active state from all buttons
       document.querySelectorAll('.side-button').forEach(btn => {
         btn.classList.remove('active');
       });
-
+      
       // Mark current button as active
       button.classList.add('active');
-
+      
       // Get current transcription content
       const currentText = transcriptionElement.textContent;
 
@@ -132,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Match any of the templates at the start of the text
         const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
         const match = currentText.match(templateRegex);
-
+        
         if (match) {
           // Replace only the matched template at start
           transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
@@ -149,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize other event listeners
   if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
-
+  
   if (copyButton) {
     copyButton.addEventListener('click', async () => {
       try {
@@ -165,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
   if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
   if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
-
+  
   if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
     acceptAllChangesButton.addEventListener('click', () => {
       // Get the stored improved text instead of trying to parse the diff
@@ -186,27 +183,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize application
   initializeTheme();
-
+  
   try {
     console.log('Initializing application...');
     await initializeRecording();
-
+    
     console.log('Initializing Firebase...');
     db = await initializeFirebase();
-
+    
     if (!db) {
       console.error('Failed to initialize Firebase');
-      showSuccessMessage('Error durante la inicialización', {
-        type: 'error'
-      });
+      showSuccessMessage('Error durante la inicialización', {type: 'error'});
     }
   } catch (error) {
     console.error('Error during initialization:', error);
-    showSuccessMessage('Error durante la inicialización', {
-      type: 'error'
-    });
+    showSuccessMessage('Error durante la inicialización', {type: 'error'});
   }
-
+  
   if (transcriptionElement) {
     transcriptionElement.style.whiteSpace = 'pre-wrap';
     transcriptionElement.style.wordBreak = 'break-word';
@@ -243,22 +236,24 @@ async function loadCorrections() {
   } catch (error) {
     console.error('Error loading corrections:', error);
     corrections = new Map();
-    showSuccessMessage('Error cargando correcciones', {
-      type: 'error'
-    });
+    showSuccessMessage('Error cargando correcciones', {type: 'error'});
   }
 }
 
 // Audio Recording Functions
 async function initializeRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRecorder = new MediaRecorder(stream);
+    
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
 
-    mediaRecorder.ondataavailable = handleDataAvailable; // Use the new handler
-    mediaRecorder.onstop = handleStop; // and handleStop
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      await transcribeAudio(audioBlob);
+    };
 
     toggleButton.disabled = false;
     statusElement.textContent = 'Listo para grabar';
@@ -273,9 +268,7 @@ async function initializeRecording() {
 function toggleRecording() {
   if (!mediaRecorder) {
     console.error('MediaRecorder no está inicializado');
-    showSuccessMessage('Error: El micrófono no está disponible', {
-      type: 'error'
-    });
+    showSuccessMessage('Error: El micrófono no está disponible', {type: 'error'});
     return;
   }
 
@@ -294,7 +287,6 @@ function startRecording() {
 
   try {
     audioChunks = [];
-    currentChunk = []; // Reset currentChunk
     mediaRecorder.start();
     isRecording = true;
     toggleButton.classList.add('recording');
@@ -305,15 +297,13 @@ function startRecording() {
       Detener Grabación
     `;
     statusElement.textContent = 'Grabando...';
-
+    
     startTime = Date.now();
     updateTimer();
     timerInterval = setInterval(updateTimer, 1000);
   } catch (error) {
     console.error('Error al iniciar la grabación:', error);
-    showSuccessMessage('Error al iniciar la grabación', {
-      type: 'error'
-    });
+    showSuccessMessage('Error al iniciar la grabación', {type: 'error'});
   }
 }
 
@@ -335,13 +325,11 @@ function stopRecording() {
       Iniciar Grabación
     `;
     statusElement.textContent = 'Grabación detenida';
-
+    
     clearInterval(timerInterval);
   } catch (error) {
     console.error('Error al detener la grabación:', error);
-    showSuccessMessage('Error al detener la grabación', {
-      type: 'error'
-    });
+    showSuccessMessage('Error al detener la grabación', {type: 'error'});
   }
 }
 
@@ -352,114 +340,63 @@ function updateTimer() {
   timerElement.textContent = `${minutes}:${seconds}`;
 }
 
-function convertFloat32ToInt16(buffer) {
-  let l = buffer.length;
-  let buf = new Int16Array(l);
-  while (l--) {
-    buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
-  }
-  return buf.buffer;
-}
-
-async function handleDataAvailable(event) {
-  console.log("Data available", event);
-  loadingElement.classList.remove('hidden'); // Show loading indicator
+// Text Processing Functions
+async function transcribeAudio(audioBlob) {
+  loadingElement.classList.remove('hidden');
   statusElement.textContent = 'Transcribiendo audio...';
-
-  if (event.data.size > 0) {
-    const arrayBuffer = await event.data.arrayBuffer();
-    const audioContext = new AudioContext({
-      sampleRate: 16000
-    }); // Or your desired sample rate
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    const float32Array = audioBuffer.getChannelData(0); // Get data from the first channel
-    const int16Array = convertFloat32ToInt16(float32Array);
-    const int16Data = new Int16Array(int16Array);
-
-    currentChunk = currentChunk.concat(Array.from(int16Data));
-
-    while (currentChunk.length >= maxChunkSize) {
-      const chunkToSend = currentChunk.splice(0, maxChunkSize);
-      await sendChunkToAPI(new Int16Array(chunkToSend)); // Await the API call
-    }
-  }
-}
-
-async function handleStop() {
-  // Send any remaining data
-  if (currentChunk.length > 0) {
-    await sendChunkToAPI(new Int16Array(currentChunk)); // Await the API call
-  }
-  audioChunks = []; // Clear chunks
-  currentChunk = [];
-  loadingElement.classList.add('hidden'); // Hide loading indicator
-  statusElement.textContent = 'Transcripción completada'; // Set status after all chunks are processed
-  console.log("Recording stopped and processed");
-}
-
-async function sendChunkToAPI(int16ArrayChunk) {
-  console.log("Sending chunk to API:", int16ArrayChunk.length, "samples");
-
+  
   try {
-    const audioBlob = new Blob([int16ArrayChunk], {
-      type: 'audio/pcm'
-    }); // Correct Blob type
-
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'audio/pcm; rate=16000; format=s16le' // Correct Content-Type
+        'Content-Type': 'audio/wav'
       },
-      body: audioBlob // Send the raw PCM data
+      body: audioBlob
     });
 
-    console.log("API Response Status:", response.status); // Log the status
-    const responseText = await response.text(); // Get response text for debugging
-    console.log("API Response Text:", responseText);
-
-
     if (!response.ok) {
-      throw new Error(`Error en la transcripción: ${response.status} ${responseText}`);
+      const errorText = await response.text();
+      throw new Error(`Error en la transcripción: ${response.status} ${errorText}`);
     }
 
-    const result = JSON.parse(responseText); // Parse the text as JSON
-
+    const result = await response.json();
+    
     if (result.error) {
       throw new Error(`Error API: ${result.error}`);
     }
-
+    
     const rawText = result.text || 'No se detectó texto en el audio';
     console.log('Raw text from API:', rawText);
-
+    
     // Process the text and apply corrections
     const processedText = processText(rawText);
     console.log('Final processed and corrected text:', processedText);
-
+    
     // Get current selection or cursor position info
     const selection = window.getSelection();
     const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-
+    
     // Only consider selection if it's within our transcription element
     const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
-    const isAtEnd = isSelectionInTranscription &&
-      range.startContainer === transcriptionElement &&
+    const isAtEnd = isSelectionInTranscription && 
+      range.startContainer === transcriptionElement && 
       range.startOffset === transcriptionElement.childNodes.length;
 
     if (isAtEnd || !isSelectionInTranscription) {
       // Cursor at end or no valid selection - always append
       const currentContent = transcriptionElement.textContent;
-      transcriptionElement.textContent = currentContent +
+      transcriptionElement.textContent = currentContent + 
         (currentContent ? ' ' : '') + processedText.trim();
     } else if (selection.toString().length > 0) {
       // Text is selected - replace selection with smart formatting
       const currentContent = transcriptionElement.textContent;
       const formattedText = getSmartFormattedText(
-        currentContent,
-        processedText,
+        currentContent, 
+        processedText, 
         range.startOffset
       );
-      transcriptionElement.textContent =
+      transcriptionElement.textContent = 
         currentContent.substring(0, range.startOffset) +
         formattedText +
         currentContent.substring(range.endOffset);
@@ -467,16 +404,16 @@ async function sendChunkToAPI(int16ArrayChunk) {
       // Cursor is positioned - insert at cursor with smart formatting
       const currentContent = transcriptionElement.textContent;
       const formattedText = getSmartFormattedText(
-        currentContent,
-        processedText,
+        currentContent, 
+        processedText, 
         range.startOffset
       );
-      transcriptionElement.textContent =
+      transcriptionElement.textContent = 
         currentContent.substring(0, range.startOffset) +
         formattedText +
         currentContent.substring(range.startOffset);
     }
-
+    
     // Move cursor to the end
     const newRange = document.createRange();
     newRange.selectNodeContents(transcriptionElement);
@@ -484,33 +421,29 @@ async function sendChunkToAPI(int16ArrayChunk) {
     selection.removeAllRanges();
     selection.addRange(newRange);
     transcriptionElement.focus();
-
+    
+    statusElement.textContent = 'Transcripción completada';
 
   } catch (error) {
     console.error('Error en la transcripción:', error);
-    // Display error *only* if it hasn't been displayed yet.
-    if (!transcriptionElement.textContent.startsWith("Error:")) {
-      transcriptionElement.textContent = `Error: ${error.message}`;
-    }
+    transcriptionElement.textContent = `Error: ${error.message}`;
     statusElement.textContent = 'Error en la transcripción';
     statusElement.classList.add('error');
   } finally {
-    // We *don't* hide the loading indicator here, it's handled in handleStop
-    // and handleDataAvailable
+    loadingElement.classList.add('hidden');
     setTimeout(() => {
       statusElement.classList.remove('error');
-      // Don't reset status here, it's handled after all chunks are processed
+      statusElement.textContent = 'Listo para grabar';
     }, 3000);
   }
 }
 
-// Text Processing Functions
 function processText(text) {
   console.log('Original text:', text);
 
   // Step 1: Remove dots and commas, convert to lowercase
   let processed = text.toLowerCase().replace(/[.,]/g, '');
-
+  
   // Step 2: Handle "punto y aparte", "punto y seguido", and "punto"
   processed = processed
     // Handle "punto y aparte" first
@@ -519,20 +452,20 @@ function processText(text) {
     .replace(/punto y seguido/gi, '.')
     .replace(/\b(?<!y\s)punto\b/gi, '.');
   console.log('Step 2 - After punto replacements:', processed);
-
+    
   processed = processed
     // Handle "coma"
     .replace(/\bcoma\b/gi, ',');
   console.log('Step 2c - After coma:', processed);
 
-  // Step 3: Handle line spacing but don't automatically add periods
+  // Step 3: Handle line spacing but don't automatically add periods 
   processed = processed
     .split(/\n+/)
     .map(line => {
       line = line.trim();
       return line;
     })
-    .join('\n\n'); // Add double newline between paragraphs
+    .join('\n\n');  // Add double newline between paragraphs
 
   // Step 4: Capitalize properly
   processed = processed
@@ -549,7 +482,7 @@ function processText(text) {
         })
         .join('. ');
     })
-    .join('\n\n'); // Ensure paragraphs are separated by double newline
+    .join('\n\n');  // Ensure paragraphs are separated by double newline
 
   // Step 5: Add proper spacing after punctuation
   processed = processed
@@ -570,7 +503,7 @@ function processText(text) {
       paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
       return paragraph.trim();
     })
-    .join('\n') // Double newline between paragraphs
+    .join('\n')  // Double newline between paragraphs
     .replace(/\n\s*\n\s*\n+/g, '\n\n'); // Remove excessive newlines
 
   // Apply corrections if available
@@ -587,13 +520,13 @@ function processText(text) {
 function getSmartFormattedText(existingText, newText, position) {
   // Remove any trailing periods from the new text
   newText = newText.trim().replace(/\.$/, '');
-
+  
   // Determine if we should capitalize based on context
-  const shouldCapitalize = position === 0 ||
+  const shouldCapitalize = position === 0 || 
     (position > 0 && existingText.charAt(position - 1) === '.');
-
+  
   // Add space if needed (not at start and previous char isn't space, period or newline)
-  const needsSpace = position > 0 &&
+  const needsSpace = position > 0 && 
     ![' ', '.', '\n'].includes(existingText.charAt(position - 1));
 
   let formattedText = newText.trim();
@@ -602,11 +535,11 @@ function getSmartFormattedText(existingText, newText, position) {
   } else {
     formattedText = formattedText.charAt(0).toLowerCase() + formattedText.slice(1);
   }
-
+  
   if (needsSpace) {
     formattedText = ' ' + formattedText;
   }
-
+  
   return formattedText;
 }
 
@@ -615,9 +548,7 @@ async function saveCorrection(original, correction) {
   try {
     if (!db || !firestoreConnection) {
       console.error('No database connection available');
-      showSuccessMessage('Error: No hay conexión a la base de datos', {
-        type: 'error'
-      });
+      showSuccessMessage('Error: No hay conexión a la base de datos', {type: 'error'});
       return false;
     }
 
@@ -626,16 +557,14 @@ async function saveCorrection(original, correction) {
       correction,
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
-
+    
     corrections.set(original, correction);
     console.log('Correction saved to Firestore');
     return true;
 
   } catch (error) {
     console.error('Error saving correction:', error);
-    showSuccessMessage('Error al guardar la corrección', {
-      type: 'error'
-    });
+    showSuccessMessage('Error al guardar la corrección', {type: 'error'});
     return false;
   }
 }
@@ -739,12 +668,12 @@ function showImprovedText(original, improved) {
   // Create arrays of words
   const originalWords = original.split(/(\s+)/);
   const improvedWords = improved.split(/(\s+)/);
-
+  
   // Initialize variables for the diff
   let diffHtml = '';
   let i = 0;
   let j = 0;
-
+  
   while (i < originalWords.length || j < improvedWords.length) {
     if (i >= originalWords.length) {
       // All remaining words in improved are additions
@@ -754,7 +683,7 @@ function showImprovedText(original, improved) {
       }
       break;
     }
-
+    
     if (j >= improvedWords.length) {
       // All remaining words in original are removals
       while (i < originalWords.length) {
@@ -763,7 +692,7 @@ function showImprovedText(original, improved) {
       }
       break;
     }
-
+    
     if (originalWords[i] === improvedWords[j]) {
       // Words match, keep as is
       diffHtml += originalWords[i];
@@ -772,7 +701,7 @@ function showImprovedText(original, improved) {
     } else {
       // Words differ, try to find next match
       let found = false;
-
+      
       // Look ahead in improved text
       for (let k = j + 1; k < improvedWords.length && k < j + 3; k++) {
         if (originalWords[i] === improvedWords[k]) {
@@ -785,7 +714,7 @@ function showImprovedText(original, improved) {
           break;
         }
       }
-
+      
       if (!found) {
         // Look ahead in original text
         for (let k = i + 1; k < originalWords.length && k < i + 3; k++) {
@@ -800,7 +729,7 @@ function showImprovedText(original, improved) {
           }
         }
       }
-
+      
       if (!found) {
         // No match found within window, mark current words as removed/added
         diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
@@ -810,10 +739,10 @@ function showImprovedText(original, improved) {
       }
     }
   }
-
+  
   // Store the improved text in a data attribute for later use
   textComparisonDiv.setAttribute('data-improved-text', improved);
-
+  
   textComparisonDiv.innerHTML = `
     <div class="text-diff">
       ${diffHtml}
@@ -826,10 +755,8 @@ function showImprovedText(original, improved) {
 // Utility Functions
 function showSuccessMessage(message, options = {}) {
   const container = document.querySelector('.container');
-  const {
-    type = 'success'
-  } = options;
-
+  const {type = 'success'} = options;
+  
   const successMessage = document.createElement('div');
   successMessage.className = `status-message ${type}`;
   successMessage.textContent = message;
@@ -841,8 +768,58 @@ function showSuccessMessage(message, options = {}) {
 
   setTimeout(() => {
     successMessage.classList.remove('show');
-    setTimeout(() => successMessage.remove(), 300); // Corrected this line
+    setTimeout(() => successMessage.remove(), 300);
   }, 3000);
 }
 
 // Cleanup Function
+function cleanup() {
+  if (unsubscribeSnapshot) {
+    unsubscribeSnapshot();
+  }
+  
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+  }
+}
+
+// Theme Management
+function initializeTheme() {
+  const themeToggle = document.getElementById('themeToggle');
+  const themeLabel = document.getElementById('themeLabel');
+  
+  // Check for saved theme preference or system preference
+  const savedTheme = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  
+  // Set initial theme
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    themeToggle.checked = true;
+    themeLabel.textContent = '☀️';
+  }
+
+  // Theme toggle handler
+  themeToggle.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeLabel.textContent = '☀️';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      localStorage.setItem('theme', 'light');
+      themeLabel.textContent = '🌙';
+    }
+  });
+}
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', function(event) {
+  if (event.shiftKey && event.metaKey && event.key === 'Shift') {
+    event.preventDefault();
+    toggleButton.click();
+  }
+});
+
+// Cleanup on page unload
+window.addEventListener('unload', cleanup);

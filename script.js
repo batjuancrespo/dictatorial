@@ -24,9 +24,15 @@ let unsubscribeSnapshot = null;
 let mediaRecorder;
 let audioChunks = [];
 let startTime;
+let recordingStartTime;
 let timerInterval;
 let isRecording = false;
 let corrections = new Map();
+let chunkDuration = 45000; // 45 seconds in milliseconds
+let chunkInterval;
+let allTranscriptions = []; // Array to store all chunk transcriptions
+
+// DOM elements
 let transcriptionElement;
 let toggleButton;
 let statusElement;
@@ -247,12 +253,14 @@ async function initializeRecording() {
     mediaRecorder = new MediaRecorder(stream);
     
     mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      await transcribeAudio(audioBlob);
+      // This will be triggered both for chunks and when stopping the recording
+      console.log('MediaRecorder stopped');
     };
 
     toggleButton.disabled = false;
@@ -286,7 +294,12 @@ function startRecording() {
   }
 
   try {
+    // Reset for new recording
     audioChunks = [];
+    allTranscriptions = [];
+    recordingStartTime = Date.now();
+    
+    // Start recording
     mediaRecorder.start();
     isRecording = true;
     toggleButton.classList.add('recording');
@@ -301,6 +314,32 @@ function startRecording() {
     startTime = Date.now();
     updateTimer();
     timerInterval = setInterval(updateTimer, 1000);
+    
+    // Set up chunk interval - create a new chunk every 45 seconds
+    chunkInterval = setInterval(() => {
+      if (isRecording && mediaRecorder.state === 'recording') {
+        console.log('Creating new chunk after 45 seconds');
+        
+        // Stop the current recording to create a chunk
+        mediaRecorder.stop();
+        
+        // Process the chunk we just created
+        const currentChunks = [...audioChunks];
+        processAudioChunk(currentChunks);
+        
+        // Clear the chunks array for the next segment
+        audioChunks = [];
+        
+        // Start a new recording segment after a small delay
+        setTimeout(() => {
+          if (isRecording) {
+            mediaRecorder.start();
+            console.log('Started recording new chunk');
+          }
+        }, 100);
+      }
+    }, chunkDuration);
+    
   } catch (error) {
     console.error('Error al iniciar la grabación:', error);
     showSuccessMessage('Error al iniciar la grabación', {type: 'error'});
@@ -308,13 +347,40 @@ function startRecording() {
 }
 
 function stopRecording() {
-  if (!mediaRecorder || mediaRecorder.state !== 'recording') {
-    console.error('MediaRecorder no está grabando');
+  if (!mediaRecorder) {
+    console.error('MediaRecorder no está inicializado');
     return;
   }
 
   try {
-    mediaRecorder.stop();
+    // Stop the chunk interval
+    clearInterval(chunkInterval);
+    
+    // Clear the timer interval
+    clearInterval(timerInterval);
+    
+    // Only stop the mediaRecorder if it's recording
+    if (mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      
+      // Process the final chunk after a small delay
+      setTimeout(() => {
+        if (audioChunks.length > 0) {
+          processAudioChunk(audioChunks, true);
+        } else {
+          // If no chunks to process, just update UI
+          finalizeRecording();
+        }
+      }, 200);
+    } else {
+      // If already stopped (due to chunking), just process any remaining chunks
+      if (audioChunks.length > 0) {
+        processAudioChunk(audioChunks, true);
+      } else {
+        finalizeRecording();
+      }
+    }
+    
     isRecording = false;
     toggleButton.classList.remove('recording');
     toggleButton.innerHTML = `
@@ -324,13 +390,67 @@ function stopRecording() {
       </svg>
       Iniciar Grabación
     `;
-    statusElement.textContent = 'Grabación detenida';
+    statusElement.textContent = 'Procesando grabación...';
     
-    clearInterval(timerInterval);
   } catch (error) {
     console.error('Error al detener la grabación:', error);
     showSuccessMessage('Error al detener la grabación', {type: 'error'});
   }
+}
+
+async function processAudioChunk(chunks, isFinal = false) {
+  // Skip if no chunks
+  if (!chunks || chunks.length === 0) {
+    console.log('No audio chunks to process');
+    return;
+  }
+  
+  try {
+    console.log(`Processing audio chunk (isFinal: ${isFinal})`);
+    
+    // Create a blob from the audio chunks
+    const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+    
+    // Show loading indication only for final chunk to avoid flicker
+    if (isFinal) {
+      loadingElement.classList.remove('hidden');
+    }
+    
+    // Transcribe this chunk
+    const transcriptionText = await transcribeAudio(audioBlob);
+    
+    if (transcriptionText) {
+      // Add this transcription to our collection
+      allTranscriptions.push(transcriptionText);
+      
+      // If this is the final chunk, combine all transcriptions and update the UI
+      if (isFinal) {
+        finalizeRecording();
+      }
+    }
+  } catch (error) {
+    console.error('Error processing audio chunk:', error);
+    if (isFinal) {
+      showSuccessMessage('Error al procesar el audio', {type: 'error'});
+      finalizeRecording();
+    }
+  }
+}
+
+function finalizeRecording() {
+  // Combine all transcriptions
+  if (allTranscriptions.length > 0) {
+    const combinedText = allTranscriptions.join(' ');
+    updateTranscriptionText(combinedText);
+  }
+  
+  // Reset state
+  audioChunks = [];
+  allTranscriptions = [];
+  
+  // Update UI
+  loadingElement.classList.add('hidden');
+  statusElement.textContent = 'Listo para grabar';
 }
 
 function updateTimer() {
@@ -342,8 +462,7 @@ function updateTimer() {
 
 // Text Processing Functions
 async function transcribeAudio(audioBlob) {
-  loadingElement.classList.remove('hidden');
-  statusElement.textContent = 'Transcribiendo audio...';
+  console.log(`Transcribing audio chunk of size: ${audioBlob.size} bytes`);
   
   try {
     const response = await fetch(API_URL, {
@@ -366,76 +485,79 @@ async function transcribeAudio(audioBlob) {
       throw new Error(`Error API: ${result.error}`);
     }
     
-    const rawText = result.text || 'No se detectó texto en el audio';
+    const rawText = result.text || '';
     console.log('Raw text from API:', rawText);
+    
+    if (!rawText || rawText.trim() === '') {
+      console.log('No text detected in this audio chunk');
+      return '';
+    }
     
     // Process the text and apply corrections
     const processedText = processText(rawText);
-    console.log('Final processed and corrected text:', processedText);
+    console.log('Processed text from chunk:', processedText);
     
-    // Get current selection or cursor position info
-    const selection = window.getSelection();
-    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    return processedText;
     
-    // Only consider selection if it's within our transcription element
-    const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
-    const isAtEnd = isSelectionInTranscription && 
-      range.startContainer === transcriptionElement && 
-      range.startOffset === transcriptionElement.childNodes.length;
-
-    if (isAtEnd || !isSelectionInTranscription) {
-      // Cursor at end or no valid selection - always append
-      const currentContent = transcriptionElement.textContent;
-      transcriptionElement.textContent = currentContent + 
-        (currentContent ? ' ' : '') + processedText.trim();
-    } else if (selection.toString().length > 0) {
-      // Text is selected - replace selection with smart formatting
-      const currentContent = transcriptionElement.textContent;
-      const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
-        range.startOffset
-      );
-      transcriptionElement.textContent = 
-        currentContent.substring(0, range.startOffset) +
-        formattedText +
-        currentContent.substring(range.endOffset);
-    } else {
-      // Cursor is positioned - insert at cursor with smart formatting
-      const currentContent = transcriptionElement.textContent;
-      const formattedText = getSmartFormattedText(
-        currentContent, 
-        processedText, 
-        range.startOffset
-      );
-      transcriptionElement.textContent = 
-        currentContent.substring(0, range.startOffset) +
-        formattedText +
-        currentContent.substring(range.startOffset);
-    }
-    
-    // Move cursor to the end
-    const newRange = document.createRange();
-    newRange.selectNodeContents(transcriptionElement);
-    newRange.collapse(false); // collapse to end
-    selection.removeAllRanges();
-    selection.addRange(newRange);
-    transcriptionElement.focus();
-    
-    statusElement.textContent = 'Transcripción completada';
-
   } catch (error) {
     console.error('Error en la transcripción:', error);
-    transcriptionElement.textContent = `Error: ${error.message}`;
     statusElement.textContent = 'Error en la transcripción';
     statusElement.classList.add('error');
-  } finally {
-    loadingElement.classList.add('hidden');
-    setTimeout(() => {
-      statusElement.classList.remove('error');
-      statusElement.textContent = 'Listo para grabar';
-    }, 3000);
+    return '';
   }
+}
+
+function updateTranscriptionText(processedText) {
+  if (!processedText || processedText.trim() === '') return;
+  
+  // Get current selection or cursor position info
+  const selection = window.getSelection();
+  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+  
+  // Only consider selection if it's within our transcription element
+  const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
+  const isAtEnd = isSelectionInTranscription && 
+    range.startContainer === transcriptionElement && 
+    range.startOffset === transcriptionElement.childNodes.length;
+
+  if (isAtEnd || !isSelectionInTranscription) {
+    // Cursor at end or no valid selection - always append
+    const currentContent = transcriptionElement.textContent;
+    transcriptionElement.textContent = currentContent + 
+      (currentContent ? ' ' : '') + processedText.trim();
+  } else if (selection.toString().length > 0) {
+    // Text is selected - replace selection with smart formatting
+    const currentContent = transcriptionElement.textContent;
+    const formattedText = getSmartFormattedText(
+      currentContent, 
+      processedText, 
+      range.startOffset
+    );
+    transcriptionElement.textContent = 
+      currentContent.substring(0, range.startOffset) +
+      formattedText +
+      currentContent.substring(range.endOffset);
+  } else {
+    // Cursor is positioned - insert at cursor with smart formatting
+    const currentContent = transcriptionElement.textContent;
+    const formattedText = getSmartFormattedText(
+      currentContent, 
+      processedText, 
+      range.startOffset
+    );
+    transcriptionElement.textContent = 
+      currentContent.substring(0, range.startOffset) +
+      formattedText +
+      currentContent.substring(range.startOffset);
+  }
+  
+  // Move cursor to the end
+  const newRange = document.createRange();
+  newRange.selectNodeContents(transcriptionElement);
+  newRange.collapse(false); // collapse to end
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+  transcriptionElement.focus();
 }
 
 function processText(text) {

@@ -746,7 +746,7 @@ async function improveWithAI() {
       stream: false,
       messages: [{
         role: "system",
-        content: "Eres un experto asistente de transcripción de textos médicos. Este es un texto de dictado bruto de tipo médico, en concreto un informe radiológico. Los signos de puntuación están incluidos en el dictado, no añadas ningun otro y capitaliza el texto correctamente. Ten en cuenta que la expresion punto o punto y seguido no implicaran poner un salto de linea, pero si lo haras si se usa la expresión puno y aparte. Además harasuna interpretación del texto pudiendo cambiar palabras si crees que el dictado bruto queria decir otra cosa. Por ultimo quiero que me devuelvas la transcripción corregida como tal, sin otros comentarios adicionales tuyos"
+        content: "Eres un experto asistente de transcripción de textos médicos. Este es un texto de dictado bruto de tipo médico, en concreto un informe radiológico. Los signos de puntuación están incluidos en el dictado, no añadas ningun otro y capitaliza el texto correctamente, respetando los saltos de linea tal y como estan. Ten en cuenta que la expresion punto o punto y seguido no implicaran poner un salto de linea, pero si lo haras si se usa la expresión punto y aparte. Además haras una interpretación del texto pudiendo cambiar palabras si crees que el dictado bruto queria decir otra cosa. Por ultimo quiero que me devuelvas la transcripción corregida como tal, sin otros comentarios adicionales tuyos"
       }, {
         role: "user",
         content: originalText

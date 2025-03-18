@@ -563,33 +563,34 @@ function updateTranscriptionText(processedText) {
 function processText(text) {
   console.log('Original text:', text);
 
-  // Step 1: Remove dots and commas, convert to lowercase
-  let processed = text.toLowerCase().replace(/[.,]/g, '');
-  
-  // Step 2: Handle "punto y aparte", "punto y seguido", and "punto"
+  // Paso 1: Proteger comas en números (Ej: "3,2 cm" → "3⎷2 cm")
+  let processed = text.replace(/(\d),(\d)/g, '$1⎷$2'); // Reemplaza "," entre números por un carácter especial
+
+  // Eliminar comas y puntos que no están protegidos
+  processed = processed.toLowerCase().replace(/[.,]/g, '');
+
+  // Restaurar comas protegidas (Ej: "3⎷2 cm" → "3,2 cm")
+  processed = processed.replace(/⎷/g, ',');
+
+  // Paso 2: Manejo de "punto y aparte", "punto y seguido", y "punto"
   processed = processed
-    // Handle "punto y aparte" first
     .replace(/punto y aparte/gi, '.\n\n')
-    // Then handle "punto y seguido" and single "punto"
     .replace(/punto y seguido/gi, '.')
     .replace(/\b(?<!y\s)punto\b/gi, '.');
-  console.log('Step 2 - After punto replacements:', processed);
-    
-  processed = processed
-    // Handle "coma"
-    .replace(/\bcoma\b/gi, ',');
-  console.log('Step 2c - After coma:', processed);
+  console.log('Paso 2 - Después de reemplazar puntos:', processed);
 
-  // Step 3: Handle line spacing but don't automatically add periods 
+  // Paso 3: Reemplazo de "coma", asegurando que no afecte números protegidos
+  processed = processed.replace(/\bcoma\b(?!\s*\d)/gi, ',');
+
+  console.log('Paso 3 - Después de reemplazar comas:', processed);
+
+  // Paso 4: Manejo del espaciado entre líneas
   processed = processed
     .split(/\n+/)
-    .map(line => {
-      line = line.trim();
-      return line;
-    })
-    .join('\n\n');  // Add double newline between paragraphs
+    .map(line => line.trim())
+    .join('\n\n');
 
-  // Step 4: Capitalize properly
+  // Paso 5: Capitalización de oraciones
   processed = processed
     .split(/\n+/)
     .map(paragraph => {
@@ -597,39 +598,36 @@ function processText(text) {
         .split(/\.\s+/)
         .map(sentence => {
           sentence = sentence.trim();
-          if (sentence) {
-            return sentence.charAt(0).toUpperCase() + sentence.slice(1);
-          }
-          return sentence;
+          return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : sentence;
         })
         .join('. ');
     })
-    .join('\n\n');  // Ensure paragraphs are separated by double newline
+    .join('\n\n');
 
-  // Step 5: Add proper spacing after punctuation
+  // Paso 6: Espaciado después de puntuación, asegurando que no afecte números
   processed = processed
-    .replace(/,(\S)/g, ', $1')
+    .replace(/,(?!\d)/g, ', ') // Solo agrega espacio después de comas que no están en números
     .replace(/\.(\S)/g, '. $1');
 
-  // Step 6: Remove duplicate punctuation
+  // Paso 7: Eliminación de puntuación repetida
   processed = processed
     .replace(/\.+/g, '.')
     .replace(/,+/g, ',');
 
-  // Step 7: Final cleanup and apply corrections
+  // Paso 8: Limpieza final y aplicación de correcciones
   processed = processed
     .split(/\n+/)
     .map(paragraph => {
-      paragraph = paragraph.replace(/\s+([.,])/g, '$1');
-      paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2');
+      paragraph = paragraph.replace(/\s+([.,])/g, '$1'); // Elimina espacios antes de puntuación
+      paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2'); // Asegura espacio después de puntuación
       paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
       return paragraph.trim();
     })
-    .join('\n')  // Double newline between paragraphs
-    .replace(/\n\s*\n\s*\n+/g, '\n\n'); // Remove excessive newlines
+    .join('\n')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n'); // Elimina saltos de línea excesivos
 
-  // Apply corrections if available
-  if (corrections.size > 0) {
+  // Aplicar correcciones si existen
+  if (typeof corrections !== 'undefined' && corrections.size > 0) {
     corrections.forEach((correction, original) => {
       const regex = new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       processed = processed.replace(regex, correction);
@@ -638,6 +636,7 @@ function processText(text) {
 
   return processed;
 }
+
 
 function getSmartFormattedText(existingText, newText, position) {
   // Remove any trailing periods from the new text

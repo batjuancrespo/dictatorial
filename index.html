@@ -3,46 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dictado Radiológico v30 (Debug Login)</title>
+    <title>Dictado Radiológico v31 (Imágenes+Atajo)</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
 
     <!-- Firebase SDK Imports -->
     <script type="module">
-      const firebaseConfig = {
-        apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", // ¡¡MOVER A LUGAR SEGURO EN PRODUCCIÓN!!
-        authDomain: "almacena-correcciones-dictado.firebaseapp.com",
-        projectId: "almacena-correcciones-dictado",
-        storageBucket: "almacena-correcciones-dictado.appspot.com",
-        messagingSenderId: "209194920272",
-        appId: "1:209194920272:web:ccbec69d0a5aa88789e455",
-        measurementId: "G-6PQSKYMDP0"
-      };
-      // userId se obtendrá de Auth
-
-      try {
-            const fa = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
-            const fs = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
-            const fbAuth = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
-            window.firebaseApp = fa.initializeApp(firebaseConfig);
-            window.db = fs.getFirestore(window.firebaseApp);
-            window.doc = fs.doc; window.getDoc = fs.getDoc; window.setDoc = fs.setDoc;
-            window.auth = fbAuth.getAuth(window.firebaseApp);
-            window.createUserWithEmailAndPassword = fbAuth.createUserWithEmailAndPassword;
-            window.signInWithEmailAndPassword = fbAuth.signInWithEmailAndPassword;
-            window.signOut = fbAuth.signOut;
-            window.onAuthStateChanged = fbAuth.onAuthStateChanged;
-            console.log("Firebase (App, Firestore, Auth) inicializado.");
-            document.dispatchEvent(new CustomEvent('firebaseReady'));
-      } catch (error) {
-            console.error("Error inicializando Firebase:", error);
-            alert("Error crítico: No se pudo inicializar Firebase.");
-            document.body.innerHTML = '<h1>Error de Carga</h1><p>No se pudo conectar con los servicios necesarios.</p>';
-      }
+      const firebaseConfig = { /* ... Tu config ... */ };
+      const userId = "usuario_test_001"; // Será reemplazado por Auth UID
+      try { /* ... Inicialización Firebase ... */ } catch (error) { /* ... */ }
     </script>
 
     <style>
         /* --- Variables CSS --- */
+        :root { /* Claro */ } body.dark-mode { /* Oscuro */ }
+        /* ... (Estilos CSS completos, incluyendo .title-container y .title-graphics img) ... */
         :root {
             --bg-color: #f4f4f4; --container-bg: #fff; --text-color: #333; --text-muted-color: #555; --heading-color: #333; --border-color: #ccc; --border-light-color: #eee; --border-dashed-color: #ddd; --link-color: #007bff;
             --button-primary-bg: #007bff; --button-primary-hover-bg: #0056b3; --button-primary-text: white; --button-secondary-bg: #6c757d; --button-secondary-hover-bg: #5a6268; --button-secondary-text: white;
@@ -72,38 +47,25 @@
              --diff-added-excluded-color: var(--text-muted-color); --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(110, 123, 139, 0.15);
              --theme-image-border: var(--border-color);
         }
-        /* --- Estilos Generales y Layout --- */
         body { font-family: sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; transition: background-color 0.3s ease, color 0.3s ease; }
         #auth-container, #app-container { width: 100%; max-width: 1200px; margin: 0 auto; }
         #app-container { display: none; }
-        .auth-form { background-color: var(--container-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 400px; margin: 40px auto; text-align: center; }
-        .auth-form h2 { margin-bottom: 25px; color: var(--heading-color); }
-        .auth-form label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: var(--text-muted-color); }
-        .auth-form input[type="email"], .auth-form input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); }
-        .auth-form button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease; background-color: var(--button-primary-bg); color: var(--button-primary-text); }
-        .auth-form button:hover { background-color: var(--button-primary-hover-bg); }
-        .auth-form .separator { margin: 20px 0; color: var(--text-muted-color); }
-        .auth-form #signupButton { background-color: var(--button-success-bg); }
-        .auth-form #signupButton:hover { background-color: var(--button-success-hover-bg); }
-        #auth-error { color: var(--button-danger-bg); margin-top: 15px; font-weight: bold; min-height: 1.2em; }
-        .user-info { text-align: right; padding: 5px 25px; font-size: 0.9em; color: var(--text-muted-color); background-color: var(--container-bg); border-radius: 0 0 8px 8px; margin-top: -20px; margin-bottom: 20px; }
-        .user-info button { margin-left: 15px; font-size: 0.9em; padding: 3px 8px; cursor: pointer; background-color: var(--button-secondary-bg); color: var(--button-secondary-text); border: none; border-radius: 3px; }
-        .user-info button:hover { background-color: var(--button-secondary-hover-bg); }
+        .auth-form { background-color: var(--container-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 400px; margin: 40px auto; text-align: center; } .auth-form h2 { margin-bottom: 25px; color: var(--heading-color); } .auth-form label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: var(--text-muted-color); } .auth-form input[type="email"], .auth-form input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); } .auth-form button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease; background-color: var(--button-primary-bg); color: var(--button-primary-text); } .auth-form button:hover { background-color: var(--button-primary-hover-bg); } .auth-form .separator { margin: 20px 0; color: var(--text-muted-color); } .auth-form #signupButton { background-color: var(--button-success-bg); } .auth-form #signupButton:hover { background-color: var(--button-success-hover-bg); } #auth-error { color: var(--button-danger-bg); margin-top: 15px; font-weight: bold; min-height: 1.2em; }
+        .user-info { text-align: right; padding: 5px 25px; font-size: 0.9em; color: var(--text-muted-color); background-color: var(--container-bg); border-radius: 0 0 8px 8px; margin-top: -20px; margin-bottom: 20px; } .user-info button { margin-left: 15px; font-size: 0.9em; padding: 3px 8px; cursor: pointer; background-color: var(--button-secondary-bg); color: var(--button-secondary-text); border: none; border-radius: 3px; } .user-info button:hover { background-color: var(--button-secondary-hover-bg); }
         body.logged-out #app-container { display: none; } body.logged-out #auth-container { display: block; }
         body.logged-in #app-container { display: block; } body.logged-in #auth-container { display: none; }
         .layout-wrapper { display: flex; flex-direction: row; gap: 25px; width: 100%; align-items: flex-start; }
         .main-content-area { flex: 3; display: flex; flex-direction: column; gap: 20px; }
         .suggestions-column { flex: 1; position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px; }
         .container { background-color: var(--container-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border-light-color); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease, border-color 0.3s ease; }
-         /* Ajuste Contenedor Título (comentado temporalmente para debug) */
-         /* .title-container { position: relative; padding-left: 90px; padding-right: 90px; min-height: 80px; display: flex; align-items: center; justify-content: center; } */
-         /* .title-container h1 { margin: 0; } */
-         /* .title-graphics img { display: none; position: absolute; top: 50%; transform: translateY(-50%); max-height: 60px; width: auto; border: 1px solid var(--theme-image-border); border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); } */
-         /* #batman-image { left: 15px; } */
-         /* #joker-image { right: 15px; } */
-         /* body.light-mode #batman-image { display: block; } */
-         /* body.dark-mode #joker-image { display: block; } */
-        h1, h2 { color: var(--heading-color); text-align: center; margin-top: 0; margin-bottom: 20px; }
+         /* Ajuste Contenedor Título */
+         .title-container { position: relative; padding-left: 90px; padding-right: 90px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+         .title-container h1 { margin: 0; }
+         .title-graphics img { display: none; position: absolute; top: 50%; transform: translateY(-50%); max-height: 60px; width: auto; border: 1px solid var(--theme-image-border); border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+         #batman-image { left: 15px; }
+         #joker-image { right: 15px; }
+         body.light-mode #batman-image { display: block; }
+         body.dark-mode #joker-image { display: block; }
         h3 { color: var(--text-muted-color); margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--border-light-color); padding-bottom: 8px; }
         .controls { text-align: center; padding: 15px; background-color: var(--container-bg); border-radius: 8px; border: 1px solid var(--border-color); }
         .controls button { padding: 12px 20px; font-size: 1.0em; margin: 5px 3px; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease, opacity 0.3s ease; min-width: 120px; text-align: center; vertical-align: middle; }
@@ -151,22 +113,23 @@
         <div class="layout-wrapper">
             <!-- Columna Izquierda -->
             <div class="main-content-area">
-                 <!-- Contenedor del Título SIN Imágenes (temporalmente) -->
-                 <div class="container title-container">
-                     <h1>Dictado Radiológico <small>(v30 Debug)</small></h1>
-                     <!-- <div class="title-graphics">
-                          <img id="batman-image" src="batman_light.jpg" alt="Batman">
-                          <img id="joker-image" src="joker_dark.jpg" alt="Joker">
-                     </div> -->
-                 </div>
-                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección".</em></p> </div>
+                <!-- Contenedor del Título con Imágenes -->
+                <div class="container title-container">
+                    <h1>Dictado Radiológico <small>(v30)</small></h1>
+                    <div class="title-graphics">
+                         <!-- Asegúrate que las rutas sean correctas respecto a index.html -->
+                         <img id="batman-image" src="batman_light.jpg" alt="Batman">
+                         <img id="joker-image" src="joker_dark.jpg" alt="Joker">
+                    </div>
+                </div>
+                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección". Atajo: Shift+Meta+Shift</em></p> </div>
                 <div class="container header-section"> <h3>Técnica Aplicada:</h3> <textarea id="headerArea" rows="3" placeholder="Selecciona técnica o escribe..."></textarea> </div>
                 <div class="container editor-container"> <textarea id="reportArea" placeholder="El informe aparecerá aquí..." ></textarea> </div>
             </div>
             <!-- Columna Derecha -->
             <div class="suggestions-column">
-                 <div class="container" id="settings-container"> <h3>Ajustes</h3> <div class="theme-switch-wrapper"> <label class="theme-switch" for="themeToggleCheckbox"> <input type="checkbox" id="themeToggleCheckbox"> <span class="slider"></span> </label> <span>Tema Oscuro</span> </div> <div class="slider-container"> <label for="fuzzyThresholdSlider">Sensibilidad Sugerencias:</label> <input type="range" id="fuzzyThresholdSlider" min="0.1" max="0.8" step="0.05" value="0.5"> <span id="fuzzyThresholdValue">0.50</span> </div> <div class="button-group"> <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> </div> </div>
-                 <div class="container" id="technique-selection-container"> <h3>Seleccionar Técnica</h3> <div id="techniqueButtons"> <div class="technique-group"> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fases arterial y portal.">Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fase portal.">Abd Portal</button> <button class="btn-red" data-technique-text="TAC toraco-abdominal con contraste IV en fases arterial y portal.">Tórax+Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV para valoración de hernia. Maniobra de Valsalva.">Abd Hernia</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV en fases arterial, portal y tardía.">Abd 3 Fases</button> <button class="btn-blue" data-technique-text="Ecografía abdominal convencional con transductor convexo.">Eco Abd</button> </div> <div class="technique-group"> <button class="btn-yellow" data-technique-text="RM hepática con secuencias T1, T2, difusión y estudio dinámico tras contraste hepatoespecífico.">RM Hepática</button> <button class="btn-yellow" data-technique-text="Colangio-RM con secuencias potenciadas en T2 y cortes finos 3D.">ColangioRM</button> <button class="btn-yellow" data-technique-text="Entero-RM con contraste oral y secuencias T1, T2, difusión tras contraste IV.">EnteroRM</button> <button class="btn-yellow" data-technique-text="RM pélvica para valoración de fístulas con contraste IV.">RM Fístulas</button> <button class="btn-yellow" data-technique-text="RM pélvica para estadiaje de neoplasia rectal/vesical/prostática con contraste IV.">RM Neo Pelvis</button> <button id="clearHeaderButton" class="btn-gray">Borrar Técnica</button> </div> </div> </div>
+                <div class="container" id="settings-container"> <h3>Ajustes</h3> <div class="theme-switch-wrapper"> <label class="theme-switch" for="themeToggleCheckbox"> <input type="checkbox" id="themeToggleCheckbox"> <span class="slider"></span> </label> <span>Tema Oscuro</span> </div> <div class="slider-container"> <label for="fuzzyThresholdSlider">Sensibilidad Sugerencias:</label> <input type="range" id="fuzzyThresholdSlider" min="0.1" max="0.8" step="0.05" value="0.5"> <span id="fuzzyThresholdValue">0.50</span> </div> <div class="button-group"> <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> </div> </div>
+                <div class="container" id="technique-selection-container"> <h3>Seleccionar Técnica</h3> <div id="techniqueButtons"> <div class="technique-group"> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fases arterial y portal.">Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fase portal.">Abd Portal</button> <button class="btn-red" data-technique-text="TAC toraco-abdominal con contraste IV en fases arterial y portal.">Tórax+Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV para valoración de hernia. Maniobra de Valsalva.">Abd Hernia</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV en fases arterial, portal y tardía.">Abd 3 Fases</button> <button class="btn-blue" data-technique-text="Ecografía abdominal convencional con transductor convexo.">Eco Abd</button> </div> <div class="technique-group"> <button class="btn-yellow" data-technique-text="RM hepática con secuencias T1, T2, difusión y estudio dinámico tras contraste hepatoespecífico.">RM Hepática</button> <button class="btn-yellow" data-technique-text="Colangio-RM con secuencias potenciadas en T2 y cortes finos 3D.">ColangioRM</button> <button class="btn-yellow" data-technique-text="Entero-RM con contraste oral y secuencias T1, T2, difusión tras contraste IV.">EnteroRM</button> <button class="btn-yellow" data-technique-text="RM pélvica para valoración de fístulas con contraste IV.">RM Fístulas</button> <button class="btn-yellow" data-technique-text="RM pélvica para estadiaje de neoplasia rectal/vesical/prostática con contraste IV.">RM Neo Pelvis</button> <button id="clearHeaderButton" class="btn-gray">Borrar Técnica</button> </div> </div> </div>
                 <div class="container suggestions-container"> <h3>Sugerencias de Corrección</h3> <div id="fuzzySuggestionsList"><small>No hay sugerencias.</small></div> </div>
             </div>
         </div>
@@ -180,7 +143,6 @@
     <!-- Script Principal -->
     <script type="module">
         document.addEventListener('firebaseReady', () => {
-            console.log("Firebase Ready, iniciando lógica de Auth...");
             initializeAuthAndApp();
         });
 
@@ -192,54 +154,18 @@
             console.log("initializeAuthAndApp ejecutada.");
 
              // --- Lógica Forms Auth ---
-             showSignupButton.addEventListener('click', () => { loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; });
-             showLoginButton.addEventListener('click', () => { signupForm.style.display = 'none'; loginForm.style.display = 'block'; signupErrorDiv.textContent = ''; });
-             signupForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value; signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...'; try { await createUserWithEmailAndPassword(auth, email, password); /* onAuthStateChanged hará el resto */ } catch (error) { signupErrorDiv.textContent = `Error: ${error.message}`; } finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; } });
-             loginForm.addEventListener('submit', async (e) => {
-                 e.preventDefault();
-                 const email = loginEmailInput.value;
-                 const password = loginPasswordInput.value;
-                 loginErrorDiv.textContent = '';
-                 loginButton.disabled = true;
-                 loginButton.textContent = 'Iniciando...';
-                 console.log(`[Login] Intentando iniciar sesión con email: ${email}`); // LOG
-                 try {
-                     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                     console.log('[Login] signInWithEmailAndPassword completado con éxito:', userCredential); // LOG
-                     // onAuthStateChanged se encargará de mostrar la app
-                 } catch (error) {
-                     console.error('[Login] Error en signInWithEmailAndPassword:', error); // LOG DETALLADO
-                     console.error(`[Login] Código de Error: ${error.code}, Mensaje: ${error.message}`); // LOG DETALLADO
-                     loginErrorDiv.textContent = `Error: ${error.message}`;
-                 } finally {
-                     console.log("[Login] Bloque finally ejecutado."); // LOG
-                     loginButton.disabled = false;
-                     loginButton.textContent = 'Iniciar Sesión';
-                 }
-             });
+             showSignupButton.addEventListener('click', () => { loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; }); showLoginButton.addEventListener('click', () => { signupForm.style.display = 'none'; loginForm.style.display = 'block'; signupErrorDiv.textContent = ''; });
+             signupForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value; signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...'; try { await createUserWithEmailAndPassword(auth, email, password); } catch (error) { signupErrorDiv.textContent = `Error: ${error.message}`; } finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; } });
+             loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value; loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...'; console.log(`[Login] Intentando iniciar sesión con email: ${email}`); try { const userCredential = await signInWithEmailAndPassword(auth, email, password); console.log('[Login] signInWithEmailAndPassword completado:', userCredential); } catch (error) { console.error('[Login] Error en signInWithEmailAndPassword:', error); console.error(`[Login] Código: ${error.code}, Mensaje: ${error.message}`); loginErrorDiv.textContent = `Error: ${error.message}`; } finally { console.log("[Login] Bloque finally ejecutado."); loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; } });
              logoutButton.addEventListener('click', async () => { try { await signOut(auth); } catch (error) { console.error('Error Logout:', error); } });
 
              // --- Observador Auth ---
              onAuthStateChanged(auth, (user) => {
                 console.log("[onAuthStateChanged] Estado cambiado, user:", user ? user.uid : 'null');
-                 if (user) {
-                     document.body.classList.remove('logged-out'); document.body.classList.add('logged-in'); userDisplaySpan.textContent = `Usuario: ${user.email || user.uid}`;
-                     // Solo inicializa la app si no está ya inicializada (evita duplicados al recargar rápido)
-                     if (!window.dictationAppInitialized) {
-                          initializeDictationApp(user.uid);
-                          window.dictationAppInitialized = true;
-                     }
-                 } else {
-                     document.body.classList.remove('logged-in'); document.body.classList.add('logged-out');
-                     userDisplaySpan.textContent = '';
-                     if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') {
-                         try { window.currentRecognitionInstance.stop(); console.log("Reconocimiento detenido por logout."); } catch(e){}
-                     }
-                     window.dictationAppInitialized = false; // Resetear flag al desloguear
-                 }
+                 if (user) { document.body.classList.remove('logged-out'); document.body.classList.add('logged-in'); userDisplaySpan.textContent = `Usuario: ${user.email || user.uid}`; if (!window.dictationAppInitialized) { initializeDictationApp(user.uid); window.dictationAppInitialized = true; } }
+                 else { document.body.classList.remove('logged-in'); document.body.classList.add('logged-out'); userDisplaySpan.textContent = ''; if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') { try { window.currentRecognitionInstance.stop();} catch(e){} } window.dictationAppInitialized = false; }
              });
         } // Fin initializeAuthAndApp
-
 
         // =============================================
         // == APP DE DICTADO ==
@@ -285,17 +211,22 @@
                  function processTranscriptSegment(transcript) { /* ... */ return transcript; } function updateReportArea(newText) { /* ... */ } function shouldBeCapitalized(currentText, cursorPos) { /* ... */ return false; } function capitalizeSentences() { /* ... */ }
                  async function handleCorrectTextSelection() { /* ... */ } async function handleCopyText() { /* ... */ }
 
-                 // --- Funciones para Gestionar Vocabulario (Modal - CORREGIDAS CON ESTADO SEGURO Y GUARDADO) ---
+                 // --- Funciones para Gestionar Vocabulario (Modal) ---
                  function openVocabManager() { populateVocabManager(); vocabManagerModal.style.display = 'flex'; }
                  function closeVocabManager() { vocabManagerModal.style.display = 'none'; }
                  function populateVocabManager() { vocabManagerList.innerHTML = ''; const sortedKeys = Object.keys(customVocabulary).sort(); if (sortedKeys.length === 0) { vocabManagerList.innerHTML = '<li>No hay reglas.</li>'; return; } sortedKeys.forEach(key => { const value = customVocabulary[key]; const li = document.createElement('li'); li.innerHTML = `<span class="vocab-item-key">${key}</span> <span class="vocab-item-value">${value}</span> <span class="vocab-item-actions"> <button data-key="${key}">Editar</button> <button data-key="${key}" class="delete">Borrar</button> </span>`; li.querySelector('button[data-key]:not(.delete)').addEventListener('click', handleVocabEdit); li.querySelector('button.delete[data-key]').addEventListener('click', handleVocabDelete); vocabManagerList.appendChild(li); }); console.log("[VocabMgr] Lista modal actualizada."); }
-                 async function handleVocabEdit(event) { const keyToEdit = event.target.dataset.key; const currentValue = customVocabulary[keyToEdit]; if (currentValue === undefined) { alert("Error: Regla no encontrada."); return; } const newKeyPrompt = window.prompt(`Editar clave:\n"${keyToEdit}"\nNuevo:`, keyToEdit); if (newKeyPrompt === null) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (!newKey) { alert("Clave vacía."); return; } const newValuePrompt = window.prompt(`Editar valor para "${newKey}":\n"${currentValue}"\nNuevo:`, currentValue); if (newValuePrompt === null) return; const newValue = newValuePrompt.trim(); if (!newValue) { alert("Valor vacío."); return; } const tempVocab = { ...customVocabulary }; let changedKey = (newKey !== keyToEdit); if (changedKey) { delete tempVocab[keyToEdit]; } tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Regla actualizada."); } catch (error) { alert("Error al guardar."); populateVocabManager(); } }
-                 async function handleVocabDelete(event) { const keyToDelete = event.target.dataset.key; if (!customVocabulary.hasOwnProperty(keyToDelete)) { alert("Error: Regla no encontrada."); return; } if (confirm(`¿Borrar regla para "${keyToDelete}"?`)) { const tempVocab = { ...customVocabulary }; delete tempVocab[keyToDelete]; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Regla borrada."); } catch (error) { alert("Error al borrar."); populateVocabManager(); } } }
-                 async function handleAddNewRule() { const newKeyPrompt = window.prompt("Frase a dictar (clave):"); if (newKeyPrompt === null || !newKeyPrompt.trim()) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (customVocabulary.hasOwnProperty(newKey)) { alert(`Clave "${newKey}" ya existe.`); return; } const newValuePrompt = window.prompt(`Texto de reemplazo para "${newKey}":`); if (newValuePrompt === null || !newValuePrompt.trim()) return; const newValue = newValuePrompt.trim(); const tempVocab = { ...customVocabulary }; tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Nueva regla añadida."); } catch (error) { alert("Error al añadir regla."); populateVocabManager(); } }
+                 async function handleVocabEdit(event) { const keyToEdit = event.target.dataset.key; const currentValue = customVocabulary[keyToEdit]; if (currentValue === undefined) { alert("Error: Regla no encontrada."); return; } const newKeyPrompt = window.prompt(`Editar clave:\n"${keyToEdit}"\nNuevo:`, keyToEdit); if (newKeyPrompt === null) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (!newKey) { alert("Clave vacía."); return; } const newValuePrompt = window.prompt(`Editar valor para "${newKey}":\n"${currentValue}"\nNuevo:`, currentValue); if (newValuePrompt === null) return; const newValue = newValuePrompt.trim(); if (!newValue) { alert("Valor vacío."); return; } const tempVocab = { ...customVocabulary }; let changedKey = (newKey !== keyToEdit); if (changedKey) { delete tempVocab[keyToEdit]; } tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); /* Refresca TODO */ alert("Regla actualizada."); } catch (error) { alert("Error al guardar."); populateVocabManager(); } }
+                 async function handleVocabDelete(event) { const keyToDelete = event.target.dataset.key; if (!customVocabulary.hasOwnProperty(keyToDelete)) { alert("Error: Regla no encontrada."); return; } if (confirm(`¿Borrar regla para "${keyToDelete}"?`)) { const tempVocab = { ...customVocabulary }; delete tempVocab[keyToDelete]; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); /* Refresca TODO */ alert("Regla borrada."); } catch (error) { alert("Error al borrar."); populateVocabManager(); } } }
+                 async function handleAddNewRule() { const newKeyPrompt = window.prompt("Frase a dictar (clave):"); if (newKeyPrompt === null || !newKeyPrompt.trim()) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (customVocabulary.hasOwnProperty(newKey)) { alert(`Clave "${newKey}" ya existe.`); return; } const newValuePrompt = window.prompt(`Texto de reemplazo para "${newKey}":`); if (newValuePrompt === null || !newValuePrompt.trim()) return; const newValue = newValuePrompt.trim(); const tempVocab = { ...customVocabulary }; tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); /* Refresca TODO */ alert("Nueva regla añadida."); } catch (error) { alert("Error al añadir regla."); populateVocabManager(); } }
 
                  // --- Lógica Mejora con IA (Gemini) ---
-                 async function callGeminiAPI(textToImprove) { /* ... (Corregido finally) ... */ return null; } function displayDiffModal(originalText, correctedText) { /* ... */ } function toggleDiffInclusion(event) { /* ... */ } function handleAcceptAllDiffs() { /* ... */ } function handleApplyDiffChanges() { /* ... */ } function closeDiffModal() { /* ... */ } async function handleImproveAI() { /* ... */ }
-
+                 async function callGeminiAPI(textToImprove) { console.log("Llamando a Gemini API..."); const fullPrompt = GEMINI_PROMPT + textToImprove + '\n"""'; statusDiv.textContent = "IA Procesando..."; improveAIButton.disabled = true; improveAIButton.textContent = "Procesando..."; let correctedTextResult = null; try { const response = await fetch(GEMINI_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) }); if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error API: ${response.status} ${response.statusText} - ${errorBody}`); } const data = await response.json(); const correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text; if (!correctedText) { throw new Error("No se pudo extraer texto corregido."); } console.log("Texto corregido recibido."); correctedTextResult = correctedText.trim(); } catch (error) { console.error('Error llamando a Gemini API:', error); alert(`Error IA: ${error.message}`); } finally { improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; if (!recognizing && statusDiv.textContent === "IA Procesando...") { statusDiv.textContent = "Listo."; } } return correctedTextResult; }
+                 function displayDiffModal(originalText, correctedText) { diffOutput.innerHTML = ''; const diff = Diff.diffWords(originalText, correctedText, { ignoreWhitespace: false }); const fragment = document.createDocumentFragment(); diff.forEach((part) => { const span = document.createElement('span'); span.textContent = part.value; if (part.added || part.removed) { span.classList.add('clickable-diff'); if (part.added) { span.classList.add('diff-added'); span.dataset.included = 'true'; } else { span.classList.add('diff-removed'); span.dataset.included = 'false'; } span.addEventListener('click', toggleDiffInclusion); } fragment.appendChild(span); }); diffOutput.appendChild(fragment); diffModal.style.display = 'flex'; }
+                 function toggleDiffInclusion(event) { const span = event.target; const isAdded = span.classList.contains('diff-added'); const isRemoved = span.classList.contains('diff-removed'); let isIncluded = span.dataset.included === 'true'; isIncluded = !isIncluded; span.dataset.included = isIncluded.toString(); if (isAdded) { span.classList.toggle('excluded', !isIncluded); } else if (isRemoved) { span.classList.toggle('included', isIncluded); } }
+                 function handleAcceptAllDiffs() { const diffSpans = diffOutput.querySelectorAll('span.clickable-diff'); diffSpans.forEach(span => { if (span.classList.contains('diff-added')) { span.dataset.included = 'true'; span.classList.remove('excluded'); } else if (span.classList.contains('diff-removed')) { span.dataset.included = 'false'; span.classList.remove('included'); } }); }
+                 function handleApplyDiffChanges() { let finalReportText = ''; const diffNodes = diffOutput.childNodes; diffNodes.forEach(node => { if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.classList.contains('clickable-diff')) { const isIncluded = node.dataset.included === 'true'; if(isIncluded) { finalReportText += node.textContent; } } else { finalReportText += node.textContent; } }); reportArea.value = finalReportText; closeDiffModal(); console.log("Cambios IA aplicados."); }
+                 function closeDiffModal() { diffModal.style.display = 'none'; diffOutput.innerHTML = ''; }
+                 async function handleImproveAI() { const originalText = reportArea.value; if (!originalText.trim()) { alert("No hay texto para mejorar."); return; } const correctedText = await callGeminiAPI(originalText); if (correctedText) { if (normalizeText(originalText) === normalizeText(correctedText)) { alert("IA no encontró correcciones."); statusDiv.textContent = 'Listo.'; improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; } else { displayDiffModal(originalText, correctedText); statusDiv.textContent = 'Revisión IA lista.'; } } }
 
                 // --- Event Listeners ---
                  toggleButton.addEventListener('click', () => { // Listener Corregido
@@ -305,7 +236,7 @@
                  });
                 correctTextButton.addEventListener('click', handleCorrectTextSelection);
                 copyTextButton.addEventListener('click', handleCopyText);
-                improveAIButton.addEventListener('click', handleImproveAI);
+                improveAIButton.addEventListener('click', handleImproveAI); // Listener Botón IA
                 fuzzyThresholdSlider.addEventListener('input', (event) => { currentFuzzyThreshold = parseFloat(event.target.value); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); initializeFuse(); clearSuggestions(); });
                 techniqueButtonsContainer.addEventListener('click', (event) => { if (event.target.tagName === 'BUTTON' && event.target.dataset.techniqueText) { headerArea.value = event.target.dataset.techniqueText; } });
                 clearHeaderButton.addEventListener('click', () => { headerArea.value = ''; });
@@ -317,8 +248,19 @@
                  cancelDiffButton.addEventListener('click', closeDiffModal);
                  acceptAllDiffButton.addEventListener('click', handleAcceptAllDiffs);
                  applyDiffButton.addEventListener('click', handleApplyDiffChanges);
-                 // Listener Atajo Teclado (Comentado para debug inicial)
-                 /* document.addEventListener('keydown', function(event) { if (event.shiftKey && event.metaKey && event.key === 'Shift') { event.preventDefault(); const toggleBtn = document.getElementById('toggleButton'); if (toggleBtn && !toggleBtn.disabled) { toggleBtn.click(); } } }); */
+                 // Listener Atajo Teclado DESCOMENTADO
+                 document.addEventListener('keydown', function(event) {
+                    // Usar la referencia del botón ya definida en este scope
+                    if (event.shiftKey && event.metaKey && event.key === 'Shift') {
+                        console.log("Atajo Shift+Meta+Shift detectado!");
+                        event.preventDefault();
+                        if (toggleButton && !toggleButton.disabled) {
+                            toggleButton.click();
+                        } else {
+                            console.log("Atajo detectado pero botón deshabilitado.");
+                        }
+                    }
+                 });
 
                 // --- Inicialización App Dictado ---
                 initializeThreshold();

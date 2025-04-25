@@ -3,20 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dictado Radiológico v30 (Auth Debug)</title>
+    <title>Dictado Radiológico v30 (Atajo Teclado)</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
 
     <!-- Firebase SDK Imports -->
     <script type="module">
-      const firebaseConfig = { /* ... Tu config ... */
-         apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", authDomain: "almacena-correcciones-dictado.firebaseapp.com", projectId: "almacena-correcciones-dictado", storageBucket: "almacena-correcciones-dictado.appspot.com", messagingSenderId: "209194920272", appId: "1:209194920272:web:ccbec69d0a5aa88789e455", measurementId: "G-6PQSKYMDP0"
-       };
+      // Configuración Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", // ¡¡MOVER A LUGAR SEGURO!!
+        authDomain: "almacena-correcciones-dictado.firebaseapp.com",
+        projectId: "almacena-correcciones-dictado",
+        storageBucket: "almacena-correcciones-dictado.appspot.com",
+        messagingSenderId: "209194920272",
+        appId: "1:209194920272:web:ccbec69d0a5aa88789e455",
+        measurementId: "G-6PQSKYMDP0"
+      };
       // userId se obtendrá de Auth
 
       try {
-            const fa=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js'); const fs=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js'); const fbAuth = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
-            window.firebaseApp=fa.initializeApp(firebaseConfig); window.db=fs.getFirestore(window.firebaseApp); window.doc=fs.doc; window.getDoc=fs.getDoc; window.setDoc=fs.setDoc; window.auth=fbAuth.getAuth(window.firebaseApp); window.createUserWithEmailAndPassword=fbAuth.createUserWithEmailAndPassword; window.signInWithEmailAndPassword=fbAuth.signInWithEmailAndPassword; window.signOut=fbAuth.signOut; window.onAuthStateChanged=fbAuth.onAuthStateChanged;
+            const fa = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+            const fs = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+            const fbAuth = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+            window.firebaseApp = fa.initializeApp(firebaseConfig); window.db = fs.getFirestore(window.firebaseApp); window.doc = fs.doc; window.getDoc = fs.getDoc; window.setDoc = fs.setDoc; window.auth = fbAuth.getAuth(window.firebaseApp); window.createUserWithEmailAndPassword = fbAuth.createUserWithEmailAndPassword; window.signInWithEmailAndPassword = fbAuth.signInWithEmailAndPassword; window.signOut = fbAuth.signOut; window.onAuthStateChanged = fbAuth.onAuthStateChanged;
             console.log("Firebase (App, Firestore, Auth) inicializado."); document.dispatchEvent(new CustomEvent('firebaseReady'));
       } catch (error) { console.error("Error inicializando Firebase:", error); alert("Error crítico: No se pudo inicializar Firebase."); document.body.innerHTML = '<h1>Error de Carga</h1>'; }
     </script>
@@ -52,7 +61,6 @@
              --diff-added-bg: rgba(67, 160, 71, 0.3); --diff-removed-bg: rgba(211, 72, 54, 0.25);
              --diff-added-excluded-color: var(--text-muted-color); --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(110, 123, 139, 0.15);
         }
-        /* --- Estilos Generales y Layout --- */
         body { font-family: sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; transition: background-color 0.3s ease, color 0.3s ease; }
         #auth-container, #app-container { width: 100%; max-width: 1200px; margin: 0 auto; }
         #app-container { display: none; }
@@ -123,8 +131,8 @@
         <div class="layout-wrapper">
             <!-- Columna Izquierda -->
             <div class="main-content-area">
-                <div class="container"> <h1>Dictado Radiológico <small>(v29 Corregido)</small></h1> </div>
-                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección".</em></p> </div>
+                <div class="container"> <h1>Dictado Radiológico <small>(v30)</small></h1> </div>
+                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>(Atajo: Shift+Cmd/Win+Shift)</em></p> </div>
                 <div class="container header-section"> <h3>Técnica Aplicada:</h3> <textarea id="headerArea" rows="3" placeholder="Selecciona técnica o escribe..."></textarea> </div>
                 <div class="container editor-container"> <textarea id="reportArea" placeholder="El informe aparecerá aquí..." ></textarea> </div>
             </div>
@@ -157,7 +165,7 @@
              // --- Lógica Forms Auth ---
              showSignupButton.addEventListener('click', () => { loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; }); showLoginButton.addEventListener('click', () => { signupForm.style.display = 'none'; loginForm.style.display = 'block'; signupErrorDiv.textContent = ''; });
              signupForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value; signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...'; try { await createUserWithEmailAndPassword(auth, email, password); } catch (error) { signupErrorDiv.textContent = `Error: ${error.message}`; } finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; } });
-             loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value; loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...'; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { loginErrorDiv.textContent = `Error: ${error.message}`; } finally { loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; } });
+             loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value; loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...'; try { console.log(`[Login] Intentando iniciar sesión con email: ${email}`); const userCredential = await signInWithEmailAndPassword(auth, email, password); console.log('[Login] signInWithEmailAndPassword completado con éxito:', userCredential); } catch (error) { console.error('[Login] Error en signInWithEmailAndPassword:', error); console.error(`[Login] Código de Error: ${error.code}, Mensaje: ${error.message}`); loginErrorDiv.textContent = `Error: ${error.message}`; } finally { console.log("[Login] Bloque finally ejecutado."); loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; } });
              logoutButton.addEventListener('click', async () => { try { await signOut(auth); } catch (error) { console.error('Error Logout:', error); } });
 
              // --- Observador Auth ---
@@ -185,7 +193,7 @@
             let recognition; let customVocabulary = {}; let customVocabularyKeys = []; let sortedVocabKeys = []; let recognizing = false; let timeoutHandle = null; let fuse; let fuzzyMatchesFound = new Map(); let learnedCorrections = {};
             const db = window.db; const doc = window.doc; const getDoc = window.getDoc; const setDoc = window.setDoc;
             const vocabDocRef = doc(db, "vocabularies", currentUserId);
-            let currentFuzzyThreshold = 0.5; // VALOR INICIAL CAMBIADO
+            let currentFuzzyThreshold = 0.5; // VALOR INICIAL SLIDER
             const FUSE_DEFAULTS = { includeScore: true, minMatchCharLength: 4 }; const LEARNED_CORRECTION_THRESHOLD = 3;
             const GEMINI_API_KEY = "AIzaSyAQ9DfDGmDT6DEy9YzpT2swu_lWVOlXWuM"; // ¡¡MOVER!!
             const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
@@ -198,22 +206,8 @@
             function initializeFuse() { if (customVocabularyKeys.length > 0) { const fuseOptions = { ...FUSE_DEFAULTS, threshold: currentFuzzyThreshold }; fuse = new Fuse(customVocabularyKeys, fuseOptions); } else { fuse = null; } }
             function initializeThreshold() { fuzzyThresholdSlider.value = currentFuzzyThreshold.toString(); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); }
             function processLoadedVocabularyData(rulesData, learnedData) { customVocabulary = rulesData || {}; learnedCorrections = learnedData || {}; customVocabularyKeys = Object.keys(customVocabulary); updateSortedKeys(); initializeFuse(); console.log(`Vocab procesado: ${customVocabularyKeys.length} reglas, ${Object.keys(learnedCorrections).length} aprendidas.`); statusDiv.textContent = 'Listo'; toggleButton.disabled = false; toggleButton.textContent = 'Empezar Dictado'; toggleButton.classList.remove('stop'); toggleButton.classList.add('start'); correctTextButton.disabled = false; copyTextButton.disabled = false; manageVocabButton.disabled = false; improveAIButton.disabled = false; }
-            async function loadVocabularyFromFirestore() { console.log(`Cargando vocab para ${currentUserId}`); toggleButton.disabled = true; toggleButton.textContent = 'Cargando...'; correctTextButton.disabled = true; copyTextButton.disabled = true; manageVocabButton.disabled = true; improveAIButton.disabled = true; statusDiv.textContent = 'Cargando datos...'; try { const docSnap = await getDoc(vocabDocRef); if (docSnap.exists()) { const data = docSnap.data(); const rulesMap = (data && typeof data.rulesMap === 'object' && data.rulesMap !== null) ? data.rulesMap : {}; const learnedMap = (data && typeof data.learnedMap === 'object' && data.learnedMap !== null) ? data.learnedMap : {}; processLoadedVocabularyData(rulesMap, learnedMap); } else { processLoadedVocabularyData({}, {}); } } catch (error) { console.error("Error cargando vocab:", error); alert("Error al cargar vocabulario."); processLoadedVocabularyData({}, {}); statusDiv.textContent = 'Error carga vocab.'; toggleButton.textContent = 'Error Carga'; } }
-            // REVISADO: saveVocabularyToFirestore ahora solo guarda, no actualiza estado local directamente
-             async function saveVocabularyToFirestore(vocabToSave, learnedToSave) {
-                 console.log(`[saveVocabFirestore] Guardando ${Object.keys(vocabToSave).length} reglas y ${Object.keys(learnedToSave).length} correcciones para ${currentUserId}...`);
-                 const rulesMapCopy = { ...vocabToSave }; const learnedMapCopy = { ...learnedToSave };
-                 console.log("[saveVocabFirestore] rulesMap:", JSON.stringify(rulesMapCopy).substring(0, 200) + "...");
-                 console.log("[saveVocabFirestore] learnedMap:", JSON.stringify(learnedMapCopy));
-                 try {
-                     await setDoc(vocabDocRef, { rulesMap: rulesMapCopy, learnedMap: learnedMapCopy }); // Sobrescribir doc completo
-                     console.log("[saveVocabFirestore] Datos guardados exitosamente (sobrescribiendo).");
-                 } catch (error) {
-                     console.error("[saveVocabFirestore] ERROR guardando:", error);
-                     alert("Error al guardar en DB.");
-                     throw error; // Propagar error
-                 }
-             }
+            async function loadVocabularyFromFirestore() { console.log(`[loadVocabulary] Intentando cargar para userId: ${currentUserId}`); if (!currentUserId) { console.error("[loadVocabulary] ¡ERROR FATAL! currentUserId es nulo o indefinido."); statusDiv.textContent = 'Error: ID usuario no válido.'; return; } toggleButton.disabled = true; toggleButton.textContent = 'Cargando...'; correctTextButton.disabled = true; copyTextButton.disabled = true; manageVocabButton.disabled = true; improveAIButton.disabled = true; statusDiv.textContent = 'Cargando datos...'; try { const docSnap = await getDoc(vocabDocRef); if (docSnap.exists()) { const data = docSnap.data(); const rulesMap = (data && typeof data.rulesMap === 'object' && data.rulesMap !== null) ? data.rulesMap : {}; const learnedMap = (data && typeof data.learnedMap === 'object' && data.learnedMap !== null) ? data.learnedMap : {}; processLoadedVocabularyData(rulesMap, learnedMap); } else { processLoadedVocabularyData({}, {}); } } catch (error) { console.error("Error cargando vocab:", error); alert("Error al cargar vocabulario."); processLoadedVocabularyData({}, {}); statusDiv.textContent = 'Error carga vocab.'; toggleButton.textContent = 'Error Carga'; } }
+            async function saveVocabularyToFirestore(vocabToSave, learnedToSave) { console.log(`[saveVocabFirestore] Guardando ${Object.keys(vocabToSave).length} reglas y ${Object.keys(learnedToSave).length} correcciones para ${currentUserId}...`); const rulesMapCopy = { ...vocabToSave }; const learnedMapCopy = { ...learnedToSave }; try { await setDoc(vocabDocRef, { rulesMap: rulesMapCopy, learnedMap: learnedMapCopy }); console.log("[saveVocabFirestore] Datos guardados exitosamente (sobrescribiendo)."); } catch (error) { console.error("[saveVocabFirestore] ERROR guardando:", error); alert("Error al guardar en DB."); throw error; } }
             function updateSortedKeys() { sortedVocabKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); }
             function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
             function normalizeText(text) { if (!text) return ''; return text.toLowerCase().replace(/[.,:;!?()]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -251,7 +245,7 @@
                  async function handleVocabDelete(event) { const keyToDelete = event.target.dataset.key; if (!customVocabulary.hasOwnProperty(keyToDelete)) { alert("Error: Regla no encontrada."); return; } if (confirm(`¿Borrar regla para "${keyToDelete}"?`)) { const tempVocab = { ...customVocabulary }; delete tempVocab[keyToDelete]; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Regla borrada."); } catch (error) { alert("Error al borrar."); populateVocabManager(); } } }
                  async function handleAddNewRule() { const newKeyPrompt = window.prompt("Frase a dictar (clave):"); if (newKeyPrompt === null || !newKeyPrompt.trim()) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (customVocabulary.hasOwnProperty(newKey)) { alert(`Clave "${newKey}" ya existe.`); return; } const newValuePrompt = window.prompt(`Texto de reemplazo para "${newKey}":`); if (newValuePrompt === null || !newValuePrompt.trim()) return; const newValue = newValuePrompt.trim(); const tempVocab = { ...customVocabulary }; tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Nueva regla añadida."); } catch (error) { alert("Error al añadir regla."); populateVocabManager(); } }
 
-                 // --- Lógica Mejora con IA (Gemini - CORREGIDO finally) ---
+                 // --- Lógica Mejora con IA (Gemini) ---
                  async function callGeminiAPI(textToImprove) { console.log("Llamando a Gemini API..."); const fullPrompt = GEMINI_PROMPT + textToImprove + '\n"""'; statusDiv.textContent = "IA Procesando..."; improveAIButton.disabled = true; improveAIButton.textContent = "Procesando..."; let correctedTextResult = null; try { const response = await fetch(GEMINI_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) }); if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error API: ${response.status} ${response.statusText} - ${errorBody}`); } const data = await response.json(); const correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text; if (!correctedText) { throw new Error("No se pudo extraer texto corregido."); } console.log("Texto corregido recibido."); correctedTextResult = correctedText.trim(); } catch (error) { console.error('Error llamando a Gemini API:', error); alert(`Error IA: ${error.message}`); } finally { improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; if (!recognizing && statusDiv.textContent === "IA Procesando...") { statusDiv.textContent = "Listo."; } console.log("[callGeminiAPI finally] Botón IA rehabilitado."); } return correctedTextResult; }
                  function displayDiffModal(originalText, correctedText) { diffOutput.innerHTML = ''; const diff = Diff.diffWords(originalText, correctedText, { ignoreWhitespace: false }); const fragment = document.createDocumentFragment(); diff.forEach((part) => { const span = document.createElement('span'); span.textContent = part.value; if (part.added || part.removed) { span.classList.add('clickable-diff'); if (part.added) { span.classList.add('diff-added'); span.dataset.included = 'true'; } else { span.classList.add('diff-removed'); span.dataset.included = 'false'; } span.addEventListener('click', toggleDiffInclusion); } fragment.appendChild(span); }); diffOutput.appendChild(fragment); diffModal.style.display = 'flex'; }
                  function toggleDiffInclusion(event) { const span = event.target; const isAdded = span.classList.contains('diff-added'); const isRemoved = span.classList.contains('diff-removed'); let isIncluded = span.dataset.included === 'true'; isIncluded = !isIncluded; span.dataset.included = isIncluded.toString(); if (isAdded) { span.classList.toggle('excluded', !isIncluded); } else if (isRemoved) { span.classList.toggle('included', isIncluded); } console.log(`Clic en diff: "${span.textContent.substring(0,20)}..." Incluido: ${isIncluded}`); }
@@ -261,7 +255,15 @@
                  async function handleImproveAI() { const originalText = reportArea.value; if (!originalText.trim()) { alert("No hay texto para mejorar."); return; } const correctedText = await callGeminiAPI(originalText); if (correctedText) { if (normalizeText(originalText) === normalizeText(correctedText)) { alert("IA no encontró correcciones."); statusDiv.textContent = 'Listo.'; improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; } else { displayDiffModal(originalText, correctedText); statusDiv.textContent = 'Revisión IA lista.'; } } }
 
                 // --- Event Listeners ---
-                 toggleButton.addEventListener('click', () => { if (!SpeechRecognition || toggleButton.disabled) return; if (recognizing) { if (recognition) { try { recognition.stop(); } catch (e) { console.error("Error stop:", e); updateButtonState(false, 'Error al detener'); } } } else { try { if (recognition) { recognition.start(); toggleButton.disabled = true; updateButtonState(true, 'Iniciando...'); } else { throw new Error("No recognition"); } } catch (e) { console.error("Error start:", e); updateButtonState(false, 'Error al iniciar.'); } } });
+                 toggleButton.addEventListener('click', () => { // CORREGIDO
+                     if (!SpeechRecognition || toggleButton.disabled) return;
+                     if (recognizing) {
+                         if (recognition) { try { recognition.stop(); } catch (e) { console.error("Error stop:", e); updateButtonState(false, 'Error al detener'); } }
+                     } else {
+                         try { if (recognition) { recognition.start(); toggleButton.disabled = true; updateButtonState(true, 'Iniciando...'); } else { throw new Error("No recognition"); } }
+                         catch (e) { console.error("Error start:", e); updateButtonState(false, 'Error al iniciar.'); }
+                     }
+                 });
                 correctTextButton.addEventListener('click', handleCorrectTextSelection);
                 copyTextButton.addEventListener('click', handleCopyText);
                 improveAIButton.addEventListener('click', handleImproveAI);

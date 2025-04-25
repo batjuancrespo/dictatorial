@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dictado Radiológico v30 (Imágenes + Atajo)</title>
+    <title>Dictado Radiológico v30 (Auth Debug)</title>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
 
@@ -12,19 +12,20 @@
       const firebaseConfig = { /* ... Tu config ... */
          apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", authDomain: "almacena-correcciones-dictado.firebaseapp.com", projectId: "almacena-correcciones-dictado", storageBucket: "almacena-correcciones-dictado.appspot.com", messagingSenderId: "209194920272", appId: "1:209194920272:web:ccbec69d0a5aa88789e455", measurementId: "G-6PQSKYMDP0"
        };
-      const userId = "usuario_test_001";
+      // userId se obtendrá de Auth
+
       try {
             const fa=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js'); const fs=await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js'); const fbAuth = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
             window.firebaseApp=fa.initializeApp(firebaseConfig); window.db=fs.getFirestore(window.firebaseApp); window.doc=fs.doc; window.getDoc=fs.getDoc; window.setDoc=fs.setDoc; window.auth=fbAuth.getAuth(window.firebaseApp); window.createUserWithEmailAndPassword=fbAuth.createUserWithEmailAndPassword; window.signInWithEmailAndPassword=fbAuth.signInWithEmailAndPassword; window.signOut=fbAuth.signOut; window.onAuthStateChanged=fbAuth.onAuthStateChanged;
-            console.log("Firebase inicializado."); document.dispatchEvent(new CustomEvent('firebaseReady'));
+            console.log("Firebase (App, Firestore, Auth) inicializado."); document.dispatchEvent(new CustomEvent('firebaseReady'));
       } catch (error) { console.error("Error inicializando Firebase:", error); alert("Error crítico: No se pudo inicializar Firebase."); document.body.innerHTML = '<h1>Error de Carga</h1>'; }
     </script>
 
     <style>
         /* --- Variables CSS --- */
         :root { /* Claro */ } body.dark-mode { /* Oscuro */ }
-        /* ... Variables CSS completas (incluyendo --theme-image-border) ... */
-         :root {
+        /* ... Estilos CSS completos (sin cambios) ... */
+        :root {
             --bg-color: #f4f4f4; --container-bg: #fff; --text-color: #333; --text-muted-color: #555; --heading-color: #333; --border-color: #ccc; --border-light-color: #eee; --border-dashed-color: #ddd; --link-color: #007bff;
             --button-primary-bg: #007bff; --button-primary-hover-bg: #0056b3; --button-primary-text: white; --button-secondary-bg: #6c757d; --button-secondary-hover-bg: #5a6268; --button-secondary-text: white;
             --button-success-bg: #28a745; --button-success-hover-bg: #218838; --button-success-text: white; --button-danger-bg: #dc3545; --button-danger-hover-bg: #c82333; --button-danger-text: white; --button-warning-bg: #ffc107; --button-warning-hover-bg: #e0a800; --button-warning-text: #212529;
@@ -37,7 +38,6 @@
             --diff-added-bg: rgba(40, 167, 69, 0.2); --diff-removed-bg: rgba(220, 53, 69, 0.15); --diff-removed-text-decoration: line-through;
              --diff-added-excluded-decoration: line-through; --diff-added-excluded-color: var(--text-muted-color); --diff-added-excluded-opacity: 0.7;
              --diff-removed-included-decoration: none; --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(108, 117, 125, 0.1);
-             --theme-image-border: var(--border-color); /* Borde para imágenes */
         }
         body.dark-mode {
              --bg-color: #22272e; --container-bg: #2d333b; --text-color: #adbac7; --text-muted-color: #768390; --heading-color: #adbac7; --border-color: #444c56; --border-light-color: #373e47; --border-dashed-color: #444c56; --link-color: #539bf5;
@@ -48,31 +48,34 @@
              --button-suggestion-bg: #373e47; --button-suggestion-hover-bg: #444c56; --button-suggestion-border: #5d6774; --button-disabled-bg: #444c56; --input-bg: #22272e; --input-border: #444c56; --input-text: #adbac7;
              --header-area-bg: #22272e; --header-area-border: #373e47; --status-listening-color: #768390; --status-base-color: #768390; --suggestions-bg: #2d333b; --suggestions-border: #444c56;
              --slider-thumb-bg: #539bf5; --slider-track-bg: #444c56; --switch-bg: #444c56; --switch-thumb-bg: #768390; --switch-checked-bg: #377ef0;
-             --modal-overlay-bg: rgba(0, 0, 0, 0.7); --modal-border: var(--border-color);
+              --modal-overlay-bg: rgba(0, 0, 0, 0.7); --modal-border: var(--border-color);
              --diff-added-bg: rgba(67, 160, 71, 0.3); --diff-removed-bg: rgba(211, 72, 54, 0.25);
              --diff-added-excluded-color: var(--text-muted-color); --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(110, 123, 139, 0.15);
-             --theme-image-border: var(--border-color);
         }
         /* --- Estilos Generales y Layout --- */
         body { font-family: sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; transition: background-color 0.3s ease, color 0.3s ease; }
         #auth-container, #app-container { width: 100%; max-width: 1200px; margin: 0 auto; }
         #app-container { display: none; }
-        .auth-form { background-color: var(--container-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 400px; margin: 40px auto; text-align: center; } .auth-form h2 { margin-bottom: 25px; color: var(--heading-color); } .auth-form label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: var(--text-muted-color); } .auth-form input[type="email"], .auth-form input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); } .auth-form button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease; background-color: var(--button-primary-bg); color: var(--button-primary-text); } .auth-form button:hover { background-color: var(--button-primary-hover-bg); } .auth-form .separator { margin: 20px 0; color: var(--text-muted-color); } .auth-form #signupButton { background-color: var(--button-success-bg); } .auth-form #signupButton:hover { background-color: var(--button-success-hover-bg); } #auth-error { color: var(--button-danger-bg); margin-top: 15px; font-weight: bold; min-height: 1.2em; }
-        .user-info { text-align: right; padding: 5px 25px; font-size: 0.9em; color: var(--text-muted-color); background-color: var(--container-bg); border-radius: 0 0 8px 8px; margin-top: -20px; margin-bottom: 20px; } .user-info button { margin-left: 15px; font-size: 0.9em; padding: 3px 8px; cursor: pointer; background-color: var(--button-secondary-bg); color: var(--button-secondary-text); border: none; border-radius: 3px; } .user-info button:hover { background-color: var(--button-secondary-hover-bg); }
+        .auth-form { background-color: var(--container-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 400px; margin: 40px auto; text-align: center; }
+        .auth-form h2 { margin-bottom: 25px; color: var(--heading-color); }
+        .auth-form label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: var(--text-muted-color); }
+        .auth-form input[type="email"], .auth-form input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); }
+        .auth-form button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease; background-color: var(--button-primary-bg); color: var(--button-primary-text); }
+        .auth-form button:hover { background-color: var(--button-primary-hover-bg); }
+        .auth-form .separator { margin: 20px 0; color: var(--text-muted-color); }
+        .auth-form #signupButton { background-color: var(--button-success-bg); }
+        .auth-form #signupButton:hover { background-color: var(--button-success-hover-bg); }
+        #auth-error { color: var(--button-danger-bg); margin-top: 15px; font-weight: bold; min-height: 1.2em; }
+        .user-info { text-align: right; padding: 5px 25px; font-size: 0.9em; color: var(--text-muted-color); background-color: var(--container-bg); border-radius: 0 0 8px 8px; margin-top: -20px; margin-bottom: 20px; }
+        .user-info button { margin-left: 15px; font-size: 0.9em; padding: 3px 8px; cursor: pointer; background-color: var(--button-secondary-bg); color: var(--button-secondary-text); border: none; border-radius: 3px; }
+        .user-info button:hover { background-color: var(--button-secondary-hover-bg); }
         body.logged-out #app-container { display: none; } body.logged-out #auth-container { display: block; }
         body.logged-in #app-container { display: block; } body.logged-in #auth-container { display: none; }
         .layout-wrapper { display: flex; flex-direction: row; gap: 25px; width: 100%; align-items: flex-start; }
         .main-content-area { flex: 3; display: flex; flex-direction: column; gap: 20px; }
         .suggestions-column { flex: 1; position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px; }
         .container { background-color: var(--container-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border-light-color); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease, border-color 0.3s ease; }
-        /* Ajuste Contenedor Título */
-         .title-container { position: relative; padding-left: 90px; padding-right: 90px; min-height: 80px; display: flex; align-items: center; justify-content: center; }
-         .title-container h1 { margin: 0; }
-         .title-graphics img { display: none; position: absolute; top: 50%; transform: translateY(-50%); max-height: 60px; width: auto; border: 1px solid var(--theme-image-border); border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-         #batman-image { left: 15px; }
-         #joker-image { right: 15px; }
-         body.light-mode #batman-image { display: block; }
-         body.dark-mode #joker-image { display: block; }
+        h1, h2 { color: var(--heading-color); text-align: center; margin-top: 0; margin-bottom: 20px; }
         h3 { color: var(--text-muted-color); margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--border-light-color); padding-bottom: 8px; }
         .controls { text-align: center; padding: 15px; background-color: var(--container-bg); border-radius: 8px; border: 1px solid var(--border-color); }
         .controls button { padding: 12px 20px; font-size: 1.0em; margin: 5px 3px; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease, opacity 0.3s ease; min-width: 120px; text-align: center; vertical-align: middle; }
@@ -94,8 +97,7 @@
         .suggestion-item { padding: 8px 5px; margin-bottom: 8px; border-bottom: 1px dashed var(--border-dashed-color); display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; } .suggestion-item:last-child { border-bottom: none; } .suggestion-text { margin-right: 10px; flex-grow: 1; color: var(--text-color); } .suggestion-text strong { color: var(--link-color); } .suggestion-actions button { padding: 4px 8px; font-size: 0.85em; cursor: pointer; margin-left: 5px; border: 1px solid var(--button-suggestion-border); background-color: var(--button-suggestion-bg); color: var(--text-color); border-radius: 3px; } .suggestion-actions button:hover { background-color: var(--button-suggestion-hover-bg); border-color: var(--border-color); }
         .slider-container { margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--border-dashed-color); text-align: center; } .slider-container label { margin-right: 10px; font-size: 0.9em; color: var(--text-muted-color); vertical-align: middle; } #fuzzyThresholdSlider { width: 150px; vertical-align: middle; cursor: pointer; accent-color: var(--slider-thumb-bg); background: var(--slider-track-bg); } #fuzzyThresholdValue { display: inline-block; min-width: 30px; font-weight: bold; margin-left: 5px; color: var(--link-color); vertical-align: middle; }
         #settings-container { padding: 20px; } #settings-container .button-group { margin-top: 15px; display: flex; justify-content: center; gap: 10px;} #settings-container .button-group button { padding: 8px 15px; font-size: 0.9em;}
-        /* Quitar estilos absolutos y ajustar */
-        .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; margin-top: 10px; margin-bottom: 0; /* Quitar margen inferior si está en panel */ }
+        .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; margin-top: 10px; margin-bottom: 15px; }
         .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; } .theme-switch input { display: none; } .slider { background-color: var(--switch-bg); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; } .slider:before { background-color: var(--switch-thumb-bg); bottom: 3px; content: ""; height: 18px; left: 3px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; } input:checked + .slider { background-color: var(--switch-checked-bg); } input:checked + .slider:before { transform: translateX(24px); } .theme-switch-wrapper span { margin-left: 8px; font-size: 0.9em; color: var(--text-muted-color); }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--modal-overlay-bg); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: var(--modal-content-bg); padding: 30px; border-radius: 8px; width: 90%; max-width: 800px; max-height: 85vh; border: 1px solid var(--modal-border); position: relative; display: flex; flex-direction: column; }
@@ -113,7 +115,7 @@
 <body class="light-mode logged-out">
 
     <!-- Contenedor Autenticación -->
-    <div id="auth-container"> <!-- ... Formularios Login/Signup ... --> <form id="login-form" class="auth-form"><h2>Iniciar Sesión</h2><div id="login-error" class="auth-error"></div><label for="login-email">Email:</label><input type="email" id="login-email" required><label for="login-password">Contraseña:</label><input type="password" id="login-password" required><button type="submit" id="loginButton">Iniciar Sesión</button><div class="separator">o</div><button type="button" id="showSignupButton">Crear Cuenta Nueva</button></form> <form id="signup-form" class="auth-form" style="display: none;"><h2>Crear Cuenta</h2><div id="signup-error" class="auth-error"></div><label for="signup-email">Email:</label><input type="email" id="signup-email" required><label for="signup-password">Contraseña (mín. 6):</label><input type="password" id="signup-password" required minlength="6"><button type="submit" id="signupButton">Registrarse</button><div class="separator">o</div><button type="button" id="showLoginButton">Ya tengo cuenta</button></form> </div>
+    <div id="auth-container"> <form id="login-form" class="auth-form"><h2>Iniciar Sesión</h2><div id="login-error" class="auth-error"></div><label for="login-email">Email:</label><input type="email" id="login-email" required><label for="login-password">Contraseña:</label><input type="password" id="login-password" required><button type="submit" id="loginButton">Iniciar Sesión</button><div class="separator">o</div><button type="button" id="showSignupButton">Crear Cuenta Nueva</button></form> <form id="signup-form" class="auth-form" style="display: none;"><h2>Crear Cuenta</h2><div id="signup-error" class="auth-error"></div><label for="signup-email">Email:</label><input type="email" id="signup-email" required><label for="signup-password">Contraseña (mín. 6):</label><input type="password" id="signup-password" required minlength="6"><button type="submit" id="signupButton">Registrarse</button><div class="separator">o</div><button type="button" id="showLoginButton">Ya tengo cuenta</button></form> </div>
 
     <!-- Contenedor Principal App -->
     <div id="app-container">
@@ -121,25 +123,15 @@
         <div class="layout-wrapper">
             <!-- Columna Izquierda -->
             <div class="main-content-area">
-                 <!-- Contenedor del Título con Imágenes -->
-                 <div class="container title-container">
-                     <h1>Dictado Radiológico <small>(v29)</small></h1>
-                     <div class="title-graphics">
-                          <img id="batman-image" src="batman_light.jpg" alt="Batman">
-                          <img id="joker-image" src="joker_dark.jpg" alt="Joker">
-                     </div>
-                 </div>
-                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección". Atajo: Shift+Meta+Shift</em></p> </div>
+                <div class="container"> <h1>Dictado Radiológico <small>(v29 Corregido)</small></h1> </div>
+                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección".</em></p> </div>
                 <div class="container header-section"> <h3>Técnica Aplicada:</h3> <textarea id="headerArea" rows="3" placeholder="Selecciona técnica o escribe..."></textarea> </div>
                 <div class="container editor-container"> <textarea id="reportArea" placeholder="El informe aparecerá aquí..." ></textarea> </div>
             </div>
             <!-- Columna Derecha -->
             <div class="suggestions-column">
-                 <!-- Panel Ajustes -->
-                 <div class="container" id="settings-container"> <h3>Ajustes</h3> <div class="theme-switch-wrapper"> <label class="theme-switch" for="themeToggleCheckbox"> <input type="checkbox" id="themeToggleCheckbox"> <span class="slider"></span> </label> <span>Tema Oscuro</span> </div> <div class="slider-container"> <label for="fuzzyThresholdSlider">Sensibilidad Sugerencias:</label> <input type="range" id="fuzzyThresholdSlider" min="0.1" max="0.8" step="0.05" value="0.5"> <span id="fuzzyThresholdValue">0.50</span> </div> <div class="button-group"> <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> </div> </div>
-                 <!-- Panel Técnicas -->
-                 <div class="container" id="technique-selection-container"> <h3>Seleccionar Técnica</h3> <div id="techniqueButtons"> <div class="technique-group"> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fases arterial y portal.">Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fase portal.">Abd Portal</button> <button class="btn-red" data-technique-text="TAC toraco-abdominal con contraste IV en fases arterial y portal.">Tórax+Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV para valoración de hernia. Maniobra de Valsalva.">Abd Hernia</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV en fases arterial, portal y tardía.">Abd 3 Fases</button> <button class="btn-blue" data-technique-text="Ecografía abdominal convencional con transductor convexo.">Eco Abd</button> </div> <div class="technique-group"> <button class="btn-yellow" data-technique-text="RM hepática con secuencias T1, T2, difusión y estudio dinámico tras contraste hepatoespecífico.">RM Hepática</button> <button class="btn-yellow" data-technique-text="Colangio-RM con secuencias potenciadas en T2 y cortes finos 3D.">ColangioRM</button> <button class="btn-yellow" data-technique-text="Entero-RM con contraste oral y secuencias T1, T2, difusión tras contraste IV.">EnteroRM</button> <button class="btn-yellow" data-technique-text="RM pélvica para valoración de fístulas con contraste IV.">RM Fístulas</button> <button class="btn-yellow" data-technique-text="RM pélvica para estadiaje de neoplasia rectal/vesical/prostática con contraste IV.">RM Neo Pelvis</button> <button id="clearHeaderButton" class="btn-gray">Borrar Técnica</button> </div> </div> </div>
-                <!-- Panel Sugerencias Fuzzy -->
+                <div class="container" id="settings-container"> <h3>Ajustes</h3> <div class="theme-switch-wrapper"> <label class="theme-switch" for="themeToggleCheckbox"> <input type="checkbox" id="themeToggleCheckbox"> <span class="slider"></span> </label> <span>Tema Oscuro</span> </div> <div class="slider-container"> <label for="fuzzyThresholdSlider">Sensibilidad Sugerencias:</label> <input type="range" id="fuzzyThresholdSlider" min="0.1" max="0.8" step="0.05" value="0.5"> <span id="fuzzyThresholdValue">0.50</span> </div> <div class="button-group"> <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> </div> </div>
+                <div class="container" id="technique-selection-container"> <h3>Seleccionar Técnica</h3> <div id="techniqueButtons"> <div class="technique-group"> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fases arterial y portal.">Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal con contraste IV en fase portal.">Abd Portal</button> <button class="btn-red" data-technique-text="TAC toraco-abdominal con contraste IV en fases arterial y portal.">Tórax+Abd Art+Portal</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV para valoración de hernia. Maniobra de Valsalva.">Abd Hernia</button> <button class="btn-red" data-technique-text="TAC abdominal sin y con contraste IV en fases arterial, portal y tardía.">Abd 3 Fases</button> <button class="btn-blue" data-technique-text="Ecografía abdominal convencional con transductor convexo.">Eco Abd</button> </div> <div class="technique-group"> <button class="btn-yellow" data-technique-text="RM hepática con secuencias T1, T2, difusión y estudio dinámico tras contraste hepatoespecífico.">RM Hepática</button> <button class="btn-yellow" data-technique-text="Colangio-RM con secuencias potenciadas en T2 y cortes finos 3D.">ColangioRM</button> <button class="btn-yellow" data-technique-text="Entero-RM con contraste oral y secuencias T1, T2, difusión tras contraste IV.">EnteroRM</button> <button class="btn-yellow" data-technique-text="RM pélvica para valoración de fístulas con contraste IV.">RM Fístulas</button> <button class="btn-yellow" data-technique-text="RM pélvica para estadiaje de neoplasia rectal/vesical/prostática con contraste IV.">RM Neo Pelvis</button> <button id="clearHeaderButton" class="btn-gray">Borrar Técnica</button> </div> </div> </div>
                 <div class="container suggestions-container"> <h3>Sugerencias de Corrección</h3> <div id="fuzzySuggestionsList"><small>No hay sugerencias.</small></div> </div>
             </div>
         </div>
@@ -157,20 +149,21 @@
         });
 
         function initializeAuthAndApp() {
-            // --- Selección DOM Auth y App Containers ---
-            /* ... Selección elementos Auth ... */
+            // --- Selección DOM Auth ---
             const authContainer = document.getElementById('auth-container'); const appContainer = document.getElementById('app-container'); const loginForm = document.getElementById('login-form'); const signupForm = document.getElementById('signup-form'); const loginEmailInput = document.getElementById('login-email'); const loginPasswordInput = document.getElementById('login-password'); const signupEmailInput = document.getElementById('signup-email'); const signupPasswordInput = document.getElementById('signup-password'); const loginButton = document.getElementById('loginButton'); const signupButton = document.getElementById('signupButton'); const showSignupButton = document.getElementById('showSignupButton'); const showLoginButton = document.getElementById('showLoginButton'); const loginErrorDiv = document.getElementById('login-error'); const signupErrorDiv = document.getElementById('signup-error'); const userDisplaySpan = document.getElementById('user-display'); const logoutButton = document.getElementById('logoutButton');
             const auth = window.auth; const createUserWithEmailAndPassword = window.createUserWithEmailAndPassword; const signInWithEmailAndPassword = window.signInWithEmailAndPassword; const signOut = window.signOut; const onAuthStateChanged = window.onAuthStateChanged;
-            if (!auth || !createUserWithEmailAndPassword || !signInWithEmailAndPassword || !signOut || !onAuthStateChanged) { return; }
+            if (!auth || !createUserWithEmailAndPassword || !signInWithEmailAndPassword || !signOut || !onAuthStateChanged) { console.error("Auth no disponible."); return; }
 
              // --- Lógica Forms Auth ---
-             showSignupButton.addEventListener('click', () => { /* ... */ }); showLoginButton.addEventListener('click', () => { /* ... */ });
-             signupForm.addEventListener('submit', async (e) => { /* ... */ }); loginForm.addEventListener('submit', async (e) => { /* ... */ }); logoutButton.addEventListener('click', async () => { /* ... */ });
+             showSignupButton.addEventListener('click', () => { loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; }); showLoginButton.addEventListener('click', () => { signupForm.style.display = 'none'; loginForm.style.display = 'block'; signupErrorDiv.textContent = ''; });
+             signupForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value; signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...'; try { await createUserWithEmailAndPassword(auth, email, password); } catch (error) { signupErrorDiv.textContent = `Error: ${error.message}`; } finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; } });
+             loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value; loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...'; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { loginErrorDiv.textContent = `Error: ${error.message}`; } finally { loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; } });
+             logoutButton.addEventListener('click', async () => { try { await signOut(auth); } catch (error) { console.error('Error Logout:', error); } });
 
              // --- Observador Auth ---
              onAuthStateChanged(auth, (user) => {
                  if (user) { document.body.classList.remove('logged-out'); document.body.classList.add('logged-in'); userDisplaySpan.textContent = `Usuario: ${user.email || user.uid}`; initializeDictationApp(user.uid); }
-                 else { document.body.classList.remove('logged-in'); document.body.classList.add('logged-out'); userDisplaySpan.textContent = ''; if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') { try { window.currentRecognitionInstance.stop();} catch(e){} } }
+                 else { document.body.classList.remove('logged-in'); document.body.classList.add('logged-out'); userDisplaySpan.textContent = ''; if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') { try { window.currentRecognitionInstance.stop(); console.log("Reconocimiento detenido por logout."); } catch(e){} } }
              });
         } // Fin initializeAuthAndApp
 
@@ -192,7 +185,7 @@
             let recognition; let customVocabulary = {}; let customVocabularyKeys = []; let sortedVocabKeys = []; let recognizing = false; let timeoutHandle = null; let fuse; let fuzzyMatchesFound = new Map(); let learnedCorrections = {};
             const db = window.db; const doc = window.doc; const getDoc = window.getDoc; const setDoc = window.setDoc;
             const vocabDocRef = doc(db, "vocabularies", currentUserId);
-            let currentFuzzyThreshold = 0.5; // VALOR INICIAL SLIDER
+            let currentFuzzyThreshold = 0.5; // VALOR INICIAL CAMBIADO
             const FUSE_DEFAULTS = { includeScore: true, minMatchCharLength: 4 }; const LEARNED_CORRECTION_THRESHOLD = 3;
             const GEMINI_API_KEY = "AIzaSyAQ9DfDGmDT6DEy9YzpT2swu_lWVOlXWuM"; // ¡¡MOVER!!
             const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
@@ -203,10 +196,24 @@
 
             // --- Gestión Vocabulario (Firestore) ---
             function initializeFuse() { if (customVocabularyKeys.length > 0) { const fuseOptions = { ...FUSE_DEFAULTS, threshold: currentFuzzyThreshold }; fuse = new Fuse(customVocabularyKeys, fuseOptions); } else { fuse = null; } }
-            function initializeThreshold() { fuzzyThresholdSlider.value = currentFuzzyThreshold.toString(); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); } // Inicializar slider y valor
+            function initializeThreshold() { fuzzyThresholdSlider.value = currentFuzzyThreshold.toString(); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); }
             function processLoadedVocabularyData(rulesData, learnedData) { customVocabulary = rulesData || {}; learnedCorrections = learnedData || {}; customVocabularyKeys = Object.keys(customVocabulary); updateSortedKeys(); initializeFuse(); console.log(`Vocab procesado: ${customVocabularyKeys.length} reglas, ${Object.keys(learnedCorrections).length} aprendidas.`); statusDiv.textContent = 'Listo'; toggleButton.disabled = false; toggleButton.textContent = 'Empezar Dictado'; toggleButton.classList.remove('stop'); toggleButton.classList.add('start'); correctTextButton.disabled = false; copyTextButton.disabled = false; manageVocabButton.disabled = false; improveAIButton.disabled = false; }
             async function loadVocabularyFromFirestore() { console.log(`Cargando vocab para ${currentUserId}`); toggleButton.disabled = true; toggleButton.textContent = 'Cargando...'; correctTextButton.disabled = true; copyTextButton.disabled = true; manageVocabButton.disabled = true; improveAIButton.disabled = true; statusDiv.textContent = 'Cargando datos...'; try { const docSnap = await getDoc(vocabDocRef); if (docSnap.exists()) { const data = docSnap.data(); const rulesMap = (data && typeof data.rulesMap === 'object' && data.rulesMap !== null) ? data.rulesMap : {}; const learnedMap = (data && typeof data.learnedMap === 'object' && data.learnedMap !== null) ? data.learnedMap : {}; processLoadedVocabularyData(rulesMap, learnedMap); } else { processLoadedVocabularyData({}, {}); } } catch (error) { console.error("Error cargando vocab:", error); alert("Error al cargar vocabulario."); processLoadedVocabularyData({}, {}); statusDiv.textContent = 'Error carga vocab.'; toggleButton.textContent = 'Error Carga'; } }
-            async function saveVocabularyToFirestore(vocabToSave, learnedToSave) { console.log(`Guardando ${Object.keys(vocabToSave).length} reglas y ${Object.keys(learnedToSave).length} correcciones para ${currentUserId}...`); try { await setDoc(vocabDocRef, { rulesMap: vocabToSave, learnedMap: learnedToSave }); console.log("Datos guardados Firestore (overwrite)."); } catch (error) { console.error("Error guardando Firestore:", error); alert("Error al guardar en DB."); throw error; } }
+            // REVISADO: saveVocabularyToFirestore ahora solo guarda, no actualiza estado local directamente
+             async function saveVocabularyToFirestore(vocabToSave, learnedToSave) {
+                 console.log(`[saveVocabFirestore] Guardando ${Object.keys(vocabToSave).length} reglas y ${Object.keys(learnedToSave).length} correcciones para ${currentUserId}...`);
+                 const rulesMapCopy = { ...vocabToSave }; const learnedMapCopy = { ...learnedToSave };
+                 console.log("[saveVocabFirestore] rulesMap:", JSON.stringify(rulesMapCopy).substring(0, 200) + "...");
+                 console.log("[saveVocabFirestore] learnedMap:", JSON.stringify(learnedMapCopy));
+                 try {
+                     await setDoc(vocabDocRef, { rulesMap: rulesMapCopy, learnedMap: learnedMapCopy }); // Sobrescribir doc completo
+                     console.log("[saveVocabFirestore] Datos guardados exitosamente (sobrescribiendo).");
+                 } catch (error) {
+                     console.error("[saveVocabFirestore] ERROR guardando:", error);
+                     alert("Error al guardar en DB.");
+                     throw error; // Propagar error
+                 }
+             }
             function updateSortedKeys() { sortedVocabKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); }
             function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
             function normalizeText(text) { if (!text) return ''; return text.toLowerCase().replace(/[.,:;!?()]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -216,7 +223,7 @@
             function checkFuzzyMatches(originalText) { if (!fuse || !originalText || originalText.length < FUSE_DEFAULTS.minMatchCharLength) return; const normalizedOriginal = normalizeText(originalText); if (!normalizedOriginal || fuzzyMatchesFound.has(normalizedOriginal)) return; const results = fuse.search(normalizedOriginal); if (results.length > 0) { const bestMatch = results[0]; if (bestMatch.score < currentFuzzyThreshold + 0.001) { const matchedKey = bestMatch.item; const suggestedValue = customVocabulary[matchedKey]; if (matchedKey !== normalizedOriginal) { const suggestionData = { original: originalText, matchedKey: matchedKey, suggestedValue: suggestedValue, score: bestMatch.score }; fuzzyMatchesFound.set(normalizedOriginal, suggestionData); displayFuzzySuggestion(suggestionData); }}}}
             function applyCustomVocabulary(text) { let p = text; for (const key of sortedVocabKeys) { const v = customVocabulary[key]; try { const r = new RegExp(`\\b${escapeRegExp(key)}\\b`, 'gi'); p = p.replace(r, v); } catch (e) {} } return p; }
             function displayFuzzySuggestion(suggestionData = null) { if (!suggestionData && fuzzyMatchesFound.size === 0) { fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; return; } if (fuzzyMatchesFound.size === 1 && suggestionData) { fuzzySuggestionsList.innerHTML = ''; } if (suggestionData) { const item = document.createElement('div'); item.className = 'suggestion-item'; item.innerHTML = `<span class="suggestion-text">"${suggestionData.original}" (${(suggestionData.score*100).toFixed(0)}%) ≈ "${suggestionData.matchedKey}". ¿Usar: "<strong>${suggestionData.suggestedValue}</strong>"?</span><span class="suggestion-actions"><button data-original="${suggestionData.original}" data-matched-key="${suggestionData.matchedKey}" data-suggested-value="${suggestionData.suggestedValue}">Añadir Regla</button><button data-dismiss-key="${normalizeText(suggestionData.original)}">Ignorar</button></span>`; item.querySelector('[data-original]').addEventListener('click', handleAddFuzzyRule); item.querySelector('[data-dismiss-key]').addEventListener('click', handleDismissFuzzy); fuzzySuggestionsList.appendChild(item); } }
-            async function handleAddFuzzyRule(event) { const btn = event.target; const original = btn.dataset.original; const suggestedValue = btn.dataset.suggestedValue; const originalLower = original.toLowerCase(); const matchedKeyLower = btn.dataset.matchedKey.toLowerCase(); const tempVocab = { ...customVocabulary }; const tempLearned = { ...learnedCorrections }; let vocabChanged = false; if (!tempVocab.hasOwnProperty(originalLower)) { tempVocab[originalLower] = suggestedValue; vocabChanged = true; } const mistakeNorm = normalizeText(original); const correctKeyNorm = normalizeText(matchedKeyLower); if (!tempLearned[mistakeNorm]) { tempLearned[mistakeNorm] = { correctKey: correctKeyNorm, count: 0 }; } tempLearned[mistakeNorm].count++; console.log(`Contador para "${mistakeNorm}": ${tempLearned[mistakeNorm].count}`); try { await saveVocabularyToFirestore(tempVocab, tempLearned); customVocabulary = tempVocab; learnedCorrections = tempLearned; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert(`Regla "${original} -> ${suggestedValue}" añadida/confirmada.`); btn.closest('.suggestion-item').remove(); if (fuzzySuggestionsList.childElementCount === 0) fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; fuzzyMatchesFound.delete(normalizeText(original)); } catch (error) { alert("Error al guardar cambios."); } }
+            async function handleAddFuzzyRule(event) { const btn = event.target; const original = btn.dataset.original; const suggestedValue = btn.dataset.suggestedValue; const originalLower = original.toLowerCase(); const matchedKeyLower = btn.dataset.matchedKey.toLowerCase(); const tempVocab = { ...customVocabulary }; const tempLearned = { ...learnedCorrections }; let vocabChanged = false; if (!tempVocab.hasOwnProperty(originalLower)) { tempVocab[originalLower] = suggestedValue; vocabChanged = true; } const mistakeNorm = normalizeText(original); const correctKeyNorm = normalizeText(matchedKeyLower); if (!tempLearned[mistakeNorm]) { tempLearned[mistakeNorm] = { correctKey: correctKeyNorm, count: 0 }; } tempLearned[mistakeNorm].count++; try { await saveVocabularyToFirestore(tempVocab, tempLearned); customVocabulary = tempVocab; learnedCorrections = tempLearned; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert(`Regla "${original} -> ${suggestedValue}" añadida/confirmada.`); btn.closest('.suggestion-item').remove(); if (fuzzySuggestionsList.childElementCount === 0) fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; fuzzyMatchesFound.delete(normalizeText(original)); } catch (error) { alert("Error al guardar cambios."); } }
             function handleDismissFuzzy(event) { const btn = event.target; const keyToDismiss = btn.dataset.dismissKey; fuzzyMatchesFound.delete(keyToDismiss); btn.closest('.suggestion-item').remove(); if (fuzzySuggestionsList.childElementCount === 0) fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; }
             function clearSuggestions() { fuzzyMatchesFound.clear(); fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; }
 
@@ -247,46 +254,28 @@
                  // --- Lógica Mejora con IA (Gemini - CORREGIDO finally) ---
                  async function callGeminiAPI(textToImprove) { console.log("Llamando a Gemini API..."); const fullPrompt = GEMINI_PROMPT + textToImprove + '\n"""'; statusDiv.textContent = "IA Procesando..."; improveAIButton.disabled = true; improveAIButton.textContent = "Procesando..."; let correctedTextResult = null; try { const response = await fetch(GEMINI_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) }); if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error API: ${response.status} ${response.statusText} - ${errorBody}`); } const data = await response.json(); const correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text; if (!correctedText) { throw new Error("No se pudo extraer texto corregido."); } console.log("Texto corregido recibido."); correctedTextResult = correctedText.trim(); } catch (error) { console.error('Error llamando a Gemini API:', error); alert(`Error IA: ${error.message}`); } finally { improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; if (!recognizing && statusDiv.textContent === "IA Procesando...") { statusDiv.textContent = "Listo."; } console.log("[callGeminiAPI finally] Botón IA rehabilitado."); } return correctedTextResult; }
                  function displayDiffModal(originalText, correctedText) { diffOutput.innerHTML = ''; const diff = Diff.diffWords(originalText, correctedText, { ignoreWhitespace: false }); const fragment = document.createDocumentFragment(); diff.forEach((part) => { const span = document.createElement('span'); span.textContent = part.value; if (part.added || part.removed) { span.classList.add('clickable-diff'); if (part.added) { span.classList.add('diff-added'); span.dataset.included = 'true'; } else { span.classList.add('diff-removed'); span.dataset.included = 'false'; } span.addEventListener('click', toggleDiffInclusion); } fragment.appendChild(span); }); diffOutput.appendChild(fragment); diffModal.style.display = 'flex'; }
-                 function toggleDiffInclusion(event) { const span = event.target; const isAdded = span.classList.contains('diff-added'); const isRemoved = span.classList.contains('diff-removed'); let isIncluded = span.dataset.included === 'true'; isIncluded = !isIncluded; span.dataset.included = isIncluded.toString(); if (isAdded) { span.classList.toggle('excluded', !isIncluded); } else if (isRemoved) { span.classList.toggle('included', isIncluded); } }
-                 function handleAcceptAllDiffs() { const diffSpans = diffOutput.querySelectorAll('span.clickable-diff'); diffSpans.forEach(span => { if (span.classList.contains('diff-added')) { span.dataset.included = 'true'; span.classList.remove('excluded'); } else if (span.classList.contains('diff-removed')) { span.dataset.included = 'false'; span.classList.remove('included'); } }); }
+                 function toggleDiffInclusion(event) { const span = event.target; const isAdded = span.classList.contains('diff-added'); const isRemoved = span.classList.contains('diff-removed'); let isIncluded = span.dataset.included === 'true'; isIncluded = !isIncluded; span.dataset.included = isIncluded.toString(); if (isAdded) { span.classList.toggle('excluded', !isIncluded); } else if (isRemoved) { span.classList.toggle('included', isIncluded); } console.log(`Clic en diff: "${span.textContent.substring(0,20)}..." Incluido: ${isIncluded}`); }
+                 function handleAcceptAllDiffs() { const diffSpans = diffOutput.querySelectorAll('span.clickable-diff'); diffSpans.forEach(span => { if (span.classList.contains('diff-added')) { span.dataset.included = 'true'; span.classList.remove('excluded'); } else if (span.classList.contains('diff-removed')) { span.dataset.included = 'false'; span.classList.remove('included'); } }); console.log("Restablecido a sugerencia IA."); }
                  function handleApplyDiffChanges() { let finalReportText = ''; const diffNodes = diffOutput.childNodes; diffNodes.forEach(node => { if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.classList.contains('clickable-diff')) { const isIncluded = node.dataset.included === 'true'; if(isIncluded) { finalReportText += node.textContent; } } else { finalReportText += node.textContent; } }); reportArea.value = finalReportText; closeDiffModal(); console.log("Cambios IA aplicados."); }
                  function closeDiffModal() { diffModal.style.display = 'none'; diffOutput.innerHTML = ''; }
                  async function handleImproveAI() { const originalText = reportArea.value; if (!originalText.trim()) { alert("No hay texto para mejorar."); return; } const correctedText = await callGeminiAPI(originalText); if (correctedText) { if (normalizeText(originalText) === normalizeText(correctedText)) { alert("IA no encontró correcciones."); statusDiv.textContent = 'Listo.'; improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; } else { displayDiffModal(originalText, correctedText); statusDiv.textContent = 'Revisión IA lista.'; } } }
 
                 // --- Event Listeners ---
-                 toggleButton.addEventListener('click', () => { // Listener Corregido
-                     if (!SpeechRecognition || toggleButton.disabled) return;
-                     if (recognizing) { if (recognition) { try { recognition.stop(); } catch (e) { console.error("Error stop:", e); updateButtonState(false, 'Error al detener'); } } }
-                     else { try { if (recognition) { recognition.start(); toggleButton.disabled = true; updateButtonState(true, 'Iniciando...'); } else { throw new Error("No recognition"); } } catch (e) { console.error("Error start:", e); updateButtonState(false, 'Error al iniciar.'); } }
-                 });
-                 correctTextButton.addEventListener('click', handleCorrectTextSelection);
-                 copyTextButton.addEventListener('click', handleCopyText);
-                 improveAIButton.addEventListener('click', handleImproveAI); // Listener Botón IA
-                 fuzzyThresholdSlider.addEventListener('input', (event) => { currentFuzzyThreshold = parseFloat(event.target.value); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); initializeFuse(); clearSuggestions(); });
-                 techniqueButtonsContainer.addEventListener('click', (event) => { if (event.target.tagName === 'BUTTON' && event.target.dataset.techniqueText) { headerArea.value = event.target.dataset.techniqueText; } });
-                 clearHeaderButton.addEventListener('click', () => { headerArea.value = ''; });
-                 manageVocabButton.addEventListener('click', openVocabManager);
-                 modalCloseButton.addEventListener('click', closeVocabManager);
-                 modalAddNewRuleButton.addEventListener('click', handleAddNewRule);
-                 vocabManagerModal.addEventListener('click', (event) => { if (event.target === vocabManagerModal) { closeVocabManager(); } });
+                 toggleButton.addEventListener('click', () => { if (!SpeechRecognition || toggleButton.disabled) return; if (recognizing) { if (recognition) { try { recognition.stop(); } catch (e) { console.error("Error stop:", e); updateButtonState(false, 'Error al detener'); } } } else { try { if (recognition) { recognition.start(); toggleButton.disabled = true; updateButtonState(true, 'Iniciando...'); } else { throw new Error("No recognition"); } } catch (e) { console.error("Error start:", e); updateButtonState(false, 'Error al iniciar.'); } } });
+                correctTextButton.addEventListener('click', handleCorrectTextSelection);
+                copyTextButton.addEventListener('click', handleCopyText);
+                improveAIButton.addEventListener('click', handleImproveAI);
+                fuzzyThresholdSlider.addEventListener('input', (event) => { currentFuzzyThreshold = parseFloat(event.target.value); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); initializeFuse(); clearSuggestions(); });
+                techniqueButtonsContainer.addEventListener('click', (event) => { if (event.target.tagName === 'BUTTON' && event.target.dataset.techniqueText) { headerArea.value = event.target.dataset.techniqueText; } });
+                clearHeaderButton.addEventListener('click', () => { headerArea.value = ''; });
+                manageVocabButton.addEventListener('click', openVocabManager);
+                modalCloseButton.addEventListener('click', closeVocabManager);
+                modalAddNewRuleButton.addEventListener('click', handleAddNewRule);
+                vocabManagerModal.addEventListener('click', (event) => { if (event.target === vocabManagerModal) { closeVocabManager(); } });
                  diffModalCloseButton.addEventListener('click', closeDiffModal);
                  cancelDiffButton.addEventListener('click', closeDiffModal);
                  acceptAllDiffButton.addEventListener('click', handleAcceptAllDiffs);
                  applyDiffButton.addEventListener('click', handleApplyDiffChanges);
-                 // NUEVO: Listener para el atajo de teclado
-                 document.addEventListener('keydown', function(event) {
-                    // Verificar Shift + Meta (Cmd en Mac, Win en Windows) + Tecla Shift
-                    if (event.shiftKey && event.metaKey && event.key === 'Shift') {
-                        console.log("Atajo Shift+Meta+Shift detectado!");
-                        event.preventDefault(); // Prevenir cualquier acción por defecto
-                        // Simular clic en el botón toggle, si está habilitado
-                        if (toggleButton && !toggleButton.disabled) {
-                            toggleButton.click();
-                        } else {
-                            console.log("Atajo detectado pero el botón de dictado está deshabilitado.");
-                        }
-                    }
-                 });
 
                 // --- Inicialización App Dictado ---
                 initializeThreshold();

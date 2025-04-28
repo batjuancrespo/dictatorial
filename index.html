@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictado Radiológico v32 (Completo)</title>
+    <!-- Incluir Fuse.js -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+    <!-- Incluir jsdiff -->
+    <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
+
+    <!-- Firebase SDK Imports (Auth + Firestore) -->
+    <script type="module">
+      // Configuración Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", // ¡¡MOVER A LUGAR SEGURO EN PRODUCCIÓN!!
+        authDomain: "almacena-correcciones-dictado.firebaseapp.com",
+        projectId: "almacena-correcciones-dictado",
+        storageBucket: "almacena-correcciones-dictado.appspot.com",
+        messagingSenderId: "209194920272",
+        appId: "1:209194920272:web:ccbec69d0a5aa88789e455",
+        measurementId: "G-6PQSKYMDP0"
+      };
+      // userId se obtendrá de Auth
+
+      try {
+            const fa = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+            const fs = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+            const fbAuth = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js'); // Auth SDK
+
+            window.firebaseApp = fa.initializeApp(firebaseConfig);
+            window.db = fs.getFirestore(window.firebaseApp);
+            window.doc = fs.doc; window.getDoc = fs.getDoc; window.setDoc = fs.setDoc;
+            // Obtener instancia Auth y exponer funciones necesarias globalmente
+            window.auth = fbAuth.getAuth(window.firebaseApp);
+            window.createUserWithEmailAndPassword = fbAuth.createUserWithEmailAndPassword;
+            window.signInWithEmailAndPassword = fbAuth.signInWithEmailAndPassword;
+            window.signOut = fbAuth.signOut;
+            window.onAuthStateChanged = fbAuth.onAuthStateChanged;
+
+            console.log("Firebase (App, Firestore, Auth) inicializado.");
+            document.dispatchEvent(new CustomEvent('firebaseReady')); // Señal para iniciar la app
+      } catch (error) {
+            console.error("Error inicializando Firebase:", error);
+            alert("Error crítico: No se pudo inicializar Firebase. La aplicación no funcionará correctamente.");
+            // Podrías mostrar un mensaje de error más permanente en el body
+            document.body.innerHTML = '<h1>Error de Carga</h1><p>No se pudo conectar con los servicios necesarios. Por favor, recarga la página o contacta al administrador.</p>';
+      }
+    </script>
+
+    <style>
+        /* --- Variables CSS para Temas --- */
+        :root {
+            --bg-color: #f4f4f4; --container-bg: #fff; --text-color: #333; --text-muted-color: #555; --heading-color: #333; --border-color: #ccc; --border-light-color: #eee; --border-dashed-color: #ddd; --link-color: #007bff;
+            --button-primary-bg: #007bff; --button-primary-hover-bg: #0056b3; --button-primary-text: white; --button-secondary-bg: #6c757d; --button-secondary-hover-bg: #5a6268; --button-secondary-text: white;
+            --button-success-bg: #28a745; --button-success-hover-bg: #218838; --button-success-text: white; --button-danger-bg: #dc3545; --button-danger-hover-bg: #c82333; --button-danger-text: white; --button-warning-bg: #ffc107; --button-warning-hover-bg: #e0a800; --button-warning-text: #212529;
+            --button-info-bg: #17a2b8; --button-info-hover-bg: #138496; --button-info-text: white; --button-light-gray-bg: #e9e9e9; --button-light-gray-hover-bg: #d8d8d8; --button-light-gray-text: #333;
+            --button-violet-bg: #6f42c1; --button-violet-hover-bg: #5a349b; --button-violet-text: white;
+            --button-suggestion-bg: #f8f8f8; --button-suggestion-hover-bg: #e8e8e8; --button-suggestion-border: #ccc; --button-disabled-bg: #cccccc; --button-disabled-opacity: 0.7;
+            --input-bg: white; --input-border: #ccc; --input-text: #333; --header-area-bg: #f9f9f9; --header-area-border: #eee; --status-listening-color: #777; --status-base-color: #555; --suggestions-bg: #eef; --suggestions-border: #cce;
+            --slider-thumb-bg: #007bff; --slider-track-bg: #ddd; --switch-bg: #ccc; --switch-thumb-bg: white; --switch-checked-bg: #007bff;
+            --modal-overlay-bg: rgba(0, 0, 0, 0.6); --modal-content-bg: var(--container-bg); --modal-border: var(--border-color);
+            --diff-added-bg: rgba(40, 167, 69, 0.2); --diff-removed-bg: rgba(220, 53, 69, 0.15); --diff-removed-text-decoration: line-through;
+             --diff-added-excluded-decoration: line-through; --diff-added-excluded-color: var(--text-muted-color); --diff-added-excluded-opacity: 0.7;
+             --diff-removed-included-decoration: none; --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(108, 117, 125, 0.1);
+            --theme-image-border: var(--border-color);
+        }
+        body.dark-mode {
+             --bg-color: #22272e; --container-bg: #2d333b; --text-color: #adbac7; --text-muted-color: #768390; --heading-color: #adbac7; --border-color: #444c56; --border-light-color: #373e47; --border-dashed-color: #444c56; --link-color: #539bf5;
+             --button-primary-bg: #377ef0; --button-primary-hover-bg: #539bf5; --button-secondary-bg: #444c56; --button-secondary-hover-bg: #5d6774; --button-secondary-text: #adbac7;
+             --button-success-bg: #347d39; --button-success-hover-bg: #46954a; --button-success-text: white; --button-danger-bg: #e5534b; --button-danger-hover-bg: #f47067;
+             --button-warning-bg: #d9971a; --button-warning-hover-bg: #f0b72f; --button-warning-text: #22272e; --button-info-bg: #4387d9; --button-info-hover-bg: #539bf5; --button-light-gray-bg: #373e47; --button-light-gray-hover-bg: #444c56; --button-light-gray-text: #adbac7;
+             --button-violet-bg: #8a63d2; --button-violet-hover-bg: #9b7ae0; --button-violet-text: white;
+             --button-suggestion-bg: #373e47; --button-suggestion-hover-bg: #444c56; --button-suggestion-border: #5d6774; --button-disabled-bg: #444c56; --input-bg: #22272e; --input-border: #444c56; --input-text: #adbac7;
+             --header-area-bg: #22272e; --header-area-border: #373e47; --status-listening-color: #768390; --status-base-color: #768390; --suggestions-bg: #2d333b; --suggestions-border: #444c56;
+             --slider-thumb-bg: #539bf5; --slider-track-bg: #444c56; --switch-bg: #444c56; --switch-thumb-bg: #768390; --switch-checked-bg: #377ef0;
+              --modal-overlay-bg: rgba(0, 0, 0, 0.7); --modal-border: var(--border-color);
+             --diff-added-bg: rgba(67, 160, 71, 0.3); --diff-removed-bg: rgba(211, 72, 54, 0.25);
+             --diff-added-excluded-color: var(--text-muted-color); --diff-removed-included-color: var(--text-color); --diff-removed-included-bg: rgba(110, 123, 139, 0.15);
+             --theme-image-border: var(--border-color);
+        }
+        /* --- Estilos Generales y Layout --- */
+        body { font-family: sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: var(--bg-color); color: var(--text-color); display: flex; justify-content: center; transition: background-color 0.3s ease, color 0.3s ease; }
+        #auth-container, #app-container { width: 100%; max-width: 1200px; margin: 0 auto; }
+        #app-container { display: none; }
+        .auth-form { background-color: var(--container-bg); padding: 30px; border-radius: 8px; border: 1px solid var(--border-color); max-width: 400px; margin: 40px auto; text-align: center; }
+        .auth-form h2 { margin-bottom: 25px; color: var(--heading-color); }
+        .auth-form label { display: block; text-align: left; margin-bottom: 5px; font-weight: bold; color: var(--text-muted-color); }
+        .auth-form input[type="email"], .auth-form input[type="password"] { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--input-text); }
+        .auth-form button { width: 100%; padding: 12px; font-size: 1.1em; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease; background-color: var(--button-primary-bg); color: var(--button-primary-text); }
+        .auth-form button:hover { background-color: var(--button-primary-hover-bg); }
+        .auth-form .separator { margin: 20px 0; color: var(--text-muted-color); }
+        .auth-form #signupButton { background-color: var(--button-success-bg); }
+        .auth-form #signupButton:hover { background-color: var(--button-success-hover-bg); }
+        #auth-error { color: var(--button-danger-bg); margin-top: 15px; font-weight: bold; min-height: 1.2em; }
+        .user-info { text-align: right; padding: 5px 25px; font-size: 0.9em; color: var(--text-muted-color); background-color: var(--container-bg); border-radius: 0 0 8px 8px; margin-top: -20px; margin-bottom: 20px; }
+        .user-info button { margin-left: 15px; font-size: 0.9em; padding: 3px 8px; cursor: pointer; background-color: var(--button-secondary-bg); color: var(--button-secondary-text); border: none; border-radius: 3px; }
+        .user-info button:hover { background-color: var(--button-secondary-hover-bg); }
+        body.logged-out #app-container { display: none; } body.logged-out #auth-container { display: block; }
+        body.logged-in #app-container { display: block; } body.logged-in #auth-container { display: none; }
+        .layout-wrapper { display: flex; flex-direction: row; gap: 25px; width: 100%; align-items: flex-start; }
+        .main-content-area { flex: 3; display: flex; flex-direction: column; gap: 20px; }
+        .suggestions-column { flex: 1; position: sticky; top: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .container { background-color: var(--container-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border-light-color); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: background-color 0.3s ease, border-color 0.3s ease; }
+        /* --- Estilos Contenedor Título con Imágenes --- */
+        .title-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Para separar imágenes del título */
+            min-height: 70px; /* Ajustar según tamaño de imagen deseado */
+            overflow: hidden; /* Evitar que las imágenes se salgan si son muy grandes */
+        }
+        .title-container h1 {
+            color: var(--heading-color);
+            text-align: center;
+            margin: 0;
+            flex-grow: 1; /* Que el título ocupe el espacio central */
+            padding: 0 10px; /* Pequeño padding alrededor del título */
+        }
+        /* Estilos base de las imágenes */
+        #batman-image, #joker-image {
+            display: none; /* Ocultas por defecto */
+            max-height: 60px; /* Altura máxima deseada */
+            max-width: 80px; /* Ancho máximo */
+            width: auto; /* Mantener relación de aspecto */
+            height: auto; /* Mantener relación de aspecto */
+            border: 1px solid var(--theme-image-border);
+            border-radius: 4px;
+            object-fit: contain; /* Asegura que la imagen quepa sin distorsionarse */
+            flex-shrink: 0; /* Para que no se encojan */
+        }
+        /* Mostrar/ocultar según el tema */
+        body.light-mode #batman-image { display: block; }
+        body.dark-mode #joker-image { display: block; }
+        body.dark-mode #batman-image, body.light-mode #joker-image { display: none; }
+
+        h3 { color: var(--text-muted-color); margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--border-light-color); padding-bottom: 8px; }
+        .controls { text-align: center; padding: 15px; background-color: var(--container-bg); border-radius: 8px; border: 1px solid var(--border-color); }
+        .controls button { padding: 12px 20px; font-size: 1.0em; margin: 5px 3px; cursor: pointer; border: none; border-radius: 5px; transition: background-color 0.3s ease, opacity 0.3s ease; min-width: 120px; text-align: center; vertical-align: middle; }
+        #toggleButton { color: var(--button-primary-text); } #toggleButton.start { background-color: var(--button-primary-bg); } #toggleButton.start:hover { background-color: var(--button-primary-hover-bg); } #toggleButton.stop { background-color: #dc3545; } #toggleButton.stop:hover { background-color: #c82333; }
+        #correctTextButton { background-color: var(--button-success-bg); color: var(--button-success-text); } #correctTextButton:hover { background-color: var(--button-success-hover-bg); }
+        #copyTextButton { background-color: var(--button-warning-bg); color: var(--button-warning-text); } #copyTextButton:hover { background-color: var(--button-warning-hover-bg); }
+        #improveAIButton { background-color: var(--button-violet-bg); color: var(--button-violet-text); } #improveAIButton:hover { background-color: var(--button-violet-hover-bg); }
+        .controls button:disabled { background-color: var(--button-disabled-bg); cursor: not-allowed; opacity: var(--button-disabled-opacity); }
+        #status { margin-top: 15px; font-weight: bold; color: var(--status-base-color); min-height: 20px; } #status span { color: var(--status-listening-color); }
+        .header-section { padding: 15px; background-color: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; }
+        #headerArea { display: block; width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 0; border: 1px solid var(--header-area-border); border-radius: 5px; background-color: var(--header-area-bg); color: var(--input-text); font-family: sans-serif; font-size: 1em; line-height: 1.5; resize: vertical; }
+        .editor-container { position: relative; text-align: center; padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--container-bg); }
+        #reportArea { width: 100%; box-sizing: border-box; min-height: 400px; padding: 15px; border: 1px solid var(--input-border); border-radius: 5px; font-size: 1.1em; line-height: 1.6; margin-bottom: 10px; background-color: var(--input-bg); color: var(--input-text); resize: vertical; }
+        em, small { color: var(--text-muted-color); font-size: 0.9em; } .instructions { font-size: 0.9em; color: var(--text-muted-color); margin-bottom: 15px; }
+        #technique-selection-container { padding: 20px; } #technique-selection-container h3 { margin-top: 0; text-align: center; } #techniqueButtons { display: flex; flex-direction: column; gap: 15px; }
+        .technique-group { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; } #techniqueButtons button { padding: 8px 10px; font-size: 0.85em; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease, transform 0.1s ease; min-width: 90px; text-align: center; flex-grow: 1; flex-basis: 90px; }
+        #techniqueButtons button:active { transform: scale(0.97); } .btn-red { background-color: var(--button-danger-bg); color: var(--button-danger-text); } .btn-red:hover { background-color: var(--button-danger-hover-bg); } .btn-yellow { background-color: var(--button-warning-bg); color: var(--button-warning-text); } .btn-yellow:hover { background-color: var(--button-warning-hover-bg); } .btn-blue { background-color: var(--button-info-bg); color: var(--button-info-text); } .btn-blue:hover { background-color: var(--button-info-hover-bg); } .btn-gray { background-color: var(--button-light-gray-bg); color: var(--button-light-gray-text); } .btn-gray:hover { background-color: var(--button-light-gray-hover-bg); }
+        .suggestions-container { padding: 15px; background-color: var(--suggestions-bg); border: 1px solid var(--suggestions-border); border-radius: 8px; text-align: left; max-height: 250px; overflow-y: auto; transition: background-color 0.3s ease, border-color 0.3s ease; }
+        .suggestion-item { padding: 8px 5px; margin-bottom: 8px; border-bottom: 1px dashed var(--border-dashed-color); display: flex; justify-content: space-between; align-items: center; font-size: 0.95em; } .suggestion-item:last-child { border-bottom: none; } .suggestion-text { margin-right: 10px; flex-grow: 1; color: var(--text-color); } .suggestion-text strong { color: var(--link-color); } .suggestion-actions button { padding: 4px 8px; font-size: 0.85em; cursor: pointer; margin-left: 5px; border: 1px solid var(--button-suggestion-border); background-color: var(--button-suggestion-bg); color: var(--text-color); border-radius: 3px; } .suggestion-actions button:hover { background-color: var(--button-suggestion-hover-bg); border-color: var(--border-color); }
+        .slider-container { margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--border-dashed-color); text-align: center; } .slider-container label { margin-right: 10px; font-size: 0.9em; color: var(--text-muted-color); vertical-align: middle; } #fuzzyThresholdSlider { width: 150px; vertical-align: middle; cursor: pointer; accent-color: var(--slider-thumb-bg); background: var(--slider-track-bg); } #fuzzyThresholdValue { display: inline-block; min-width: 30px; font-weight: bold; margin-left: 5px; color: var(--link-color); vertical-align: middle; }
+        #settings-container { padding: 20px; } #settings-container .button-group { margin-top: 15px; display: flex; justify-content: center; gap: 10px;} #settings-container .button-group button { padding: 8px 15px; font-size: 0.9em;}
+        .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; margin-top: 10px; margin-bottom: 15px; }
+        .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; } .theme-switch input { display: none; } .slider { background-color: var(--switch-bg); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; } .slider:before { background-color: var(--switch-thumb-bg); bottom: 3px; content: ""; height: 18px; left: 3px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; } input:checked + .slider { background-color: var(--switch-checked-bg); } input:checked + .slider:before { transform: translateX(24px); } .theme-switch-wrapper span { margin-left: 8px; font-size: 0.9em; color: var(--text-muted-color); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--modal-overlay-bg); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: var(--modal-content-bg); padding: 30px; border-radius: 8px; width: 90%; max-width: 800px; max-height: 85vh; border: 1px solid var(--modal-border); position: relative; display: flex; flex-direction: column; }
+        .modal-content h3 { margin-top: 0; text-align: center; color: var(--heading-color); flex-shrink: 0; }
+        .modal-close-button { position: absolute; top: 10px; right: 15px; font-size: 1.8em; font-weight: bold; color: var(--text-muted-color); background: none; border: none; cursor: pointer; line-height: 1; padding: 0; } .modal-close-button:hover { color: var(--text-color); }
+        #vocabManagerList { list-style: none; padding: 0; margin-top: 20px; flex-grow: 1; overflow-y: auto; }
+        #vocabManagerList li { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; border-bottom: 1px solid var(--border-light-color); } #vocabManagerList li:last-child { border-bottom: none; } .vocab-item-key { font-weight: bold; margin-right: 10px; color: var(--link-color); flex-basis: 40%; overflow-wrap: break-word; } .vocab-item-value { margin-right: 15px; color: var(--text-color); flex-grow: 1; overflow-wrap: break-word;} .vocab-item-actions button { padding: 4px 8px; font-size: 0.85em; cursor: pointer; margin-left: 5px; border-radius: 3px; border: 1px solid var(--button-suggestion-border); background-color: var(--button-suggestion-bg); color: var(--text-color); } .vocab-item-actions button.delete { background-color: var(--button-danger-bg); color: var(--button-danger-text); border-color: var(--button-danger-bg); } .vocab-item-actions button:hover { opacity: 0.8; } .modal-actions { margin-top: 25px; text-align: center; flex-shrink: 0; } .modal-actions button { padding: 10px 20px; font-size: 1em; margin: 0 10px; }
+        #diffOutput { border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; margin-top: 15px; margin-bottom: 20px; max-height: 50vh; overflow-y: auto; background-color: var(--input-bg); line-height: 1.6; flex-grow: 1; white-space: pre-wrap; font-family: monospace; }
+        #diffOutput span.clickable-diff { cursor: pointer; border-bottom: 1px dotted transparent; transition: border-color 0.2s ease; } #diffOutput span.clickable-diff:hover { border-bottom-color: var(--link-color); }
+        .diff-added { background-color: var(--diff-added-bg); text-decoration: none; border-radius: 3px; padding: 1px 2px; } .diff-removed { background-color: var(--diff-removed-bg); text-decoration: var(--diff-removed-text-decoration); color: var(--text-muted-color); border-radius: 3px; padding: 1px 2px; }
+        .diff-added.excluded { background-color: transparent !important; text-decoration: var(--diff-added-excluded-decoration); color: var(--diff-added-excluded-color); opacity: var(--diff-added-excluded-opacity); }
+        .diff-removed.included { background-color: var(--diff-removed-included-bg) !important; text-decoration: var(--diff-removed-included-decoration); color: var(--diff-removed-included-color); opacity: 1; }
+    </style>
+</head>
+<body class="light-mode logged-out">
+
+    <!-- Contenedor Autenticación -->
+    <div id="auth-container"> <form id="login-form" class="auth-form"><h2>Iniciar Sesión</h2><div id="login-error" class="auth-error"></div><label for="login-email">Email:</label><input type="email" id="login-email" required><label for="login-password">Contraseña:</label><input type="password" id="login-password" required><button type="submit" id="loginButton">Iniciar Sesión</button><div class="separator">o</div><button type="button" id="showSignupButton">Crear Cuenta Nueva</button></form> <form id="signup-form" class="auth-form" style="display: none;"><h2>Crear Cuenta</h2><div id="signup-error" class="auth-error"></div><label for="signup-email">Email:</label><input type="email" id="signup-email" required><label for="signup-password">Contraseña (mín. 6):</label><input type="password" id="signup-password" required minlength="6"><button type="submit" id="signupButton">Registrarse</button><div class="separator">o</div><button type="button" id="showLoginButton">Ya tengo cuenta</button></form> </div>
+
+    <!-- Contenedor Principal App -->
+    <div id="app-container">
+         <div class="user-info"> <span id="user-display"></span> <button id="logoutButton">Cerrar Sesión</button> </div>
+        <div class="layout-wrapper">
+            <!-- Columna Izquierda -->
+            <div class="main-content-area">
+                 <!-- Contenedor del Título con Imágenes (CORREGIDO) -->
+                <div class="container title-container">
+                     <img id="batman-image" src="batman_light.jpg" alt="Batman Theme Image">
+                     <h1>Dictado Radiológico <small>(v32)</small></h1>
+                     <img id="joker-image" src="joker_dark.jpg" alt="Joker Theme Image">
+                 </div>
+                <div class="container controls"> <button id="toggleButton" class="start" disabled>Cargando...</button> <button id="correctTextButton" disabled>Corregir</button> <button id="copyTextButton" disabled>Copiar</button> <button id="improveAIButton" disabled>Mejorar IA</button> <p id="status">Estado: Cargando...</p> <p class="instructions"><em>Selecciona texto y pulsa "Corregir Selección". Atajo: Shift+Cmd+Shift</em></p> </div>
+                <div class="container header-section"> <h3>Técnica Aplicada:</h3> <textarea id="headerArea" rows="3" placeholder="Selecciona técnica o escribe..."></textarea> </div>
+                <div class="container editor-container"> <textarea id="reportArea" placeholder="El informe aparecerá aquí..." ></textarea> </div>
+            </div>
+            <!-- Columna Derecha -->
+            <div class="suggestions-column">
+                <div class="container" id="settings-container"> <h3>Ajustes</h3> <div class="theme-switch-wrapper"> <label class="theme-switch" for="themeToggleCheckbox"> <input type="checkbox" id="themeToggleCheckbox"> <span class="slider"></span> </label> <span>Tema Oscuro</span> </div> <div class="slider-container"> <label for="fuzzyThresholdSlider">Sensibilidad Sugerencias:</label> <input type="range" id="fuzzyThresholdSlider" min="0.1" max="0.8" step="0.05" value="0.5"> <span id="fuzzyThresholdValue">0.50</span> </div> <div class="button-group"> <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> </div> </div>
+                <div class="container" id="technique-selection-container"> <h3>Seleccionar Técnica</h3> <div id="techniqueButtons"> <div class="technique-group"> <button class="btn-red" data-technique-text="Se realiza exploración abdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Abd Art+Portal</button> <button class="btn-red" data-technique-text="Se realiza exploración abdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase portal.">Abd Portal</button> <button class="btn-red" data-technique-text="Se realiza exploración toracoabdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Tórax+Abd Art+Portal</button> <button class="btn-red" data-technique-text="Se realiza exploración sin administración endovenosa de contraste con adquisición de imágenes en reposo y durante maniobra de Valsalva.">Abd Hernia</button> <button class="btn-red" data-technique-text="Se realiza exploración sin y tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Abd 3 Fases</button> <button class="btn-blue" data-technique-text="Exploración ecográfica con sonda multifrecuencia.">Eco Abd</button> </div> <div class="technique-group"> <button class="btn-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T1 en fase y fuera de fase, T2 sin y con saturación grasa, difusión y estudio dinámico tras la administración endovenosa de contraste.">RM Hepática</button> <button class="btn-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T1 en fase y fuera de fase, T2 sin y con saturación grasa, estudio dinámico tras la administración endovenosa de contraste completándose la valoración con cortes radiales respecto al colédoco orientados a la valoración de la via biliar.">ColangioRM</button> <button class="btn-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T2, difusión y estudio dinámico tras la administración endovenosa de contraste previa distensión de las asas intestinales. Exploración orientada a la valoración de asas de intestino delgado.">EnteroRM</button> <button class="btn-yellow" data-technique-text="Se realiza exploración pélvica con secuencias potenciadas en T2 sin y con saturación grasa y difusión.">RM Fístulas</button> <button class="btn-yellow" data-technique-text="Se realiza exploración pélvica con secuencias potenciadas en T2 sin y con saturación grasa en los tres planos del espacio, difusión y estudio dinámico tras la administración endovenosa de contraste.">RM Neo Pelvis</button> <button id="clearHeaderButton" class="btn-gray">Borrar Técnica</button> </div> </div> </div>
+                <div class="container suggestions-container"> <h3>Sugerencias de Corrección</h3> <div id="fuzzySuggestionsList"><small>No hay sugerencias.</small></div> </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div id="vocabManagerModal" class="modal-overlay"> <div class="modal-content"> <button id="modalCloseButton" class="modal-close-button">×</button> <h3>Gestionar Vocabulario</h3> <ul id="vocabManagerList"></ul> <div class="modal-actions"> <button id="modalAddNewRuleButton" class="btn-green">Añadir Nueva Regla</button> </div> </div> </div>
+    <div id="diffModal" class="modal-overlay"> <div class="modal-content"> <button id="diffModalCloseButton" class="modal-close-button">×</button> <h3>Revisión con IA</h3> <p><small>Clic en <span class="diff-added" style="cursor:default; padding: 1px;">verde</span> para descartar adición. Clic en <span class="diff-removed" style="cursor:default; padding: 1px;">rojo tachado</span> para restaurar original.</small></p> <div id="diffOutput"></div> <div class="modal-actions"> <button id="acceptAllDiffButton" class="btn-blue">Restablecer Sugerencia IA</button> <button id="applyDiffButton" class="btn-green">Aplicar Cambios</button> <button id="cancelDiffButton" class="btn-gray">Cancelar</button> </div> </div> </div>
+
+    <!-- Script Principal -->
+    <script type="module">
+        document.addEventListener('firebaseReady', () => {
+            initializeAuthAndApp();
+        });
+
+        function initializeAuthAndApp() {
+            // --- Selección DOM Auth ---
+            const authContainer = document.getElementById('auth-container'); const appContainer = document.getElementById('app-container'); const loginForm = document.getElementById('login-form'); const signupForm = document.getElementById('signup-form'); const loginEmailInput = document.getElementById('login-email'); const loginPasswordInput = document.getElementById('login-password'); const signupEmailInput = document.getElementById('signup-email'); const signupPasswordInput = document.getElementById('signup-password'); const loginButton = document.getElementById('loginButton'); const signupButton = document.getElementById('signupButton'); const showSignupButton = document.getElementById('showSignupButton'); const showLoginButton = document.getElementById('showLoginButton'); const loginErrorDiv = document.getElementById('login-error'); const signupErrorDiv = document.getElementById('signup-error'); const userDisplaySpan = document.getElementById('user-display'); const logoutButton = document.getElementById('logoutButton');
+            const auth = window.auth; const createUserWithEmailAndPassword = window.createUserWithEmailAndPassword; const signInWithEmailAndPassword = window.signInWithEmailAndPassword; const signOut = window.signOut; const onAuthStateChanged = window.onAuthStateChanged;
+            if (!auth || !createUserWithEmailAndPassword || !signInWithEmailAndPassword || !signOut || !onAuthStateChanged) { return; }
+
+             // --- Lógica Forms Auth ---
+             showSignupButton.addEventListener('click', () => { loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; }); showLoginButton.addEventListener('click', () => { signupForm.style.display = 'none'; loginForm.style.display = 'block'; signupErrorDiv.textContent = ''; });
+             signupForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value; signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...'; try { await createUserWithEmailAndPassword(auth, email, password); } catch (error) { signupErrorDiv.textContent = `Error: ${error.message}`; } finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; } });
+             loginForm.addEventListener('submit', async (e) => { e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value; loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...'; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { loginErrorDiv.textContent = `Error: ${error.message}`; } finally { loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; } });
+             logoutButton.addEventListener('click', async () => { try { await signOut(auth); } catch (error) { console.error('Error Logout:', error); } });
+
+             // --- Observador Auth ---
+             onAuthStateChanged(auth, (user) => {
+                 if (user) { document.body.classList.remove('logged-out'); document.body.classList.add('logged-in'); userDisplaySpan.textContent = `Usuario: ${user.email || user.uid}`; initializeDictationApp(user.uid); }
+                 else { document.body.classList.remove('logged-in'); document.body.classList.add('logged-out'); userDisplaySpan.textContent = ''; if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') { try { window.currentRecognitionInstance.stop();} catch(e){} } }
+             });
+        } // Fin initializeAuthAndApp
+
+        // =============================================
+        // == APP DE DICTADO ==
+        // =============================================
+        async function initializeDictationApp(currentUserId) {
+            // --- Selección DOM App ---
+            const toggleButton = document.getElementById('toggleButton'); const statusDiv = document.getElementById('status'); const reportArea = document.getElementById('reportArea'); const correctTextButton = document.getElementById('correctTextButton'); const copyTextButton = document.getElementById('copyTextButton'); const improveAIButton = document.getElementById('improveAIButton'); const fuzzySuggestionsList = document.getElementById('fuzzySuggestionsList'); const fuzzyThresholdSlider = document.getElementById('fuzzyThresholdSlider'); const fuzzyThresholdValueSpan = document.getElementById('fuzzyThresholdValue'); const themeToggleCheckbox = document.getElementById('themeToggleCheckbox'); const headerArea = document.getElementById('headerArea'); const techniqueButtonsContainer = document.getElementById('techniqueButtons'); const clearHeaderButton = document.getElementById('clearHeaderButton'); const manageVocabButton = document.getElementById('manageVocabButton');
+            const vocabManagerModal = document.getElementById('vocabManagerModal'); const modalCloseButton = document.getElementById('modalCloseButton'); const vocabManagerList = document.getElementById('vocabManagerList'); const modalAddNewRuleButton = document.getElementById('modalAddNewRuleButton');
+            const diffModal = document.getElementById('diffModal'); const diffModalCloseButton = document.getElementById('diffModalCloseButton'); const diffOutput = document.getElementById('diffOutput'); const acceptAllDiffButton = document.getElementById('acceptAllDiffButton'); const applyDiffButton = document.getElementById('applyDiffButton'); const cancelDiffButton = document.getElementById('cancelDiffButton');
+            reportArea.disabled = false;
+
+            // --- Variables Globales App Dictado ---
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let recognition; let customVocabulary = {}; let customVocabularyKeys = []; let sortedVocabKeys = []; let recognizing = false; let timeoutHandle = null; let fuse; let fuzzyMatchesFound = new Map(); let learnedCorrections = {};
+            let isProcessingClick = false; const CLICK_DEBOUNCE_MS = 200;
+            const db = window.db; const doc = window.doc; const getDoc = window.getDoc; const setDoc = window.setDoc;
+            const vocabDocRef = doc(db, "vocabularies", currentUserId);
+            let currentFuzzyThreshold = 0.5; const FUSE_DEFAULTS = { includeScore: true, minMatchCharLength: 4 }; const LEARNED_CORRECTION_THRESHOLD = 3;
+            const GEMINI_API_KEY = "AIzaSyAQ9DfDGmDT6DEy9YzpT2swu_lWVOlXWuM"; // ¡¡MOVER!!
+            const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+            const GEMINI_PROMPT = `Eres un asistente experto en informes radiológicos. Revisa el siguiente texto de un informe. Corrige únicamente errores ortográficos obvios y problemas de concordancia gramatical (género/número) que encuentres. NO añadas información nueva, NO cambies el significado, NO reestructures las frases y respeta estrictamente los saltos de línea existentes. Devuelve solo el texto corregido.\n\nTexto original:\n"""\n`;
+
+            // --- Lógica Tema ---
+            if(themeToggleCheckbox && !themeToggleCheckbox.dataset.listenerAttached) { function applyTheme(theme) { const classToAdd = theme === 'dark' ? 'dark-mode' : 'light-mode'; const classToRemove = theme === 'dark' ? 'light-mode' : 'dark-mode'; document.body.classList.remove(classToRemove); document.body.classList.add(classToAdd); themeToggleCheckbox.checked = theme === 'dark'; } function toggleTheme() { const currentTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark'; applyTheme(currentTheme); localStorage.setItem('themePreference', currentTheme); } const savedTheme = localStorage.getItem('themePreference') || 'light'; applyTheme(savedTheme); themeToggleCheckbox.addEventListener('change', toggleTheme); themeToggleCheckbox.dataset.listenerAttached = 'true'; }
+
+            // --- Gestión Vocabulario (Firestore) ---
+            function initializeFuse() { if (customVocabularyKeys.length > 0) { const fuseOptions = { ...FUSE_DEFAULTS, threshold: currentFuzzyThreshold }; fuse = new Fuse(customVocabularyKeys, fuseOptions); } else { fuse = null; } }
+            function initializeThreshold() { fuzzyThresholdSlider.value = currentFuzzyThreshold.toString(); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); }
+            function processLoadedVocabularyData(rulesData, learnedData) { customVocabulary = rulesData || {}; learnedCorrections = learnedData || {}; customVocabularyKeys = Object.keys(customVocabulary); updateSortedKeys(); initializeFuse(); console.log(`Vocab procesado: ${customVocabularyKeys.length} reglas, ${Object.keys(learnedCorrections).length} aprendidas.`); statusDiv.textContent = 'Listo'; toggleButton.disabled = false; toggleButton.textContent = 'Empezar Dictado'; toggleButton.classList.remove('stop'); toggleButton.classList.add('start'); correctTextButton.disabled = false; copyTextButton.disabled = false; manageVocabButton.disabled = false; improveAIButton.disabled = false; }
+            async function loadVocabularyFromFirestore() { console.log(`Cargando vocab para ${currentUserId}`); toggleButton.disabled = true; toggleButton.textContent = 'Cargando...'; correctTextButton.disabled = true; copyTextButton.disabled = true; manageVocabButton.disabled = true; improveAIButton.disabled = true; statusDiv.textContent = 'Cargando datos...'; try { const docSnap = await getDoc(vocabDocRef); if (docSnap.exists()) { const data = docSnap.data(); const rulesMap = (data && typeof data.rulesMap === 'object' && data.rulesMap !== null) ? data.rulesMap : {}; const learnedMap = (data && typeof data.learnedMap === 'object' && data.learnedMap !== null) ? data.learnedMap : {}; processLoadedVocabularyData(rulesMap, learnedMap); } else { processLoadedVocabularyData({}, {}); } } catch (error) { console.error("Error cargando vocab:", error); alert("Error al cargar vocabulario."); processLoadedVocabularyData({}, {}); statusDiv.textContent = 'Error carga vocab.'; toggleButton.textContent = 'Error Carga'; } }
+            async function saveVocabularyToFirestore(vocabToSave, learnedToSave) { console.log(`[saveVocab] Guardando ${Object.keys(vocabToSave).length} reglas y ${Object.keys(learnedToSave).length} correcciones para ${currentUserId}...`); try { await setDoc(vocabDocRef, { rulesMap: vocabToSave, learnedMap: learnedToSave }); console.log("[saveVocab] Datos guardados Firestore (overwrite)."); } catch (error) { console.error("[saveVocab] ERROR guardando:", error); alert("Error al guardar en DB."); throw error; } }
+            function updateSortedKeys() { sortedVocabKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); }
+            function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+            function normalizeText(text) { if (!text) return ''; return text.toLowerCase().replace(/[.,:;!?()]/g, '').replace(/\s+/g, ' ').trim(); }
+
+             // --- Lógica Fuzzy, Sugerencias y Aprendizaje ---
+            function applyLearnedCorrections(text) { let correctedText = text; const textLower = text.toLowerCase(); for (const mistakeNorm in learnedCorrections) { const correctionData = learnedCorrections[mistakeNorm]; if (correctionData.count >= LEARNED_CORRECTION_THRESHOLD) { try { const mistakeRegex = new RegExp(`\\b${escapeRegExp(mistakeNorm)}\\b`, 'gi'); if (mistakeRegex.test(correctedText)) { console.log(`Applying learned correction: "${mistakeNorm}" -> "${correctionData.correctKey}"`); correctedText = correctedText.replace(mistakeRegex, correctionData.correctKey); } } catch (e) {} } } return correctedText; }
+            function checkFuzzyMatches(originalText) { if (!fuse || !originalText || originalText.length < FUSE_DEFAULTS.minMatchCharLength) return; const normalizedOriginal = normalizeText(originalText); if (!normalizedOriginal || fuzzyMatchesFound.has(normalizedOriginal)) return; const results = fuse.search(normalizedOriginal); if (results.length > 0) { const bestMatch = results[0]; if (bestMatch.score < currentFuzzyThreshold + 0.001) { const matchedKey = bestMatch.item; const suggestedValue = customVocabulary[matchedKey]; if (matchedKey !== normalizedOriginal) { const suggestionData = { original: originalText, matchedKey: matchedKey, suggestedValue: suggestedValue, score: bestMatch.score }; fuzzyMatchesFound.set(normalizedOriginal, suggestionData); displayFuzzySuggestion(suggestionData); }}}}
+            function applyCustomVocabulary(text) { let p = text; for (const key of sortedVocabKeys) { const v = customVocabulary[key]; try { const r = new RegExp(`\\b${escapeRegExp(key)}\\b`, 'gi'); p = p.replace(r, v); } catch (e) {} } return p; }
+            function displayFuzzySuggestion(suggestionData = null) { if (!suggestionData && fuzzyMatchesFound.size === 0) { fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; return; } if (fuzzyMatchesFound.size === 1 && suggestionData) { fuzzySuggestionsList.innerHTML = ''; } if (suggestionData) { const item = document.createElement('div'); item.className = 'suggestion-item'; item.innerHTML = `<span class="suggestion-text">"${suggestionData.original}" (${(suggestionData.score*100).toFixed(0)}%) ≈ "${suggestionData.matchedKey}". ¿Usar: "<strong>${suggestionData.suggestedValue}</strong>"?</span><span class="suggestion-actions"><button data-original="${suggestionData.original}" data-matched-key="${suggestionData.matchedKey}" data-suggested-value="${suggestionData.suggestedValue}">Añadir Regla</button><button data-dismiss-key="${normalizeText(suggestionData.original)}">Ignorar</button></span>`; item.querySelector('[data-original]').addEventListener('click', handleAddFuzzyRule); item.querySelector('[data-dismiss-key]').addEventListener('click', handleDismissFuzzy); fuzzySuggestionsList.appendChild(item); } }
+            async function handleAddFuzzyRule(event) { const btn = event.target; const original = btn.dataset.original; const suggestedValue = btn.dataset.suggestedValue; const originalLower = original.toLowerCase(); const matchedKeyLower = btn.dataset.matchedKey.toLowerCase(); const tempVocab = { ...customVocabulary }; const tempLearned = { ...learnedCorrections }; let vocabChanged = false; if (!tempVocab.hasOwnProperty(originalLower)) { tempVocab[originalLower] = suggestedValue; vocabChanged = true; } const mistakeNorm = normalizeText(original); const correctKeyNorm = normalizeText(matchedKeyLower); if (!tempLearned[mistakeNorm]) { tempLearned[mistakeNorm] = { correctKey: correctKeyNorm, count: 0 }; } tempLearned[mistakeNorm].count++; console.log(`Contador para "${mistakeNorm}": ${tempLearned[mistakeNorm].count}`); try { await saveVocabularyToFirestore(tempVocab, tempLearned); customVocabulary = tempVocab; learnedCorrections = tempLearned; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert(`Regla "${original} -> ${suggestedValue}" añadida/confirmada.`); btn.closest('.suggestion-item').remove(); if (fuzzySuggestionsList.childElementCount === 0) fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; fuzzyMatchesFound.delete(normalizeText(original)); } catch (error) { alert("Error al guardar cambios."); } }
+            function handleDismissFuzzy(event) { const btn = event.target; const keyToDismiss = btn.dataset.dismissKey; fuzzyMatchesFound.delete(keyToDismiss); btn.closest('.suggestion-item').remove(); if (fuzzySuggestionsList.childElementCount === 0) fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; }
+            function clearSuggestions() { fuzzyMatchesFound.clear(); fuzzySuggestionsList.innerHTML = '<small>No hay sugerencias.</small>'; }
+
+            // --- Lógica Principal Reconocimiento ---
+            if (SpeechRecognition) {
+                if (window.currentRecognitionInstance && typeof window.currentRecognitionInstance.stop === 'function') { try { window.currentRecognitionInstance.stop();} catch(e){} } recognition = new SpeechRecognition(); window.currentRecognitionInstance = recognition;
+                recognition.lang = 'es-ES'; recognition.continuous = true; recognition.interimResults = true;
+                function updateButtonState(isRecognizing, statusHTML = '') { recognizing = isRecognizing; if (isRecognizing) { toggleButton.textContent = 'Detener Dictado'; toggleButton.classList.remove('start'); toggleButton.classList.add('stop'); statusDiv.innerHTML = statusHTML || 'Escuchando...'; } else { toggleButton.textContent = 'Empezar Dictado'; toggleButton.classList.remove('stop'); toggleButton.classList.add('start'); statusDiv.innerHTML = statusHTML || 'Detenido.'; setTimeout(capitalizeSentences, 100); } toggleButton.disabled = false; }
+                recognition.onstart = () => { updateButtonState(true); fuzzyMatchesFound.clear(); displayFuzzySuggestion(); };
+                recognition.onend = () => { if (recognizing) { updateButtonState(false); } clearTimeout(timeoutHandle); recognizing = false; };
+                recognition.onerror = (event) => { let msg = 'Error: ' + event.error; let stop = true; if (event.error === 'no-speech') { msg = 'Error: No voz.'; stop = false; statusDiv.innerHTML = `Estado: ${msg}`; } else { msg = `Error: ${event.error}.`; } if (stop) { if(recognition) { try { recognition.stop(); } catch(e){} } updateButtonState(false, `Estado: ${msg} Detenido.`); }};
+                 recognition.onresult = (event) => { let interim = ''; let currentFinal = ''; for (let i = event.resultIndex; i < event.results.length; ++i) { const part = event.results[i][0].transcript; if (event.results[i].isFinal) { currentFinal += part; } else { interim += part; } } if (recognizing && interim) { statusDiv.innerHTML = `Escuchando: <span style="color:var(--status-listening-color);font-style:italic;">${interim}</span>`; } else if (recognizing) { statusDiv.innerHTML = 'Escuchando...'; } if (currentFinal.trim()) { const original = currentFinal.trim(); checkFuzzyMatches(original); let processed = processTranscriptSegment(original); updateReportArea(processed); } clearTimeout(timeoutHandle); timeoutHandle = setTimeout(() => { if (recognizing) { if(recognition) { try { recognition.stop(); } catch(e){} } } }, 20000); };
+                 function processTranscriptSegment(transcript) { let p = transcript; p = applyLearnedCorrections(p); p = applyCustomVocabulary(p); p = p.replace(/\bpunt(?:o)? y aparte\b\s*/gi,'.\n').replace(/\bpunt(?:o)? y seguido\b\s*/gi,'. ').replace(/\bpunto\b\s*/gi,'. ').replace(/\bcoma\b\s*/gi,', ').replace(/\bnueva l(?:í|i)nea\b\s*/gi,'\n').replace(/\babrir par(?:é|e)ntesis\b\s*/gi,' (').replace(/\bcerrar par(?:é|e)ntesis\b\s*/gi,') ').replace(/\bdos puntos\b\s*/gi,': ').replace(/\binterrogaci(?:ó|o)n\b\s*/gi,'? ').replace(/\bexclamaci(?:ó|o)n\b\s*/gi,'! ').replace(/\bguin(?:o|ó)n\b\s*/gi,' - ').replace(/\bbarra\b\s*/gi,'/'); p = p.replace(/\s+([.,:;!?\)])/g,'$1').replace(/([.,:;!?\(\)])\s*([.,:;!?\(\)])/g,'$1 $2').replace(/[ \t]+/g,' ').replace(/([.,])(?![\s\n\)])/g,'$1 ').replace(/ \./g,'.'); return p.trimStart(); }
+                 function updateReportArea(newText) { if (!newText && newText !== 0) return; let finalText = newText.trimStart(); if (!finalText && finalText !== 0) return; const start = reportArea.selectionStart; const end = reportArea.selectionEnd; const current = reportArea.value; let before = current.substring(0, start); let after = current.substring(end); const cap = shouldBeCapitalized(current, start); if (cap && finalText.length > 0) { finalText = finalText.replace(/^[a-záéíóúü]/, m => m.toUpperCase()); } let leadSpace = false; if (before.length > 0) { const lastB = before.slice(-1); if (!/[\s\n\(]/.test(lastB) && !/^[\s\n.,:;!?\)\)\]]/.test(finalText)) leadSpace = true; } let trailSpace = false; if (after.length > 0) { const lastI = finalText.slice(-1); if (!/[\s\n\(]/.test(lastI) && !/^[\s\n.,:;!?\)\)\]]/.test(after)) trailSpace = true; } const lSpace = leadSpace ? ' ' : ''; const tSpace = trailSpace ? ' ' : ''; const finalIns = lSpace + finalText + tSpace; reportArea.value = before + finalIns + after; const finalPos = start + finalIns.length; reportArea.selectionStart = reportArea.selectionEnd = finalPos; reportArea.scrollTop = reportArea.scrollHeight; }
+                 function shouldBeCapitalized(currentText, cursorPos) { if (cursorPos === 0) return true; let lookBehind = currentText.substring(Math.max(0, cursorPos - 1), cursorPos); if (lookBehind === '\n') return true; lookBehind = currentText.substring(Math.max(0, cursorPos - 3), cursorPos).trimEnd(); if (lookBehind.endsWith('.') || lookBehind.endsWith('!') || lookBehind.endsWith('?')) { return true; } return false; }
+                 function capitalizeSentences() { let text = reportArea.value; text = text.replace(/(^|[\.\!\?]\s*\n*)\s*([a-záéíóúü])/g, (_, p1, p2) => { return p1 + p2.toUpperCase(); }); if (text.length > 0) { text = text.replace(/^(\s*)([a-záéíóúü])/, (_, p1, p2) => p1 + p2.toUpperCase()); } reportArea.value = text; }
+                 async function handleCorrectTextSelection() { const start = reportArea.selectionStart; const end = reportArea.selectionEnd; const sel = reportArea.value.substring(start, end).trim(); if (start === end || !sel) { alert("Selecciona texto."); return; } if (sel.includes("->")) { alert("Selección inválida."); return; } const corr = window.prompt(`Corregir:\n"${sel}"\n\nCorrecto:`, sel); if (corr === null || corr.trim() === "") return; const corrT = corr.trim(); const selLow = sel.toLowerCase(); if(customVocabulary.hasOwnProperty(selLow) && customVocabulary[selLow] === corrT) { alert("Corrección ya existe."); if (sel !== corrT) { const bef = reportArea.value.substring(0, start); const aft = reportArea.value.substring(end); reportArea.value = bef + corrT + aft; reportArea.selectionStart = reportArea.selectionEnd = start + corrT.length; reportArea.focus(); } return; } const bef = reportArea.value.substring(0, start); const aft = reportArea.value.substring(end); reportArea.value = bef + corrT + aft; reportArea.selectionStart = reportArea.selectionEnd = start + corrT.length; reportArea.focus(); const tempVocab = { ...customVocabulary }; tempVocab[selLow] = corrT; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert(`Corrección aplicada y regla guardada.`); } catch (error) { alert("Error al guardar corrección."); } }
+                 async function handleCopyText() { const headerText = headerArea.value || ''; const reportText = reportArea.value || ''; const trimmedHeaderText = headerText.trim(); const trimmedReportText = reportText.trim(); let textToCopy = ""; if (trimmedHeaderText && trimmedReportText) { textToCopy = trimmedHeaderText + '\n\n' + trimmedReportText; } else if (trimmedReportText) { textToCopy = trimmedReportText; } else if (trimmedHeaderText) { textToCopy = trimmedHeaderText; } if (!textToCopy) return; try { await navigator.clipboard.writeText(textToCopy); const originalText = copyTextButton.textContent; copyTextButton.textContent = '¡Copiado!'; copyTextButton.disabled = true; setTimeout(() => { copyTextButton.textContent = originalText; if (!toggleButton.disabled || toggleButton.textContent !== 'Cargando...') { copyTextButton.disabled = false; } }, 1500); } catch (err) { console.error('Error al copiar: ', err); alert('Error al copiar texto.'); } }
+
+                 // --- Funciones para Gestionar Vocabulario (Modal) ---
+                 function openVocabManager() { populateVocabManager(); vocabManagerModal.style.display = 'flex'; }
+                 function closeVocabManager() { vocabManagerModal.style.display = 'none'; }
+                 function populateVocabManager() { vocabManagerList.innerHTML = ''; const sortedKeys = Object.keys(customVocabulary).sort(); if (sortedKeys.length === 0) { vocabManagerList.innerHTML = '<li>No hay reglas.</li>'; return; } sortedKeys.forEach(key => { const value = customVocabulary[key]; const li = document.createElement('li'); li.innerHTML = `<span class="vocab-item-key">${key}</span> <span class="vocab-item-value">${value}</span> <span class="vocab-item-actions"> <button data-key="${key}">Editar</button> <button data-key="${key}" class="delete">Borrar</button> </span>`; li.querySelector('button[data-key]:not(.delete)').addEventListener('click', handleVocabEdit); li.querySelector('button.delete[data-key]').addEventListener('click', handleVocabDelete); vocabManagerList.appendChild(li); }); console.log("[VocabMgr] Lista modal actualizada."); }
+                 async function handleVocabEdit(event) { const keyToEdit = event.target.dataset.key; const currentValue = customVocabulary[keyToEdit]; if (currentValue === undefined) { alert("Error: Regla no encontrada."); return; } const newKeyPrompt = window.prompt(`Editar clave:\n"${keyToEdit}"\nNuevo:`, keyToEdit); if (newKeyPrompt === null) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (!newKey) { alert("Clave vacía."); return; } const newValuePrompt = window.prompt(`Editar valor para "${newKey}":\n"${currentValue}"\nNuevo:`, currentValue); if (newValuePrompt === null) return; const newValue = newValuePrompt.trim(); if (!newValue) { alert("Valor vacío."); return; } const tempVocab = { ...customVocabulary }; let changedKey = (newKey !== keyToEdit); if (changedKey) { delete tempVocab[keyToEdit]; } tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Regla actualizada."); } catch (error) { alert("Error al guardar."); populateVocabManager(); } }
+                 async function handleVocabDelete(event) { const keyToDelete = event.target.dataset.key; if (!customVocabulary.hasOwnProperty(keyToDelete)) { alert("Error: Regla no encontrada."); return; } if (confirm(`¿Borrar regla para "${keyToDelete}"?`)) { const tempVocab = { ...customVocabulary }; delete tempVocab[keyToDelete]; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Regla borrada."); } catch (error) { alert("Error al borrar."); populateVocabManager(); } } }
+                 async function handleAddNewRule() { const newKeyPrompt = window.prompt("Frase a dictar (clave):"); if (newKeyPrompt === null || !newKeyPrompt.trim()) return; const newKey = newKeyPrompt.trim().toLowerCase(); if (customVocabulary.hasOwnProperty(newKey)) { alert(`Clave "${newKey}" ya existe.`); return; } const newValuePrompt = window.prompt(`Texto de reemplazo para "${newKey}":`); if (newValuePrompt === null || !newValuePrompt.trim()) return; const newValue = newValuePrompt.trim(); const tempVocab = { ...customVocabulary }; tempVocab[newKey] = newValue; try { await saveVocabularyToFirestore(tempVocab, learnedCorrections); customVocabulary = tempVocab; processLoadedVocabularyData(customVocabulary, learnedCorrections); alert("Nueva regla añadida."); } catch (error) { alert("Error al añadir regla."); populateVocabManager(); } }
+
+                 // --- Lógica Mejora con IA (Gemini) ---
+                 async function callGeminiAPI(textToImprove) { console.log("Llamando a Gemini API..."); const fullPrompt = GEMINI_PROMPT + textToImprove + '\n"""'; statusDiv.textContent = "IA Procesando..."; improveAIButton.disabled = true; improveAIButton.textContent = "Procesando..."; let correctedTextResult = null; try { const response = await fetch(GEMINI_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }) }); if (!response.ok) { const errorBody = await response.text(); throw new Error(`Error API: ${response.status} ${response.statusText} - ${errorBody}`); } const data = await response.json(); const correctedText = data?.candidates?.[0]?.content?.parts?.[0]?.text; if (!correctedText) { throw new Error("No se pudo extraer texto corregido."); } console.log("Texto corregido recibido."); correctedTextResult = correctedText.trim(); } catch (error) { console.error('Error llamando a Gemini API:', error); alert(`Error IA: ${error.message}`); } finally { improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; if (!recognizing && statusDiv.textContent === "IA Procesando...") { statusDiv.textContent = "Listo."; } console.log("[callGeminiAPI finally] Botón IA rehabilitado."); } return correctedTextResult; }
+                 function displayDiffModal(originalText, correctedText) { diffOutput.innerHTML = ''; const diff = Diff.diffWords(originalText, correctedText, { ignoreWhitespace: false }); const fragment = document.createDocumentFragment(); diff.forEach((part) => { const span = document.createElement('span'); span.textContent = part.value; if (part.added || part.removed) { span.classList.add('clickable-diff'); if (part.added) { span.classList.add('diff-added'); span.dataset.included = 'true'; } else { span.classList.add('diff-removed'); span.dataset.included = 'false'; } span.addEventListener('click', toggleDiffInclusion); } fragment.appendChild(span); }); diffOutput.appendChild(fragment); diffModal.style.display = 'flex'; }
+                 function toggleDiffInclusion(event) { const span = event.target; const isAdded = span.classList.contains('diff-added'); const isRemoved = span.classList.contains('diff-removed'); let isIncluded = span.dataset.included === 'true'; isIncluded = !isIncluded; span.dataset.included = isIncluded.toString(); if (isAdded) { span.classList.toggle('excluded', !isIncluded); } else if (isRemoved) { span.classList.toggle('included', isIncluded); } }
+                 function handleAcceptAllDiffs() { const diffSpans = diffOutput.querySelectorAll('span.clickable-diff'); diffSpans.forEach(span => { if (span.classList.contains('diff-added')) { span.dataset.included = 'true'; span.classList.remove('excluded'); } else if (span.classList.contains('diff-removed')) { span.dataset.included = 'false'; span.classList.remove('included'); } }); }
+                 function handleApplyDiffChanges() { let finalReportText = ''; const diffNodes = diffOutput.childNodes; diffNodes.forEach(node => { if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN' && node.classList.contains('clickable-diff')) { const isIncluded = node.dataset.included === 'true'; if(isIncluded) { finalReportText += node.textContent; } } else { finalReportText += node.textContent; } }); reportArea.value = finalReportText; closeDiffModal(); console.log("Cambios IA aplicados."); }
+                 function closeDiffModal() { diffModal.style.display = 'none'; diffOutput.innerHTML = ''; }
+                 async function handleImproveAI() { const originalText = reportArea.value; if (!originalText.trim()) { alert("No hay texto para mejorar."); return; } const correctedText = await callGeminiAPI(originalText); if (correctedText) { if (normalizeText(originalText) === normalizeText(correctedText)) { alert("IA no encontró correcciones."); statusDiv.textContent = 'Listo.'; improveAIButton.disabled = false; improveAIButton.textContent = "Mejorar IA"; } else { displayDiffModal(originalText, correctedText); statusDiv.textContent = 'Revisión IA lista.'; } } }
+
+                // --- Event Listeners ---
+                 toggleButton.addEventListener('click', () => { // Listener Corregido con Debounce
+                     if (isProcessingClick) { console.warn("Clic ignorado (debounce)."); return; }
+                     if (!SpeechRecognition || toggleButton.disabled) return;
+                     isProcessingClick = true;
+                     if (recognizing) { if (recognition) { try { recognition.stop(); } catch (e) { console.error("Error stop:", e); updateButtonState(false, 'Error al detener'); isProcessingClick = false; } } else { updateButtonState(false, 'Error interno'); isProcessingClick = false; } }
+                     else { try { if (recognition) { recognition.start(); updateButtonState(true, 'Iniciando...'); } else { throw new Error("No recognition"); } } catch (e) { console.error("Error start:", e); updateButtonState(false, 'Error al iniciar.'); isProcessingClick = false; } }
+                     setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
+                 });
+                correctTextButton.addEventListener('click', handleCorrectTextSelection);
+                copyTextButton.addEventListener('click', handleCopyText);
+                improveAIButton.addEventListener('click', handleImproveAI);
+                fuzzyThresholdSlider.addEventListener('input', (event) => { currentFuzzyThreshold = parseFloat(event.target.value); fuzzyThresholdValueSpan.textContent = currentFuzzyThreshold.toFixed(2); initializeFuse(); clearSuggestions(); });
+                techniqueButtonsContainer.addEventListener('click', (event) => { if (event.target.tagName === 'BUTTON' && event.target.dataset.techniqueText) { headerArea.value = event.target.dataset.techniqueText; } });
+                clearHeaderButton.addEventListener('click', () => { headerArea.value = ''; });
+                manageVocabButton.addEventListener('click', openVocabManager);
+                modalCloseButton.addEventListener('click', closeVocabManager);
+                modalAddNewRuleButton.addEventListener('click', handleAddNewRule);
+                vocabManagerModal.addEventListener('click', (event) => { if (event.target === vocabManagerModal) { closeVocabManager(); } });
+                 diffModalCloseButton.addEventListener('click', closeDiffModal);
+                 cancelDiffButton.addEventListener('click', closeDiffModal);
+                 acceptAllDiffButton.addEventListener('click', handleAcceptAllDiffs);
+                 applyDiffButton.addEventListener('click', handleApplyDiffChanges);
+
+                 // --- Atajo de Teclado (CON DEBOUNCE/BLOQUEO) ---
+                 document.addEventListener('keydown', function(event) {
+                     const activeElement = document.activeElement; const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA';
+                     if (event.shiftKey && event.metaKey && event.key === 'Shift' && !isInputFocused) {
+                         event.preventDefault();
+                         if (isProcessingClick) { console.warn("Atajo ignorado (debounce)."); return; }
+                         if (toggleButton.disabled) { console.log("Atajo: Botón dictado deshabilitado."); return; }
+                         isProcessingClick = true;
+                         toggleButton.click(); // Simular clic
+                         setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
+                     }
+                 });
+
+                // --- Inicialización App Dictado ---
+                initializeThreshold();
+                await loadVocabularyFromFirestore(); // Cargar datos
+
+            } else { /* ... Navegador no compatible ... */ }
+        } // Fin initializeDictationApp
+    </script>
+
+</body>
+</html>

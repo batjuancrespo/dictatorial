@@ -347,9 +347,18 @@
                         return;
                     }
                 
-                    console.log("Todo OK, intentando hacer clic real en el botón.");
-                    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+                    console.log("Todo OK, simulando mousedown, mouseup y click.");
+                
+                    // Secuencia real de eventos
+                    ['mousedown', 'mouseup', 'click'].forEach(eventType => {
+                        button.dispatchEvent(new MouseEvent(eventType, {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        }));
+                    });
                 }
+
                 
                 // --- Variables necesarias ---
                 let isProcessingClick = false; // Asegúrate de tener esta variable

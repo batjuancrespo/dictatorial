@@ -329,30 +329,48 @@
                  acceptAllDiffButton.addEventListener('click', handleAcceptAllDiffs);
                  applyDiffButton.addEventListener('click', handleApplyDiffChanges);
 
-                 // --- Atajo de Teclado (CON DEBOUNCE/BLOQUEO) ---
+                // --- Función Inteligente para Clic ---
+                function clickSmartButton(button) {
+                    if (!button) {
+                        console.error("Error: El botón no existe (es null o undefined).");
+                        return;
+                    }
+                
+                    if (button.disabled) {
+                        console.warn("Atajo: El botón está deshabilitado, no se puede hacer clic.");
+                        return;
+                    }
+                
+                    const style = window.getComputedStyle(button);
+                    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                        console.warn("Atajo: El botón está oculto o invisible.");
+                        return;
+                    }
+                
+                    console.log("Todo OK, intentando hacer clic real en el botón.");
+                    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+                }
+                
+                // --- Variables necesarias ---
+                let isProcessingClick = false; // Asegúrate de tener esta variable
+                const CLICK_DEBOUNCE_MS = 500;  // Ajusta este tiempo si quieres
+                
+                // --- Atajo de Teclado con Debounce y Detector Inteligente ---
                 document.addEventListener('keydown', function(event) {
                     const activeElement = document.activeElement;
                     const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA';
                 
-                    console.log("Tecla presionada:", event.key);
-                    console.log("Shift presionado:", event.shiftKey, "Meta presionado:", event.metaKey);
+                    if (event.repeat) {
+                        console.log("Evento repetido ignorado.");
+                        return;
+                    }
                 
                     if (event.shiftKey && event.metaKey && event.key === 'Shift' && !isInputFocused) {
                         event.preventDefault();
                         console.log("Atajo detectado correctamente.");
                 
-                        if (typeof isProcessingClick === 'undefined') {
-                            console.error("ERROR: Variable 'isProcessingClick' no definida.");
-                            return;
-                        }
-                
                         if (typeof toggleButton === 'undefined') {
                             console.error("ERROR: Variable 'toggleButton' no definida.");
-                            return;
-                        }
-                
-                        if (typeof CLICK_DEBOUNCE_MS === 'undefined') {
-                            console.error("ERROR: Variable 'CLICK_DEBOUNCE_MS' no definida.");
                             return;
                         }
                 
@@ -361,14 +379,9 @@
                             return;
                         }
                 
-                        if (toggleButton.disabled) {
-                            console.log("Atajo: El botón está deshabilitado, no se puede hacer clic.");
-                            return;
-                        }
-                
-                        console.log("Haciendo clic en el botón.");
                         isProcessingClick = true;
-                        toggleButton.click(); // Simula el clic
+                
+                        clickSmartButton(toggleButton); // 👈 Usamos la función inteligente
                 
                         setTimeout(() => {
                             isProcessingClick = false;

@@ -330,17 +330,52 @@
                  applyDiffButton.addEventListener('click', handleApplyDiffChanges);
 
                  // --- Atajo de Teclado (CON DEBOUNCE/BLOQUEO) ---
-                 document.addEventListener('keydown', function(event) {
-                     const activeElement = document.activeElement; const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA';
-                     if (event.shiftKey && event.metaKey && event.key === 'Shift' && !isInputFocused) {
-                         event.preventDefault();
-                         if (isProcessingClick) { console.warn("Atajo ignorado (debounce)."); return; }
-                         if (toggleButton.disabled) { console.log("Atajo: Botón dictado deshabilitado."); return; }
-                         isProcessingClick = true;
-                         toggleButton.click(); // Simular clic
-                         setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
-                     }
-                 });
+                document.addEventListener('keydown', function(event) {
+                    const activeElement = document.activeElement;
+                    const isInputFocused = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA';
+                
+                    console.log("Tecla presionada:", event.key);
+                    console.log("Shift presionado:", event.shiftKey, "Meta presionado:", event.metaKey);
+                
+                    if (event.shiftKey && event.metaKey && event.key === 'Shift' && !isInputFocused) {
+                        event.preventDefault();
+                        console.log("Atajo detectado correctamente.");
+                
+                        if (typeof isProcessingClick === 'undefined') {
+                            console.error("ERROR: Variable 'isProcessingClick' no definida.");
+                            return;
+                        }
+                
+                        if (typeof toggleButton === 'undefined') {
+                            console.error("ERROR: Variable 'toggleButton' no definida.");
+                            return;
+                        }
+                
+                        if (typeof CLICK_DEBOUNCE_MS === 'undefined') {
+                            console.error("ERROR: Variable 'CLICK_DEBOUNCE_MS' no definida.");
+                            return;
+                        }
+                
+                        if (isProcessingClick) {
+                            console.warn("Atajo ignorado (debounce activo).");
+                            return;
+                        }
+                
+                        if (toggleButton.disabled) {
+                            console.log("Atajo: El botón está deshabilitado, no se puede hacer clic.");
+                            return;
+                        }
+                
+                        console.log("Haciendo clic en el botón.");
+                        isProcessingClick = true;
+                        toggleButton.click(); // Simula el clic
+                
+                        setTimeout(() => {
+                            isProcessingClick = false;
+                            console.log("Debounce terminado, ya se puede volver a hacer clic.");
+                        }, CLICK_DEBOUNCE_MS);
+                    }
+                });
 
                 // --- Inicialización App Dictado ---
                 initializeThreshold();

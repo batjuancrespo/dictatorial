@@ -26,7 +26,7 @@
 
             window.firebaseApp = fa.initializeApp(firebaseConfig);
             window.db = fs.getFirestore(window.firebaseApp);
-            window.doc = fs.doc;
+            window.doc = fs.doc; // Exponer la función original
             window.getDoc = fs.getDoc;
             window.setDoc = fs.setDoc;
             window.collection = fs.collection;
@@ -229,8 +229,19 @@
             const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;const SpeechGrammarListAPI=window.SpeechGrammarList||window.webkitSpeechGrammarList;
             let recognition;let customVocabulary={};let commonMistakeNormalization={};let customVocabularyKeys=[];let sortedVocabKeys=[];let recognizing=false;let timeoutHandle=null;let fuse;let fuzzyMatchesFound=new Map();let learnedCorrections={};let isProcessingClick=false;const CLICK_DEBOUNCE_MS=300;
             let audioContext,analyserNode,microphoneSourceNode,audioDataArray,audioRafId;
-            let currentGrammarTerms = new Set(); // NUEVO: Para rastrear términos en la gramática actual
-            const db=window.db,docFunc=window.doc,getDocFunc=window.getDoc,setDocFunc=window.setDoc,collectionFunc=window.collection,addDocFunc=window.addDoc,serverTimestampFunc=window.serverTimestamp,queryFunc=window.query,orderByFunc=window.orderBy,limitFunc=window.limit,getDocsFunc=window.getDocs;
+            let currentGrammarTerms = new Set();
+            const db=window.db; // Ya está en window
+            const docFunc = window.doc; // Usar alias para las funciones de firestore
+            const getDocFunc = window.getDoc;
+            const setDocFunc = window.setDoc;
+            const collectionFunc = window.collection;
+            const addDocFunc = window.addDoc;
+            const serverTimestampFunc = window.serverTimestamp;
+            const queryFunc = window.query;
+            const orderByFunc = window.orderBy;
+            const limitFunc = window.limit;
+            const getDocsFunc = window.getDocs;
+
             const vocabDocRef=docFunc(db,"vocabularies",currentUserId);const correctionLogCollectionRef=collectionFunc(db,`userCorrectionLog_${currentUserId}`);
             let currentFuzzyThreshold=0.5;const FUSE_DEFAULTS={includeScore:true,minMatchCharLength:3,threshold:0.5};const LEARNED_CORRECTION_THRESHOLD=2;const GEMINI_API_KEY="AIzaSyAQ9DfDGmDT6DEy9YzpT2swu_lWVOlXWuM";const GEMINI_API_URL=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;const GEMINI_PROMPT_CORRECT=`Eres un asistente experto en informes radiológicos. Revisa el siguiente texto de un informe. Corrige únicamente errores ortográficos obvios y problemas de concordancia gramatical (género/número) que encuentres. NO añadas información nueva, NO cambies el significado, NO reestructures las frases y respeta estrictamente los saltos de línea existentes. Devuelve solo el texto corregido.\n\nTexto original:\n"""\n`;
             const GEMINI_PROMPT_OPTIMIZE=`Analiza los siguientes pares de texto dictado erróneo y su corrección manual. Estos errores son comunes para un usuario dictando informes radiológicos en español. Para cada grupo de errores que apunten a una misma corrección, o para errores individuales significativos, identifica patrones de error (ej. fonéticos, segmentación, omisiones, adiciones como 'a ' protética). Basándote en estos patrones, sugiere reglas de normalización o de vocabulario generalizadas. Prioriza sugerencias que puedan cubrir múltiples variaciones del error. El objetivo es reducir la cantidad de reglas manuales que el usuario necesita crear. Formato de respuesta deseado (JSON array de objetos):\n[\n  {\n    "tipo": "normalizacion",\n    "descripcion_patron": "Ej: Omisión de 'a' inicial.",\n    "clave_sugerida_error": "ortoiliaca",\n    "valor_sugerido_correcto": "aortoiliaca",\n    "ejemplos_originales": ["ortoiliaca", "a ortoiliaca"]\n  }\n]\nSi no puedes determinar un patrón o regla, omite o sugiere regla directa si es frecuente. Sé conciso.\n\nPares a analizar (original -> corregido):\n`;
@@ -247,36 +258,7 @@
             function escapeRegExp(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
             function normalizeText(s){if(!s)return'';return s.toLowerCase().replace(/[.,:;!?()"'-]/g,'').replace(/\s+/g,' ').trim();}
 
-            // MODIFICADO: updateSpeechGrammar para usar hasta 100 términos y loguearlos
-            function updateSpeechGrammar() {
-                if (!SpeechGrammarListAPI || !recognition) return;
-                currentGrammarTerms.clear(); // Limpiar Set antes de rellenar
-                const terms = Object.keys(customVocabulary)
-                    .concat(Object.keys(commonMistakeNormalization))
-                    .filter(term => term.trim() !== "" && term.split(' ').length <= 4)
-                    .map(term => term.toLowerCase())
-                    .filter((value, index, self) => self.indexOf(value) === index);
-
-                const selectedTerms = terms.slice(0, 100); // Tomar hasta 100
-                selectedTerms.forEach(term => currentGrammarTerms.add(term)); // Añadir al Set para chequeo rápido
-
-                if (selectedTerms.length === 0) {
-                    if (recognition.grammars && recognition.grammars.length > 0) recognition.grammars = new SpeechGrammarListAPI();
-                    console.log("SpeechGrammarList vaciada (0 términos).");
-                    return;
-                }
-                const grammarString = `#JSGF V1.0; grammar radioterms; public <radioterm> = ${selectedTerms.join(' | ')};`;
-                const speechRecognitionList = new SpeechGrammarListAPI();
-                try {
-                    speechRecognitionList.addFromString(grammarString, 1);
-                    recognition.grammars = speechRecognitionList;
-                    console.log("SpeechGrammarList actualizada con", selectedTerms.length, "términos. Ej:", selectedTerms.slice(0,5).join(', '));
-                } catch (e) {
-                    console.error("Error al crear o asignar SpeechGrammarList:", e, "\nGramática problemática:", grammarString.substring(0, 500));
-                    // Si falla, asegurar que no quede una gramática rota
-                    if (recognition.grammars && recognition.grammars.length > 0) recognition.grammars = new SpeechGrammarListAPI();
-                }
-            }
+            function updateSpeechGrammar(){if(!SpeechGrammarListAPI||!recognition)return;currentGrammarTerms.clear();const terms=Object.keys(customVocabulary).concat(Object.keys(commonMistakeNormalization)).filter(term=>term.trim()!==""&&term.split(' ').length<=4).map(term=>term.toLowerCase()).filter((value,index,self)=>self.indexOf(value)===index);const selectedTerms=terms.slice(0,100);selectedTerms.forEach(term=>currentGrammarTerms.add(term));if(selectedTerms.length===0){if(recognition.grammars&&recognition.grammars.length>0)recognition.grammars=new SpeechGrammarListAPI();console.log("SpeechGrammarList vaciada.");return;}const grammarString=`#JSGF V1.0; grammar radioterms; public <radioterm> = ${selectedTerms.join(' | ')};`;const speechRecognitionList=new SpeechGrammarListAPI();try{speechRecognitionList.addFromString(grammarString,1);recognition.grammars=speechRecognitionList;console.log("SpeechGrammarList: ${selectedTerms.length} terms. Ex:",selectedTerms.slice(0,3).join(', '));}catch(e){console.error("Error SpeechGrammarList:",e,"\nGrammar:",grammarString.substring(0,200));if(recognition.grammars&&recognition.grammars.length>0)recognition.grammars=new SpeechGrammarListAPI();}}
 
             function applyLearnedCorrections(t){let ct=t;for(const mN in learnedCorrections){const cD=learnedCorrections[mN];if(cD.count>=LEARNED_CORRECTION_THRESHOLD){try{const rx=new RegExp(`\\b${escapeRegExp(mN)}\\b`,'gi');if(rx.test(ct)){ct=ct.replace(rx,cD.correctKey);}}catch(e){}}}return ct;}
             function checkFuzzyMatches(origSeg){if(!fuse||!origSeg||origSeg.length<FUSE_DEFAULTS.minMatchCharLength)return;const normSeg=normalizeText(origSeg);if(!normSeg||fuzzyMatchesFound.has(normSeg))return;const res=fuse.search(normSeg);if(res.length>0){const best=res[0];let mKey,suggVal;if(typeof best.item==='object'&&best.item.key){mKey=best.item.key;suggVal=best.item.value;}else{mKey=best.item;suggVal=customVocabulary[mKey];}if(best.score<currentFuzzyThreshold+0.001&&suggVal&&normalizeText(mKey)!==normSeg){const suggData={original:origSeg,matchedKey:mKey,suggestedValue:suggVal,score:best.score};fuzzyMatchesFound.set(normSeg,suggData);displayFuzzySuggestion(suggData);}}}
@@ -300,47 +282,13 @@
                 recognition.onstart=()=>{console.log("Rec ON");updateButtonState(true);clearSuggestions();startAudioAnalysis();};
                 recognition.onend=()=>{console.log("Rec OFF");if(recognizing){updateButtonState(false);}clearTimeout(timeoutHandle);recognizing=false;stopAudioAnalysis();};
                 recognition.onerror=(ev)=>{console.error("Rec Error:",ev.error);let msg=`E: ${ev.error}.`;if(ev.error==='no-speech'){msg='No voz.';updateButtonState(false,`Estado: ${msg}`);}else if(ev.error==='audio-capture'||ev.error==='not-allowed'){msg=ev.error==='not-allowed'?'Permiso Mic Denegado.':'Error Mic.';updateButtonState(false,`Estado: ${msg} Stop.`);if(ev.error==='not-allowed')toggleButton.disabled=true;stopAudioAnalysis();}else{updateButtonState(false,`Estado: ${msg} Stop.`);stopAudioAnalysis();}recognizing=false;};
-                // MODIFICADO: recognition.onresult para loguear términos de la gramática
-                recognition.onresult = (event) => {
-                    let interimTranscript = ''; let finalTranscript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        const transcriptPart = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) { finalTranscript += transcriptPart; } else { interimTranscript += transcriptPart; }
-                    }
-
-                    if (recognizing && interimTranscript) { statusDiv.innerHTML = `Esc: <span>${interimTranscript}</span>`; }
-                    else if (recognizing) { statusDiv.innerHTML = 'Esc...'; }
-
-                    if (finalTranscript.trim()) {
-                        const originalSegment = finalTranscript.trim();
-                        console.log("Texto final bruto:", originalSegment);
-
-                        // NUEVO: Loguear si términos de la gramática están presentes
-                        const recognizedWords = originalSegment.toLowerCase().split(/\s+/);
-                        const grammarMatches = [];
-                        recognizedWords.forEach(word => {
-                            if (currentGrammarTerms.has(word)) {
-                                grammarMatches.push(word);
-                            }
-                        });
-                        // Chequear también frases de la gramática (más complejo, simplificado por ahora)
-                        currentGrammarTerms.forEach(grammarTerm => {
-                            if (grammarTerm.includes(" ") && originalSegment.toLowerCase().includes(grammarTerm)) {
-                                if (!grammarMatches.includes(grammarTerm)) grammarMatches.push(grammarTerm);
-                            }
-                        });
-
-                        if (grammarMatches.length > 0) {
-                            console.log("Posibles coincidencias con SpeechGrammarList:", grammarMatches.join(', '));
-                        }
-
-                        checkFuzzyMatches(originalSegment);
-                        let processedSegment = processTranscriptSegment(originalSegment);
-                        updateReportArea(processedSegment);
-                    }
-                    clearTimeout(timeoutHandle);
-                    timeoutHandle = setTimeout(() => { if (recognizing && recognition) { console.log("Timeout stop."); try { recognition.stop(); } catch(e){} } }, 15000);
-                };
+                recognition.onresult=(event)=>{let interimTranscript='';let finalTranscript='';for(let i=event.resultIndex;i<event.results.length;++i){const transcriptPart=event.results[i][0].transcript;if(event.results[i].isFinal){finalTranscript+=transcriptPart;}else{interimTranscript+=transcriptPart;}}
+                if(recognizing&&interimTranscript){statusDiv.innerHTML=`Esc: <span>${interimTranscript}</span>`;}else if(recognizing){statusDiv.innerHTML='Esc...';}
+                if(finalTranscript.trim()){const originalSegment=finalTranscript.trim();console.log("Texto final bruto:",originalSegment);
+                const recognizedWords=originalSegment.toLowerCase().split(/\s+/);const grammarMatches=[];recognizedWords.forEach(word=>{if(currentGrammarTerms.has(word)){grammarMatches.push(word);}});currentGrammarTerms.forEach(grammarTerm=>{if(grammarTerm.includes(" ")&&originalSegment.toLowerCase().includes(grammarTerm)){if(!grammarMatches.some(match=>grammarTerm.includes(match)||match.includes(grammarTerm))){grammarMatches.push(`"${grammarTerm}" (frase)`);}}});
+                if(grammarMatches.length>0){console.log("%cCoincidencias SpeechGrammarList:","color: blue; font-weight: bold;",grammarMatches.join(', '));}
+                checkFuzzyMatches(originalSegment);let processedSegment=processTranscriptSegment(originalSegment);updateReportArea(processedSegment);}
+                clearTimeout(timeoutHandle);timeoutHandle=setTimeout(()=>{if(recognizing&&recognition){console.log("Timeout stop.");try{recognition.stop();}catch(e){}}},15000);};
                 function processTranscriptSegment(t){let p=t.toLowerCase();for(const mK in commonMistakeNormalization){const nF=commonMistakeNormalization[mK];try{const rx=new RegExp(`\\b${escapeRegExp(mK)}\\b`,'g');p=p.replace(rx,nF);}catch(e){}}p=applyLearnedCorrections(p);p=applyCustomVocabulary(p);p=p.replace(/\bpunt(?:o)? y aparte\b\s*/gi,'.\n').replace(/\bpunt(?:o)? y seguido\b\s*/gi,'. ').replace(/\bpunto\b\s*/gi,'. ').replace(/\bcoma\b\s*/gi,', ').replace(/\bnueva l(?:í|i)nea\b\s*/gi,'\n').replace(/\babrir par(?:é|e)ntesis\b\s*/gi,' (').replace(/\bcerrar par(?:é|e)ntesis\b\s*/gi,') ').replace(/\bdos puntos\b\s*/gi,': ').replace(/\binterrogaci(?:ó|o)n\b\s*/gi,'? ').replace(/\bexclamaci(?:ó|o)n\b\s*/gi,'! ').replace(/\bguin(?:o|ó)n\b\s*/gi,' - ').replace(/\bbarra\b\s*/gi,'/');p=p.replace(/\s+([.,:;!?\)])/g,'$1').replace(/([.,:;!?\(\)])\s*([.,:;!?\(\)])/g,'$1 $2').replace(/[ \t]+/g,' ').replace(/([.,])(?![\s\n\)])/g,'$1 ').replace(/ \./g,'.');return p.trimStart();}
                 function updateReportArea(newT){if(!newT&&newT!==0)return;let finalIns=newT.toString().trimStart();if(!finalIns&&newT!==0)return;const currVal=reportArea.value;const selS=reportArea.selectionStart;const selE=reportArea.selectionEnd;let before=currVal.substring(0,selS);let after=currVal.substring(selE);if(shouldBeCapitalized(currVal,selS)&&finalIns.length>0){finalIns=finalIns.charAt(0).toUpperCase()+finalIns.slice(1);}let leadSp="";if(before.length>0&&!/[\s\n\(]$/.test(before)&&!/^[\s\n.,:;!?\)]/.test(finalIns)){leadSp=" ";}let trailSp="";if(after.length>0&&!/[\s\n\(]$/.test(finalIns)&&!/^[\s\n.,:;!?\)]/.test(after)&&finalIns.length>0){trailSp=" ";}reportArea.value=before+leadSp+finalIns+trailSp+after;const newPos=selS+(leadSp+finalIns+trailSp).length;reportArea.selectionStart=reportArea.selectionEnd=newPos;reportArea.scrollTop=reportArea.scrollHeight;reportArea.focus();}
                 function shouldBeCapitalized(currT,curPos){if(curPos===0)return true;let charB=currT.substring(curPos-1,curPos);if(charB==='\n')return true;let lookB=currT.substring(Math.max(0,curPos-3),curPos).trimEnd();return['.','!','?'].some(p=>lookB.endsWith(p));}
@@ -369,7 +317,6 @@
                 async function handleApplyOptimizations(){const selP=[];optimizationProposalsList.querySelectorAll('input:checked').forEach(cb=>{const i=parseInt(cb.dataset.proposalIndex);if(!isNaN(i)&¤tOptimizationProposals[i]){selP.push(currentOptimizationProposals[i]);}});if(selP.length===0){alert("Nada selec.");return;}applyOptimizationButton.disabled=true;cancelOptimizationButton.disabled=true;statusDiv.textContent="Aplicando...";let tmpN={...commonMistakeNormalization};let tmpV={...customVocabulary};selP.forEach(p=>{p.originalErrorsToNormalize.forEach(e=>{tmpN[e.toLowerCase()]=p.canonicalErrorKey.toLowerCase();});tmpV[p.canonicalErrorKey.toLowerCase()]=p.targetCorrectText;});try{await saveVocabularyToFirestore(tmpV,learnedCorrections,tmpN);commonMistakeNormalization=tmpN;customVocabulary=tmpV;processLoadedVocabularyData(customVocabulary,learnedCorrections,commonMistakeNormalization);alert(`${selP.length} optim OK.`);closeOptimizationModal();}catch(e){console.error("Err apply optim:",e);alert("Error guardando.");}finally{statusDiv.textContent=recognizing?"Esc...":"Listo.";applyOptimizationButton.disabled=false;cancelOptimizationButton.disabled=false;}}
                 function closeOptimizationModal(){optimizationModal.style.display='none';optimizationProposalsList.innerHTML='<p>...</p>';currentOptimizationProposals=[];applyOptimizationButton.disabled=true;}
 
-                // --- Event Listeners ---
                 toggleButton.addEventListener('click',()=>{if(isProcessingClick||toggleButton.disabled)return;isProcessingClick=true;toggleDictationState();setTimeout(()=>{isProcessingClick=false;},CLICK_DEBOUNCE_MS);});
                 correctTextButton.addEventListener('click',handleCorrectTextSelection);
                 copyTextButton.addEventListener('click',handleCopyText);

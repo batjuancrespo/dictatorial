@@ -213,7 +213,7 @@
     <script type="module">
         document.addEventListener('firebaseReady', () => { console.log("Firebase Ready. Init Auth/App."); initializeAuthAndApp(); });
 
-        function initializeAuthAndApp() { /* ... (sin cambios en Auth) ... */
+        function initializeAuthAndApp() { /* ... (Auth sin cambios) ... */
             const authContainer = document.getElementById('auth-container'); const appContainer = document.getElementById('app-container'); const loginForm = document.getElementById('login-form'); const signupForm = document.getElementById('signup-form'); const loginEmailInput = document.getElementById('login-email'); const loginPasswordInput = document.getElementById('login-password'); const signupEmailInput = document.getElementById('signup-email'); const signupPasswordInput = document.getElementById('signup-password'); const loginButton = document.getElementById('loginButton'); const signupButton = document.getElementById('signupButton'); const showSignupButton = document.getElementById('showSignupButton'); const showLoginButton = document.getElementById('showLoginButton'); const loginErrorDiv = document.getElementById('login-error'); const signupErrorDiv = document.getElementById('signup-error'); const userDisplaySpan = document.getElementById('user-display'); const logoutButton = document.getElementById('logoutButton');
             const auth = window.auth; const createUserWithEmailAndPassword = window.createUserWithEmailAndPassword; const signInWithEmailAndPassword = window.signInWithEmailAndPassword; const signOut = window.signOut; const onAuthStateChanged = window.onAuthStateChanged;
             if (!auth || !createUserWithEmailAndPassword || !signInWithEmailAndPassword || !signOut || !onAuthStateChanged) { console.error("Auth functions missing."); alert("Error crítico: Auth."); return; }
@@ -231,7 +231,7 @@
             const audioLevelMeterContainer = document.getElementById('audioLevelMeterContainer'); const audioLevelBar = document.getElementById('audioLevelBar');
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const SpeechGrammarListAPI = window.SpeechGrammarList || window.webkitSpeechGrammarList; // API renombrada para claridad
+            const SpeechGrammarListAPI = window.SpeechGrammarList || window.webkitSpeechGrammarList;
             let recognition; let customVocabulary = {}; let commonMistakeNormalization = {}; let customVocabularyKeys = []; let sortedVocabKeys = []; let recognizing = false; let timeoutHandle = null; let fuse; let fuzzyMatchesFound = new Map(); let learnedCorrections = {}; let isProcessingClick = false; const CLICK_DEBOUNCE_MS = 300;
             let audioContext, analyserNode, microphoneSourceNode, audioDataArray, audioRafId;
             const db=window.db, doc=window.doc, getDoc=window.getDoc, setDoc=window.setDoc, collection=window.collection, addDoc=window.addDoc, serverTimestamp=window.serverTimestamp, query=window.query, orderBy=window.orderBy, limit=window.limit, getDocs=window.getDocs;
@@ -267,40 +267,47 @@ Pares a analizar (original -> corregido):
             function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
             function normalizeText(s) { if (!s) return ''; return s.toLowerCase().replace(/[.,:;!?()"'-]/g, '').replace(/\s+/g, ' ').trim(); }
 
-            // MODIFICADO: updateSpeechGrammar para incluir hasta 100 términos y loguearlos
+            // CORREGIDO: updateSpeechGrammar para usar los VALORES (formas correctas)
             function updateSpeechGrammar() {
                 if (!SpeechGrammarListAPI || !recognition) {
                     console.warn("SpeechGrammarList no soportada o reconocimiento no inicializado.");
                     return;
                 }
-                const allTerms = Object.keys(customVocabulary)
-                    .concat(Object.keys(commonMistakeNormalization)) // También considera las claves de normalización
+
+                // Recolectar los VALORES (formas correctas) del vocabulario y normalizaciones
+                const correctVocabularyForms = Object.values(customVocabulary);
+                const correctNormalizationForms = Object.values(commonMistakeNormalization);
+
+                const allCorrectTerms = correctVocabularyForms
+                    .concat(correctNormalizationForms)
                     .map(term => term.toLowerCase().trim()) // Normaliza y limpia
-                    .filter(term => term && term.split(' ').length <= 5); // Frases de hasta 5 palabras, no vacías
+                    .filter(term => term && term.split(' ').length <= 5 && term.length > 1); // Frases de hasta 5 palabras, no vacías y con más de 1 carácter
 
                 // Eliminar duplicados
-                const uniqueTerms = [...new Set(allTerms)];
+                const uniqueCorrectTerms = [...new Set(allCorrectTerms)];
 
                 // Priorizar: podrías tener una lógica más sofisticada aquí si tuvieras "pesos" o frecuencias
-                // Por ahora, tomamos los primeros N (después de la posible ordenación por defecto de Object.keys)
-                const selectedTerms = uniqueTerms.slice(0, 100); // Límite de 100 términos
+                // Por ahora, tomamos los primeros N
+                const selectedTerms = uniqueCorrectTerms.slice(0, 100); // Límite de 100 términos
 
                 if (selectedTerms.length === 0) {
                     if (recognition.grammars && recognition.grammars.length > 0) {
                          recognition.grammars = new SpeechGrammarListAPI(); // Asignar una lista vacía si antes había una
                     }
-                    console.log("SpeechGrammarList vaciada (no hay términos seleccionados).");
+                    console.log("SpeechGrammarList vaciada (no hay términos correctos seleccionados).");
                     return;
                 }
 
+                // Construir la gramática con las formas CORRECTAS
                 const grammarString = `#JSGF V1.0; grammar radioterms; public <radioterm> = ${selectedTerms.join(' | ')};`;
                 const speechGrammarList = new SpeechGrammarListAPI();
                 try {
-                    speechGrammarList.addFromString(grammarString, 1);
+                    speechGrammarList.addFromString(grammarString, 1); // El peso (1) es estándar
                     recognition.grammars = speechGrammarList;
-                    console.log("SpeechGrammarList actualizada con", selectedTerms.length, "términos. Lista:", selectedTerms); // LOG AÑADIDO
+                    // LOG MODIFICADO para mostrar los términos correctos
+                    console.log("SpeechGrammarList actualizada con", selectedTerms.length, "formas CORRECTAS. Lista:", selectedTerms);
                 } catch (e) {
-                    console.error("Error al añadir gramática:", e, "\nGramática intentada:", grammarString);
+                    console.error("Error al añadir gramática con formas correctas:", e, "\nGramática intentada (primeros 500char):", grammarString.substring(0, 500) + "...");
                 }
             }
 
@@ -320,22 +327,17 @@ Pares a analizar (original -> corregido):
                 if (window.currentRecognitionInstance?.stop) { try { window.currentRecognitionInstance.stop(); } catch(e){} }
                 recognition = new SpeechRecognition(); window.currentRecognitionInstance = recognition;
                 recognition.lang = 'es-ES'; recognition.continuous = true; recognition.interimResults = true;
-                // updateSpeechGrammar() se llama en processLoadedVocabularyData y saveVocabularyToFirestore
 
                 function updateButtonState(isRec, statHTML = '') { recognizing = isRec; if (isRec) { toggleButton.textContent = 'Detener'; toggleButton.classList.replace('start','stop'); statusDiv.innerHTML = statHTML || 'Escuchando...'; } else { toggleButton.textContent = 'Empezar'; toggleButton.classList.replace('stop','start'); statusDiv.innerHTML = statHTML || 'Detenido.'; setTimeout(capitalizeSentences, 100); } toggleButton.disabled = false; }
                 recognition.onstart = () => { console.log("Rec ON"); updateButtonState(true); clearSuggestions(); startAudioAnalysis(); };
                 recognition.onend = () => { console.log("Rec OFF"); if (recognizing) { updateButtonState(false); } clearTimeout(timeoutHandle); recognizing = false; stopAudioAnalysis(); };
                 recognition.onerror = (ev) => { console.error("Rec Error:", ev.error, ev.message); let msg = `E: ${ev.error}.`; if (ev.error === 'no-speech') { msg = 'No voz.'; updateButtonState(false, `Estado: ${msg}`); } else if (ev.error === 'audio-capture'||ev.error === 'not-allowed') { msg = ev.error === 'not-allowed' ? 'Permiso Mic Denegado.' : 'Error Mic.'; updateButtonState(false, `Estado: ${msg} Stop.`); if(ev.error === 'not-allowed') toggleButton.disabled = true; stopAudioAnalysis(); } else if (ev.error === 'language-not-supported') { msg = 'Lenguaje no soportado.'; updateButtonState(false, `Estado: ${msg} Stop.`); toggleButton.disabled = true; } else { updateButtonState(false, `Estado: ${msg} Stop.`); stopAudioAnalysis(); } recognizing = false; };
-                // MODIFICADO: recognition.onresult para loguear el resultado final completo
                 recognition.onresult = (event) => {
                     let interimTranscript = ''; let finalTranscript = '';
                     for (let i = event.resultIndex; i < event.results.length; ++i) {
                         const transcriptPart = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
                             finalTranscript += transcriptPart;
-                            // LOG AÑADIDO: Mostrar el objeto SpeechRecognitionResult completo
-                            // No hay una forma estándar de saber si la gramática influyó directamente
-                            // pero puedes inspeccionar el objeto result en la consola.
                             console.log("SpeechRecognitionResult (isFinal):", event.results[i]);
                         } else {
                             interimTranscript += transcriptPart;
@@ -343,16 +345,8 @@ Pares a analizar (original -> corregido):
                     }
                     if (recognizing && interimTranscript) { statusDiv.innerHTML = `Esc: <span>${interimTranscript}</span>`; }
                     else if (recognizing) { statusDiv.innerHTML = 'Esc...'; }
-
-                    if (finalTranscript.trim()) {
-                        const originalSegment = finalTranscript.trim();
-                        console.log("Texto final procesar:", originalSegment);
-                        checkFuzzyMatches(originalSegment);
-                        let processedSegment = processTranscriptSegment(originalSegment);
-                        updateReportArea(processedSegment);
-                    }
-                    clearTimeout(timeoutHandle);
-                    timeoutHandle = setTimeout(() => { if (recognizing && recognition) { console.log("Timeout stop."); try { recognition.stop(); } catch(e){} } }, 15000);
+                    if (finalTranscript.trim()) { const originalSegment = finalTranscript.trim(); console.log("Texto final procesar:", originalSegment); checkFuzzyMatches(originalSegment); let processedSegment = processTranscriptSegment(originalSegment); updateReportArea(processedSegment); }
+                    clearTimeout(timeoutHandle); timeoutHandle = setTimeout(() => { if (recognizing && recognition) { console.log("Timeout stop."); try { recognition.stop(); } catch(e){} } }, 15000);
                 };
                 function processTranscriptSegment(t) { let p = t.toLowerCase(); for (const mK in commonMistakeNormalization) { const nF = commonMistakeNormalization[mK]; try { const rx = new RegExp(`\\b${escapeRegExp(mK)}\\b`, 'g'); p = p.replace(rx, nF); } catch (e) {} } p = applyLearnedCorrections(p); p = applyCustomVocabulary(p); p = p.replace(/\bpunt(?:o)? y aparte\b\s*/gi,'.\n').replace(/\bpunt(?:o)? y seguido\b\s*/gi,'. ').replace(/\bpunto\b\s*/gi,'. ').replace(/\bcoma\b\s*/gi,', ').replace(/\bnueva l(?:í|i)nea\b\s*/gi,'\n').replace(/\babrir par(?:é|e)ntesis\b\s*/gi,' (').replace(/\bcerrar par(?:é|e)ntesis\b\s*/gi,') ').replace(/\bdos puntos\b\s*/gi,': ').replace(/\binterrogaci(?:ó|o)n\b\s*/gi,'? ').replace(/\bexclamaci(?:ó|o)n\b\s*/gi,'! ').replace(/\bguin(?:o|ó)n\b\s*/gi,' - ').replace(/\bbarra\b\s*/gi,'/'); p = p.replace(/\s+([.,:;!?\)])/g,'$1').replace(/([.,:;!?\(\)])\s*([.,:;!?\(\)])/g,'$1 $2').replace(/[ \t]+/g,' ').replace(/([.,])(?![\s\n\)])/g,'$1 ').replace(/ \./g,'.'); return p.trimStart(); }
                 function updateReportArea(newT) { if (!newT && newT !== 0) return; let finalIns = newT.toString().trimStart(); if (!finalIns && newT !== 0) return; const currVal = reportArea.value; const selS = reportArea.selectionStart; const selE = reportArea.selectionEnd; let before = currVal.substring(0, selS); let after = currVal.substring(selE); if (shouldBeCapitalized(currVal, selS) && finalIns.length > 0) { finalIns = finalIns.charAt(0).toUpperCase() + finalIns.slice(1); } let leadSp = ""; if (before.length > 0 && !/[\s\n\(]$/.test(before) && !/^[\s\n.,:;!?\)]/.test(finalIns)) { leadSp = " "; } let trailSp = ""; if (after.length > 0 && !/[\s\n\(]$/.test(finalIns) && !/^[\s\n.,:;!?\)]/.test(after) && finalIns.length > 0) { trailSp = " "; } reportArea.value = before + leadSp + finalIns + trailSp + after; const newPos = selS + (leadSp + finalIns + trailSp).length; reportArea.selectionStart = reportArea.selectionEnd = newPos; reportArea.scrollTop = reportArea.scrollHeight; reportArea.focus(); }
@@ -406,9 +400,9 @@ Pares a analizar (original -> corregido):
                 optimizationModal.addEventListener('click', (e) => { if (e.target === optimizationModal) closeOptimizationModal(); });
 
                 document.addEventListener('keydown', function(event) { if (event.shiftKey && (event.metaKey || event.ctrlKey) && event.key === 'Shift') { event.preventDefault(); console.log("Atajo GLOBAL Shift+Cmd/Ctrl+Shift."); if (isProcessingClick || toggleButton.disabled) { console.warn("Atajo ignorado."); return; } isProcessingClick = true; toggleDictationState(); setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS); } });
-                function toggleDictationState() { if (recognizing) { if (recognition) { try { recognition.stop(); } catch(e){ console.error("Err stop:", e); updateButtonState(false, 'Error stop'); } } else { updateButtonState(false, 'Error interno'); } } else { try { if (recognition) { updateSpeechGrammar(); /* Actualizar gramática ANTES de iniciar */ recognition.start(); } else { throw new Error("No recognition"); } } catch(e){ console.error("Err start:", e); updateButtonState(false, 'Error start'); statusDiv.textContent = 'Error crítico.'; toggleButton.disabled = true; } } }
+                function toggleDictationState() { if (recognizing) { if (recognition) { try { recognition.stop(); } catch(e){ console.error("Err stop:", e); updateButtonState(false, 'Error stop'); } } else { updateButtonState(false, 'Error interno'); } } else { try { if (recognition) { updateSpeechGrammar(); recognition.start(); } else { throw new Error("No recognition"); } } catch(e){ console.error("Err start:", e); updateButtonState(false, 'Error start'); statusDiv.textContent = 'Error crítico.'; toggleButton.disabled = true; } } }
 
-                initializeThreshold(); await loadVocabularyFromFirestore(); // Esto llamará a updateSpeechGrammar() indirectamente
+                initializeThreshold(); await loadVocabularyFromFirestore();
             } else { statusDiv.textContent = 'Error: No soporta Rec Voz.'; [toggleButton, correctTextButton, copyTextButton, improveAIButton, juanizarButton, manageVocabButton, optimizeVocabButton].forEach(b => b.disabled = true); }
         }
     </script>

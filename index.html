@@ -163,7 +163,10 @@
         .optimization-proposal-group label { font-size: 0.95em; display: block; margin-bottom: 5px; cursor:pointer; }
         .optimization-proposal-group .original-text-item { margin-left: 25px; color: var(--text-muted-color); font-style: italic; }
         .optimization-proposal-group .canonical-error-key { font-weight: bold; }
-        .ia-suggestion-marker { font-size: 0.8em; color: var(--ia-suggestion-marker-color); margin-left: 5px; font-style: italic; }
+        .ia-suggestion-marker, .conflict-marker, .new-rule-marker { font-size: 0.8em; margin-left: 5px; font-style: italic; }
+        .ia-suggestion-marker { color: var(--ia-suggestion-marker-color); }
+        .conflict-marker { color: var(--button-danger-bg); }
+        .new-rule-marker { color: var(--button-success-bg); }
     </style>
 </head>
 <body class="light-mode logged-out">
@@ -207,7 +210,7 @@
     <!-- Modales -->
     <div id="vocabManagerModal" class="modal-overlay"> <div class="modal-content"> <button id="modalCloseButton" class="modal-close-button">×</button> <h3>Gestionar Vocabulario / Macros</h3> <p><small>Define frases cortas (clave) para reemplazar por texto más largo (valor). El valor puede contener saltos de línea.</small></p> <ul id="vocabManagerList"></ul> <div class="modal-actions"> <button id="modalAddNewRuleButton" class="btn-green">Añadir Nueva Regla/Macro</button> </div> </div> </div>
     <div id="diffModal" class="modal-overlay"> <div class="modal-content"> <button id="diffModalCloseButton" class="modal-close-button">×</button> <h3>Revisión con IA</h3> <p><small>Clic en <span class="diff-added" style="cursor:default; padding: 1px;">verde</span> para descartar adición. Clic en <span class="diff-removed" style="cursor:default; padding: 1px;">rojo tachado</span> para restaurar original.</small></p> <div id="diffOutput"></div> <div class="modal-actions"> <button id="acceptAllDiffButton" class="btn-blue">Restablecer Sugerencia IA</button> <button id="applyDiffButton" class="btn-green">Aplicar Cambios</button> <button id="cancelDiffButton" class="btn-gray">Cancelar</button> </div> </div> </div>
-    <div id="optimizationModal" class="modal-overlay"> <div class="modal-content"> <button id="optimizationModalCloseButton" class="modal-close-button">×</button> <h3>Optimizar Vocabulario</h3> <p><small>Revisa las propuestas para agrupar errores comunes. Las sugerencias marcadas con <span class="ia-suggestion-marker">(IA)</span> son generadas por inteligencia artificial.</small></p> <div id="optimizationProposalsList"> <p>...</p> </div> <div class="modal-actions"> <button id="applyOptimizationButton" class="btn-success" disabled>Aplicar Seleccionadas</button> <button id="cancelOptimizationButton" class="btn-gray">Cancelar</button> </div> </div> </div>
+    <div id="optimizationModal" class="modal-overlay"> <div class="modal-content"> <button id="optimizationModalCloseButton" class="modal-close-button">×</button> <h3>Optimizar Vocabulario</h3> <p><small>Revisa las propuestas. Marcadas con <span class="ia-suggestion-marker">(IA)</span> son de Gemini, <span class="new-rule-marker">(Nuevo)</span> son errores frecuentes no cubiertos, <span class="conflict-marker">(Conflicto/Redundancia)</span> necesitan atención.</small></p> <div id="optimizationProposalsList"> <p>...</p> </div> <div class="modal-actions"> <button id="applyOptimizationButton" class="btn-success" disabled>Aplicar Seleccionadas</button> <button id="cancelOptimizationButton" class="btn-gray">Cancelar</button> </div> </div> </div>
 
     <!-- Script Principal -->
     <script type="module">
@@ -245,14 +248,14 @@ Prioriza sugerencias que puedan cubrir múltiples variaciones del error. El obje
 Formato de respuesta deseado (JSON array de objetos):
 [
   {
-    "tipo": "normalizacion",
+    "tipo_sugerencia": "normalizacion",
     "descripcion_patron": "Ej: Omisión de 'a' inicial en palabras como 'aortoiliaca'.",
-    "clave_sugerida_error": "ortoiliaca",
+    "clave_error_representativa": "ortoiliaca",
     "valor_sugerido_correcto": "aortoiliaca",
-    "ejemplos_originales": ["ortoiliaca", "a ortoiliaca"]
+    "ejemplos_originales_cubiertos": ["ortoiliaca", "a ortoiliaca"]
   }
 ]
-Si no puedes determinar un patrón claro o una regla generalizada para un grupo, puedes omitirlo o sugerir una regla directa si el error es muy específico y frecuente. Sé conciso.
+Si no puedes determinar un patrón claro o una regla generalizada para un grupo, puedes omitirlo o sugerir una regla directa (tipo_sugerencia: "vocabulario_directo") si el error es muy específico y frecuente. Sé conciso.
 
 Pares a analizar (original -> corregido):
 `;
@@ -275,14 +278,14 @@ Pares a analizar (original -> corregido):
                     let correctFormsFromErrors = sortedErrors.map(([errorKey, count]) => (customVocabulary[errorKey] || errorToCorrectMapping.get(errorKey) || "").toLowerCase().trim()).filter(term => term);
                     const importantCustomValues = Object.values(customVocabulary).map(val => val.toLowerCase().trim()).filter(val => val && val.split(' ').length <= 5 && val.length > 1);
                     let combinedCorrectForms = correctFormsFromErrors.concat(importantCustomValues);
-                    topProblematicTermsCorrectForms = [...new Set(combinedCorrectForms)].filter(term => term && term.split(' ').length <= 5 && term.length > 1).slice(0, 50); // LÍMITE DE 50 TÉRMINOS
+                    topProblematicTermsCorrectForms = [...new Set(combinedCorrectForms)].filter(term => term && term.split(' ').length <= 5 && term.length > 1).slice(0, 50);
                     console.log("Formas correctas para SpeechGrammar:", topProblematicTermsCorrectForms.length, topProblematicTermsCorrectForms);
                 } catch (error) { console.error("Error obteniendo términos problemáticos:", error); topProblematicTermsCorrectForms = []; }
             }
 
             function updateSpeechGrammar() {
                 if (!SpeechGrammarListAPI || !recognition) { return; }
-                const selectedTerms = topProblematicTermsCorrectForms; // Ya procesada y limitada
+                const selectedTerms = topProblematicTermsCorrectForms;
                 if (selectedTerms.length === 0) { if (recognition.grammars && recognition.grammars.length > 0) { recognition.grammars = new SpeechGrammarListAPI(); } console.log("SpeechGrammarList vaciada."); return; }
                 const grammarString = `#JSGF V1.0; grammar radioterms; public <radioterm> = ${selectedTerms.join(' | ')};`;
                 const speechGrammarList = new SpeechGrammarListAPI();
@@ -365,10 +368,108 @@ Pares a analizar (original -> corregido):
                 function closeDiffModal() { diffModal.style.display = 'none'; diffOutput.innerHTML = ''; }
                 async function handleImproveAI() { const orig=reportArea.value; if(!orig.trim()){alert("Nada."); return;} const corrAI = await callGeminiAPI(orig, GEMINI_PROMPT_CORRECT); if(corrAI){if(normalizeText(orig)===normalizeText(corrAI)){alert("IA: OK.");}else{displayDiffModal(orig,corrAI);statusDiv.textContent='Revisión IA.';}} }
 
+                // --- Lógica Optimización Vocab (Vigilante de Errores y Conflictos) ---
                 let currentOptimizationProposals = [];
-                async function handleOptimizeVocab() { statusDiv.textContent = "Optimizando con IA..."; optimizeVocabButton.disabled = true; optimizationProposalsList.innerHTML = '<p>Analizando y consultando IA...</p>'; applyOptimizationButton.disabled = true; optimizationModal.style.display = 'flex'; currentOptimizationProposals = []; try { const logQuery = query(correctionLogCollectionRef, orderBy("timestamp", "desc"), limit(50)); const snapshot = await getDocs(logQuery); const uniqueCorrections = new Map(); snapshot.forEach(logDoc => { const data = logDoc.data(); const key = `${data.originalText}->${data.correctedText}`; if (!uniqueCorrections.has(key) && data.originalText.toLowerCase() !== data.correctedText.toLowerCase()) { uniqueCorrections.set(key, { original: data.originalText, corrected: data.correctedText }); } }); const correctionsToAnalyze = Array.from(uniqueCorrections.values()); if (correctionsToAnalyze.length > 0) { let geminiInputText = ""; correctionsToAnalyze.slice(0, 20).forEach((entry, index) => { geminiInputText += `${index + 1}. Original: "${entry.original}", Corregido: "${entry.corrected}"\n`; }); const iaSuggestionsRaw = await callGeminiAPI(geminiInputText, GEMINI_PROMPT_OPTIMIZE); if (iaSuggestionsRaw) { try { const iaParsedSuggestions = JSON.parse(iaSuggestionsRaw); if (Array.isArray(iaParsedSuggestions)) { iaParsedSuggestions.forEach(sugg => { currentOptimizationProposals.push({ targetCorrectText: sugg.valor_sugerido_correcto, canonicalErrorKey: sugg.clave_sugerida_error, originalErrorsToNormalize: sugg.ejemplos_originales || [sugg.clave_sugerida_error], id: `ia-p-${currentOptimizationProposals.length}`, isIASuggestion: true, description: sugg.descripcion_patron }); }); } } catch (parseError) { console.error("Error parseando IA sugg:", parseError, "\nRaw:", iaSuggestionsRaw); optimizationProposalsList.innerHTML += '<p>Error procesando IA sugg.</p>'; } } } else { optimizationProposalsList.innerHTML = '<p>No hay suficientes datos para IA.</p>'; } displayOptimizationProposals(); } catch (error) { console.error("Error optimizando vocab:", error); optimizationProposalsList.innerHTML = '<p>Error al cargar propuestas.</p>'; } finally { optimizeVocabButton.disabled = false; if (statusDiv.textContent.startsWith("Optimizando") || statusDiv.textContent.startsWith("Analizando")) { statusDiv.textContent = recognizing ? "Escuchando..." : "Listo."; } } }
-                function displayOptimizationProposals() { optimizationProposalsList.innerHTML = ''; if (currentOptimizationProposals.length === 0) { optimizationProposalsList.innerHTML = '<p>No se encontraron propuestas.</p>'; applyOptimizationButton.disabled = true; return; } currentOptimizationProposals.forEach((p, i) => { const div=document.createElement('div');div.className='optimization-proposal-group'; const head=document.createElement('div');head.className='proposal-header'; const chk=document.createElement('input');chk.type='checkbox';chk.id=p.id;chk.dataset.proposalIndex=i;chk.checked=true; head.appendChild(chk); const tit=document.createElement('h4'); const lab=document.createElement('label');lab.htmlFor=p.id; lab.innerHTML = `Normalizar para: <strong>"${p.targetCorrectText}"</strong>`; if (p.isIASuggestion) { const iaM=document.createElement('span');iaM.className='ia-suggestion-marker';iaM.textContent='(IA)';lab.appendChild(iaM); } tit.appendChild(lab); head.appendChild(tit); div.appendChild(head); if(p.description){ const dP=document.createElement('p');dP.innerHTML=`<small><em>Patrón IA: ${p.description}</em></small>`;div.appendChild(dP); } const expl=document.createElement('p'); expl.innerHTML=`Errores -> <strong class="canonical-error-key">"${p.canonicalErrorKey}"</strong>`; div.appendChild(expl); const ul=document.createElement('ul'); p.originalErrorsToNormalize.forEach(o => { const li=document.createElement('li');li.className='original-text-item';li.textContent=`"${o}"`; ul.appendChild(li); }); div.appendChild(ul); optimizationProposalsList.appendChild(div); }); applyOptimizationButton.disabled = false; }
-                async function handleApplyOptimizations() { const selP = []; optimizationProposalsList.querySelectorAll('input:checked').forEach(cb => { const i = parseInt(cb.dataset.proposalIndex); if (!isNaN(i) && currentOptimizationProposals[i]) { selP.push(currentOptimizationProposals[i]); } }); if (selP.length === 0) { alert("Nada selec."); return; } applyOptimizationButton.disabled = true; cancelOptimizationButton.disabled = true; statusDiv.textContent = "Aplicando..."; let tmpN = { ...commonMistakeNormalization }; let tmpV = { ...customVocabulary }; selP.forEach(p => { p.originalErrorsToNormalize.forEach(e => { tmpN[e.toLowerCase()] = p.canonicalErrorKey.toLowerCase(); }); tmpV[p.canonicalErrorKey.toLowerCase()] = p.targetCorrectText; }); try { await saveVocabularyToFirestore(tmpV, learnedCorrections, tmpN); commonMistakeNormalization = tmpN; customVocabulary = tmpV; await processLoadedVocabularyData(customVocabulary, learnedCorrections, commonMistakeNormalization); alert(`${selP.length} optim OK.`); closeOptimizationModal(); } catch (e) { console.error("Err apply optim:", e); alert("Error guardando."); } finally { statusDiv.textContent = recognizing ? "Esc..." : "Listo."; applyOptimizationButton.disabled = false; cancelOptimizationButton.disabled = false; } }
+
+                function analyzeRuleConflictsAndRedundancies() {
+                    const issues = [];
+                    for (const normKey in commonMistakeNormalization) {
+                        const intermediateKey = commonMistakeNormalization[normKey];
+                        const finalValueFromNorm = customVocabulary[intermediateKey];
+                        const finalValueFromDirect = customVocabulary[normKey];
+                        if (finalValueFromDirect && finalValueFromNorm && finalValueFromNorm !== finalValueFromDirect) {
+                            issues.push({ type: 'conflict', description: `Conflicto: "${normKey}" normaliza a "${intermediateKey}" (-> "${finalValueFromNorm}"), pero también tiene regla directa a "${finalValueFromDirect}".`, originalError: normKey, conflictingValues: [finalValueFromNorm, finalValueFromDirect]});
+                        }
+                    }
+                    for (const normKeyA in commonMistakeNormalization) {
+                        const normKeyB = commonMistakeNormalization[normKeyA];
+                        if (commonMistakeNormalization[normKeyB]) {
+                            const normKeyC = commonMistakeNormalization[normKeyB];
+                             issues.push({ type: 'redundancy_chain', description: `Redundancia: "${normKeyA}" -> "${normKeyB}" Y "${normKeyB}" -> "${normKeyC}". Considerar: "${normKeyA}" -> "${normKeyC}".`, originalError: normKeyA, intermediateKey: normKeyB, finalNormalizedKey: normKeyC });
+                        }
+                    }
+                    for (const normKey in commonMistakeNormalization) {
+                        const intermediateKey = commonMistakeNormalization[normKey];
+                        if (customVocabulary[normKey] && customVocabulary[normKey] === customVocabulary[intermediateKey]) {
+                             issues.push({ type: 'redundancy_unnecessary_norm', description: `Redundancia: "${normKey}" normaliza a "${intermediateKey}", pero ya existe regla directa "${normKey}" -> "${customVocabulary[normKey]}" con mismo resultado. Se podría eliminar normalización.`, originalError: normKey, intermediateKey: intermediateKey, finalValue: customVocabulary[normKey] });
+                        }
+                    }
+                    return issues;
+                }
+
+                async function handleOptimizeVocab() {
+                    statusDiv.textContent = "Optimizando con IA..."; optimizeVocabButton.disabled = true; optimizationProposalsList.innerHTML = '<p>Analizando y consultando IA...</p>'; applyOptimizationButton.disabled = true; optimizationModal.style.display = 'flex';
+                    currentOptimizationProposals = [];
+                    try {
+                        const logQueryIA = query(correctionLogCollectionRef, orderBy("timestamp", "desc"), limit(50));
+                        const snapshotIA = await getDocs(logQueryIA);
+                        const uniqueCorrectionsIA = new Map();
+                        snapshotIA.forEach(logDoc => { const data = logDoc.data(); const key = `${data.originalText}->${data.correctedText}`; if (!uniqueCorrectionsIA.has(key) && data.originalText.toLowerCase() !== data.correctedText.toLowerCase()) { uniqueCorrectionsIA.set(key, { original: data.originalText, corrected: data.correctedText }); } });
+                        const correctionsToAnalyzeIA = Array.from(uniqueCorrectionsIA.values());
+                        if (correctionsToAnalyzeIA.length > 0) {
+                            let geminiInputText = ""; correctionsToAnalyzeIA.slice(0, 15).forEach((entry, index) => { geminiInputText += `${index + 1}. Original: "${entry.original}", Corregido: "${entry.corrected}"\n`; });
+                            let iaSuggestionsRaw = await callGeminiAPI(geminiInputText, GEMINI_PROMPT_OPTIMIZE);
+                            if (iaSuggestionsRaw) {
+                                if (iaSuggestionsRaw.startsWith("```json")) { iaSuggestionsRaw = iaSuggestionsRaw.substring(iaSuggestionsRaw.indexOf('\n') + 1); }
+                                else if (iaSuggestionsRaw.startsWith("```")) { iaSuggestionsRaw = iaSuggestionsRaw.substring(3); }
+                                if (iaSuggestionsRaw.endsWith("```")) { iaSuggestionsRaw = iaSuggestionsRaw.substring(0, iaSuggestionsRaw.length - 3); }
+                                iaSuggestionsRaw = iaSuggestionsRaw.trim();
+                                try {
+                                    const iaParsed = JSON.parse(iaSuggestionsRaw); if (Array.isArray(iaParsed)) { iaParsed.forEach(sugg => { if (sugg.valor_sugerido_correcto && sugg.clave_error_representativa) { currentOptimizationProposals.push({ type: 'ia_suggestion', targetCorrectText: sugg.valor_sugerido_correcto, canonicalErrorKey: sugg.clave_error_representativa, originalErrorsToNormalize: sugg.ejemplos_originales_cubiertos || [sugg.clave_error_representativa], id: `ia-p-${currentOptimizationProposals.length}`, isIASuggestion: true, description: sugg.descripcion_patron, ruleTypeToApply: sugg.tipo_sugerencia || 'normalizacion' }); } else { console.warn("IA Sugg omitida:", sugg); } }); } else { console.warn("IA resp no array:", iaParsed); }
+                                } catch (e) { console.error("Err parse IA sugg:", e, "\nRaw limpio:", iaSuggestionsRaw); optimizationProposalsList.innerHTML += '<p>Error procesando IA sugg.</p>'; }
+                            }
+                        }
+
+                        const logQueryNew = query(correctionLogCollectionRef, orderBy("timestamp", "desc"), limit(200));
+                        const snapshotNew = await getDocs(logQueryNew);
+                        const errorFrequency = new Map(); const errorToCorrectMapping = new Map();
+                        snapshotNew.forEach(logDoc => { const data = logDoc.data(); const original = data.originalText.toLowerCase(); const corrected = data.correctedText; if (original !== corrected.toLowerCase()) { errorFrequency.set(original, (errorFrequency.get(original) || 0) + 1); if (!errorToCorrectMapping.has(original)) { errorToCorrectMapping.set(original, corrected);}}});
+                        const MIN_FREQ_NEW = 3;
+                        errorFrequency.forEach((count, errorKey) => { if (count >= MIN_FREQ_NEW) { const correctedValue = errorToCorrectMapping.get(errorKey); let covered = customVocabulary[errorKey] === correctedValue; if (!covered && commonMistakeNormalization[errorKey]) { const inter = commonMistakeNormalization[errorKey]; if (customVocabulary[inter] === correctedValue) { covered = true; } } if (!covered && correctedValue) { currentOptimizationProposals.push({ type: 'new_rule_suggestion', targetCorrectText: correctedValue, canonicalErrorKey: errorKey, originalErrorsToNormalize: [errorKey], id: `new-${currentOptimizationProposals.length}`, isNewRuleSuggestion: true, description: `Err frec: "${errorKey}" -> "${correctedValue}" (${count} veces).` }); } } });
+
+                        const ruleIssues = analyzeRuleConflictsAndRedundancies();
+                        ruleIssues.forEach(issue => { currentOptimizationProposals.push({ ...issue, id: `${issue.type}-${currentOptimizationProposals.length}`, isConflictOrRedundancy: true }); });
+                        
+                        if (currentOptimizationProposals.length === 0 && correctionsToAnalyzeIA.length === 0 && ruleIssues.length === 0) {
+                             optimizationProposalsList.innerHTML = '<p>No hay suficientes datos para generar propuestas.</p>';
+                        } else {
+                            displayOptimizationProposals();
+                        }
+                    } catch (error) { console.error("Error optimizando vocab:", error); optimizationProposalsList.innerHTML = '<p>Error al cargar propuestas.</p>'; }
+                    finally { optimizeVocabButton.disabled = false; if (statusDiv.textContent.startsWith("Optimizando") || statusDiv.textContent.startsWith("Analizando")) { statusDiv.textContent = recognizing ? "Escuchando..." : "Listo."; } }
+                }
+
+                function displayOptimizationProposals() {
+                    optimizationProposalsList.innerHTML = ''; if (currentOptimizationProposals.length === 0) { optimizationProposalsList.innerHTML = '<p>No se encontraron propuestas.</p>'; applyOptimizationButton.disabled = true; return; }
+                    currentOptimizationProposals.forEach((p, i) => {
+                        const div = document.createElement('div'); div.className = 'optimization-proposal-group'; const head = document.createElement('div'); head.className = 'proposal-header';
+                        const chk = document.createElement('input'); chk.type = 'checkbox'; chk.id = p.id; chk.dataset.proposalIndex = i; chk.checked = !p.isConflictOrRedundancy; if(p.isConflictOrRedundancy) chk.disabled = true; head.appendChild(chk);
+                        const tit = document.createElement('h4'); const lab = document.createElement('label'); lab.htmlFor = p.id;
+                        let titleText = p.description || `Propuesta para: <strong>"${p.targetCorrectText || p.originalError}"</strong>`; lab.innerHTML = titleText;
+                        if (p.isIASuggestion) { const iaM=document.createElement('span');iaM.className='ia-suggestion-marker';iaM.textContent='(IA)';lab.appendChild(iaM); }
+                        else if (p.isNewRuleSuggestion) { const newM=document.createElement('span');newM.className='new-rule-marker';newM.textContent='(Nuevo Error Frecuente)';lab.appendChild(newM); }
+                        else if (p.isConflictOrRedundancy) { const confM=document.createElement('span');confM.className='conflict-marker';confM.textContent=`(${p.type.replace(/_/g,' ').toUpperCase()})`;lab.appendChild(confM); }
+                        tit.appendChild(lab); head.appendChild(tit); div.appendChild(head);
+                        if (p.description && p.isIASuggestion) { const dP=document.createElement('p');dP.innerHTML=`<small><em>Patrón IA: ${p.description}</em></small>`;div.appendChild(dP); }
+                        else if (p.description && !p.isIASuggestion && !p.isNewRuleSuggestion && p.isConflictOrRedundancy) { /* Descripción ya en el título para conflictos/redundancias */ }
+                        else if (p.description && p.isNewRuleSuggestion) { /* Descripción ya en el título */ }
+
+
+                        if (!p.isConflictOrRedundancy && p.canonicalErrorKey && p.targetCorrectText) { const expl = document.createElement('p'); expl.innerHTML = `Aplicar como: <strong class="canonical-error-key">"${p.canonicalErrorKey}"</strong> → "${p.targetCorrectText}"`; div.appendChild(expl); if (p.originalErrorsToNormalize && p.originalErrorsToNormalize.length > 0 && !(p.originalErrorsToNormalize.length === 1 && p.originalErrorsToNormalize[0] === p.canonicalErrorKey)) { const ul = document.createElement('ul'); p.originalErrorsToNormalize.forEach(o => { if(o !== p.canonicalErrorKey) {const li=document.createElement('li');li.className='original-text-item';li.textContent=`"${o}"`; ul.appendChild(li);} }); if(ul.children.length > 0) div.appendChild(ul); } }
+                        optimizationProposalsList.appendChild(div);
+                    });
+                    applyOptimizationButton.disabled = optimizationProposalsList.querySelectorAll('input[type="checkbox"]:not(:disabled):checked').length === 0;
+                    // Añadir event listener para habilitar/deshabilitar botón de aplicar
+                    optimizationProposalsList.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(checkbox => {
+                        checkbox.addEventListener('change', () => {
+                            applyOptimizationButton.disabled = optimizationProposalsList.querySelectorAll('input[type="checkbox"]:not(:disabled):checked').length === 0;
+                        });
+                    });
+                }
+                async function handleApplyOptimizations() { const selP = []; optimizationProposalsList.querySelectorAll('input[type="checkbox"]:not(:disabled):checked').forEach(cb => { const i = parseInt(cb.dataset.proposalIndex); if (!isNaN(i) && currentOptimizationProposals[i]) { selP.push(currentOptimizationProposals[i]); } }); if (selP.length === 0) { alert("Nada selec."); return; } applyOptimizationButton.disabled = true; cancelOptimizationButton.disabled = true; statusDiv.textContent = "Aplicando..."; let tmpN = { ...commonMistakeNormalization }; let tmpV = { ...customVocabulary };
+                    selP.forEach(p => { if (p.isConflictOrRedundancy) return; const keyToUse = p.canonicalErrorKey.toLowerCase(); const valueToUse = p.targetCorrectText; if (p.type === 'ia_suggestion' && p.ruleTypeToApply === 'vocabulario_directo') { tmpV[keyToUse] = valueToUse; } else { if (p.originalErrorsToNormalize) { p.originalErrorsToNormalize.forEach(e => { tmpN[e.toLowerCase()] = keyToUse; }); } tmpV[keyToUse] = valueToUse; } });
+                    try { await saveVocabularyToFirestore(tmpV, learnedCorrections, tmpN); commonMistakeNormalization = tmpN; customVocabulary = tmpV; await processLoadedVocabularyData(customVocabulary, learnedCorrections, commonMistakeNormalization); alert(`${selP.length} optim OK.`); closeOptimizationModal(); } catch (e) { console.error("Err apply optim:", e); alert("Error guardando."); } finally { statusDiv.textContent = recognizing ? "Esc..." : "Listo."; applyOptimizationButton.disabled = false; cancelOptimizationButton.disabled = false; }
+                }
                 function closeOptimizationModal() { optimizationModal.style.display = 'none'; optimizationProposalsList.innerHTML = '<p>...</p>'; currentOptimizationProposals = []; applyOptimizationButton.disabled = true; }
 
                 // --- Event Listeners ---

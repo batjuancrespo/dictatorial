@@ -1,5 +1,5 @@
 // --- Variables Globales de la App de Dictado (declaradas una vez) ---
-let startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, 
+let startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn,
     statusDiv, polishedTextarea, audioPlayback, audioPlaybackSection, 
     themeSwitch, volumeMeterBar, volumeMeterContainer, recordingTimeDisplay, 
     headerArea, techniqueButtonsContainer, clearHeaderButton, 
@@ -33,25 +33,6 @@ let replacementSelectionStart = 0;
 let replacementSelectionEnd = 0;
 let insertionPoint = 0; 
 
-// --- Mapa de Palabras Numéricas ---
-const numberWordsMap = {
-    'cero': '0', 'uno': '1', 'un': '1', 'dos': '2', 'tres': '3', 'cuatro': '4',
-    'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9',
-    'diez': '10', 'once': '11', 'doce': '12', 'trece': '13', 'catorce': '14',
-    'quince': '15', 'dieciséis': '16', 'diecisiete': '17', 'dieciocho': '18', 'diecinueve': '19',
-    'veinte': '20', 'veintiuno': '21', 'veintiún': '21', 'veintidos': '22', 'veintidós': '22', 
-    'veintitres': '23', 'veintitrés': '23', 'veinticuatro': '24', 'veinticinco': '25',
-    'veintiseis': '26', 'veintiséis': '26', 'veintisiete': '27', 'veintiocho': '28', 'veintinueve': '29',
-    'treinta': '30', 'cuarenta': '40', 'cincuenta': '50', 'sesenta': '60',
-    'setenta': '70', 'ochenta': '80', 'noventa': '90',
-    'cien': '100', 'ciento': '100', 
-    'doscientos': '200', 'trescientos': '300', 'cuatrocientos': '400', 'quinientos': '500',
-    'seiscientos': '600', 'setecientos': '700', 'ochocientos': '800', 'novecientos': '900',
-    'mil': '1000'
-    // No se incluyen "millón", "billón" por simplicidad inicial.
-};
-const decimalWords = ['coma', 'con']; // "coma" o "con" para decimales. "Punto" se usa para fin de frase.
-
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DEBUG: DOMContentLoaded event fired.");
@@ -61,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     retryProcessBtn = document.getElementById('retryProcessBtn');
     copyPolishedTextBtn = document.getElementById('copyPolishedTextBtn'); 
     correctTextSelectionBtn = document.getElementById('correctTextSelectionBtn');
-    resetReportBtn = document.getElementById('resetReportBtn'); 
+    resetReportBtn = document.getElementById('resetReportBtn');
     statusDiv = document.getElementById('status');
     polishedTextarea = document.getElementById('polishedText');
     audioPlayback = document.getElementById('audioPlayback');
@@ -329,12 +310,6 @@ async function startActualRecording() {
     } else {
         isDictatingForReplacement = false;
         insertionPoint = polishedTextarea.selectionStart; 
-        // NO limpiar polishedTextarea.value si isDictatingForReplacement es false y hay contenido,
-        // para permitir añadir al final o insertar en el cursor.
-        // Limpiar solo si es un dictado completamente nuevo y el textarea ya estaba vacío.
-        if (polishedTextarea.value.trim() === "") {
-             // No es estrictamente necesario limpiar si está vacío, pero no hace daño.
-        }
         console.log("DEBUG startActualRecording: MODO INSERCIÓN/AÑADIR. Punto de inserción:", insertionPoint);
         setStatus("Solicitando permiso...", "processing");
     }
@@ -451,8 +426,6 @@ async function processAudioBlobAndInsertText(audioBlob) {
     } catch (error) {
         console.error('Error en processAudioBlobAndInsertText:', error);
         setStatus(`Error Proc: ${error.message}`, "error", 4000);
-        // No modificar polishedTextarea si falla el procesamiento del nuevo audio si era un reemplazo,
-        // pero si era un dictado nuevo y el textarea estaba vacío, sí mostrar el error.
         if (!isDictatingForReplacement && currentContent.trim() === "") { 
              polishedTextarea.value = `Error: ${error.message}`; 
         }

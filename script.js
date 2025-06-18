@@ -1,946 +1,593 @@
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo",
-  authDomain: "almacena-correcciones-dictado.firebaseapp.com", 
-  projectId: "almacena-correcciones-dictado",
-  storageBucket: "almacena-correcciones-dictado.appspot.com",
-  messagingSenderId: "209194920272",
-  appId: "1:209194920272:web:ccbec69d0a5aa88789e455",
-  measurementId: "G-6PQSKYMDP0"
-};
+// --- Variables Globales de la App de Dictado (declaradas una vez) ---
+let startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, 
+    statusDiv, polishedTextarea, audioPlayback, audioPlaybackSection, 
+    themeSwitch, volumeMeterBar, volumeMeterContainer, recordingTimeDisplay, 
+    headerArea, techniqueButtonsContainer, clearHeaderButton, 
+    mainTitleImage, mainTitleImageDark,
+    vocabManagerModal, vocabManagerList, modalCloseButtonVocab, modalAddNewRuleButtonVocab, manageVocabButton;
 
-// API configuration
-const API_URL = 'https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo';
-const API_KEY = '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';
-
-// AI Improvement Configuration
-const AI_API_KEY = 'uFJi9MKJxz6ENwWkQcSFXNykjoeYyT3G';
-const AI_AGENT_ID = 'ag:973cb1c2:20241203:asistente-radiologico:5542a3d9';
-
-// Global variables and DOM elements
-let firestoreConnection = false;
-let db = null;
-let unsubscribeSnapshot = null;
 let mediaRecorder;
 let audioChunks = [];
-let startTime;
-let recordingStartTime;
-let timerInterval;
-let isRecording = false;
-let corrections = new Map();
-let chunkDuration = 45000; // 45 seconds in milliseconds
-let chunkInterval;
-let allTranscriptions = []; // Array to store all chunk transcriptions
+let currentAudioBlob = null;
+let audioContext;
+let analyser;
+let microphoneSource;
+let animationFrameId;
+let isRecording = false; 
+let isPaused = false;
+let recordingTimerInterval; 
+let recordingSeconds = 0;  
+const userApiKey = 'AIzaSyASbB99MVIQ7dt3MzjhidgoHUlMXIeWvGc'; // API Key de Gemini
 
-// DOM elements
-let transcriptionElement;
-let toggleButton;
-let statusElement;
-let timerElement;
-let loadingElement;
-let copyButton;
-let correctTextButton;
-let correctionModal;
-let selectedTextElement;
-let correctionTextArea;
-let saveCorrectionBtn;
-let cancelCorrectionBtn;
-let improveWithAIButton;
-let comparisonModal;
-let textComparisonDiv;
-let acceptAllChangesButton;
-let cancelChangesButton;
+// --- Variables para el Vocabulario del Usuario (estilo index (2).html) ---
+let currentUserId = null;      
+let customVocabulary = {};      // Corresponderá a rulesMap
+let learnedCorrections = {};    // Corresponderá a learnedMap 
+let commonMistakeNormalization = {}; // Corresponderá a normalizations
 
-// Firebase initialization and management
-async function initializeFirebase() {
-  try {
-    if (!firebase.apps.length) {
-      const app = firebase.initializeApp(firebaseConfig);
-      db = firebase.firestore();
-      
-      db.settings({
-        ignoreUndefinedProperties: true,
-        merge: true,
-        cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED
-      });
+// --- Variables para Debounce y Dictado por Selección/Inserción ---
+let isProcessingClick = false; 
+const CLICK_DEBOUNCE_MS = 300; 
+let isDictatingForReplacement = false;
+let replacementSelectionStart = 0;
+let replacementSelectionEnd = 0;
+let insertionPoint = 0; 
 
-      await db.enablePersistence({
-        synchronizeTabs: true
-      }).catch(err => {
-        console.warn('Offline persistence error:', err.code);
-      });
+// --- Mapa de Palabras Numéricas ---
+const numberWordsMap = {
+    'cero': '0', 'uno': '1', 'un': '1', 'dos': '2', 'tres': '3', 'cuatro': '4',
+    'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9',
+    'diez': '10', 'once': '11', 'doce': '12', 'trece': '13', 'catorce': '14',
+    'quince': '15', 'dieciséis': '16', 'diecisiete': '17', 'dieciocho': '18', 'diecinueve': '19',
+    'veinte': '20', 'veintiuno': '21', 'veintiún': '21', 'veintidos': '22', 'veintidós': '22', 
+    'veintitres': '23', 'veintitrés': '23', 'veinticuatro': '24', 'veinticinco': '25',
+    'veintiseis': '26', 'veintiséis': '26', 'veintisiete': '27', 'veintiocho': '28', 'veintinueve': '29',
+    'treinta': '30', 'cuarenta': '40', 'cincuenta': '50', 'sesenta': '60',
+    'setenta': '70', 'ochenta': '80', 'noventa': '90',
+    'cien': '100', 'ciento': '100', 
+    'doscientos': '200', 'trescientos': '300', 'cuatrocientos': '400', 'quinientos': '500',
+    'seiscientos': '600', 'setecientos': '700', 'ochocientos': '800', 'novecientos': '900',
+    'mil': '1000'
+    // No se incluyen "millón", "billón" por simplicidad inicial.
+};
+const decimalWords = ['coma', 'con']; // "coma" o "con" para decimales. "Punto" se usa para fin de frase.
 
-      // Single connection state monitor
-      const unsubscribeConnection = db.onSnapshotsInSync(() => {
-        if (!firestoreConnection) {
-          firestoreConnection = true;
-          console.log('Firestore connection successful');
-          showSuccessMessage('Conectado a Firestore');
-          loadCorrections(); // Load corrections once when first connected
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DEBUG: DOMContentLoaded event fired.");
+
+    startRecordBtn = document.getElementById('startRecordBtn');
+    pauseResumeBtn = document.getElementById('pauseResumeBtn');
+    retryProcessBtn = document.getElementById('retryProcessBtn');
+    copyPolishedTextBtn = document.getElementById('copyPolishedTextBtn'); 
+    correctTextSelectionBtn = document.getElementById('correctTextSelectionBtn');
+    resetReportBtn = document.getElementById('resetReportBtn'); 
+    statusDiv = document.getElementById('status');
+    polishedTextarea = document.getElementById('polishedText');
+    audioPlayback = document.getElementById('audioPlayback');
+    audioPlaybackSection = document.querySelector('.audio-playback-section'); 
+    themeSwitch = document.getElementById('themeSwitch'); 
+    volumeMeterBar = document.getElementById('volumeMeterBar');
+    volumeMeterContainer = document.getElementById('volumeMeterContainer'); 
+    recordingTimeDisplay = document.getElementById('recordingTimeDisplay'); 
+    headerArea = document.getElementById('headerArea'); 
+    techniqueButtonsContainer = document.getElementById('techniqueButtons'); 
+    clearHeaderButton = document.getElementById('clearHeaderButton'); 
+    mainTitleImage = document.getElementById('mainTitleImage'); 
+    mainTitleImageDark = document.getElementById('mainTitleImageDark'); 
+    manageVocabButton = document.getElementById('manageVocabButton'); 
+    vocabManagerModal = document.getElementById('vocabManagerModal');
+    vocabManagerList = document.getElementById('vocabManagerList');
+    modalCloseButtonVocab = document.getElementById('modalCloseButtonVocab'); 
+    modalAddNewRuleButtonVocab = document.getElementById('modalAddNewRuleButtonVocab');
+
+    const elementsMap = {
+        startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn,
+        statusDiv, polishedTextarea, audioPlayback, audioPlaybackSection, themeSwitch,
+        volumeMeterBar, volumeMeterContainer, recordingTimeDisplay, headerArea,
+        techniqueButtonsContainer, clearHeaderButton, mainTitleImage, mainTitleImageDark,
+        manageVocabButton, vocabManagerModal, vocabManagerList, modalCloseButtonVocab, modalAddNewRuleButtonVocab
+    };
+
+    let allElementsFound = true;
+    for (const elementName in elementsMap) {
+        if (!elementsMap[elementName]) {
+            console.error(`DEBUG: Elemento NO encontrado en DOMContentLoaded: ${elementName}`);
+            allElementsFound = false;
         }
-      });
-
-      return db;
-    }
-    
-    console.log('Firebase already initialized');
-    db = firebase.firestore();
-    return db;
-
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-    return null;
-  }
-}
-
-// Updated Side Buttons Event Listener
-document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize all DOM element references
-  transcriptionElement = document.getElementById('transcription');
-  toggleButton = document.getElementById('toggleRecord');
-  statusElement = document.getElementById('recordingStatus');
-  timerElement = document.getElementById('timer');
-  loadingElement = document.getElementById('loading');
-  copyButton = document.getElementById('copyText');
-  correctTextButton = document.getElementById('correctText');
-  correctionModal = document.getElementById('correctionModal');
-  selectedTextElement = document.getElementById('selectedText');
-  correctionTextArea = document.getElementById('correctionText');
-  saveCorrectionBtn = document.getElementById('saveCorrectionBtn');
-  cancelCorrectionBtn = document.getElementById('cancelCorrectionBtn');
-  improveWithAIButton = document.getElementById('improveWithAI');
-  comparisonModal = document.getElementById('comparisonModal');
-  textComparisonDiv = document.getElementById('textComparison');
-  acceptAllChangesButton = document.getElementById('acceptAllChanges');
-  cancelChangesButton = document.getElementById('cancelChanges');
-
-  // Set up side button event listeners
-  document.querySelectorAll('.side-button').forEach(button => {
-    button.addEventListener('click', () => {
-      const textToInsert = button.getAttribute('data-text');
-      
-      // Remove active state from all buttons
-      document.querySelectorAll('.side-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      // Mark current button as active
-      button.classList.add('active');
-      
-      // Get current transcription content
-      const currentText = transcriptionElement.textContent;
-
-      // If there is existing text, try to replace the template at start only
-      if (currentText) {
-        // Match any of the templates at the start of the text
-        const templateRegex = /^(Se realiza exploración[^.]+(\.|\n))/;
-        const match = currentText.match(templateRegex);
-        
-        if (match) {
-          // Replace only the matched template at start
-          transcriptionElement.textContent = currentText.replace(match[0], textToInsert);
-        } else {
-          // No template found at start, insert new text at beginning
-          transcriptionElement.textContent = textToInsert + '\n\n' + currentText;
-        }
-      } else {
-        // Empty transcription, just insert the new text
-        transcriptionElement.textContent = textToInsert;
-      }
-    });
-  });
-
-  // Initialize other event listeners
-  if (toggleButton) toggleButton.addEventListener('click', toggleRecording);
-  
-  if (copyButton) {
-    copyButton.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(transcriptionElement?.textContent || '');
-        showSuccessMessage('Texto copiado al portapapeles');
-      } catch (err) {
-        console.error('Error al copiar:', err);
-      }
-    });
-  }
-
-  if (correctTextButton) correctTextButton.addEventListener('click', showCorrectionModal);
-  if (cancelCorrectionBtn) cancelCorrectionBtn.addEventListener('click', hideCorrectionModal);
-  if (saveCorrectionBtn) saveCorrectionBtn.addEventListener('click', handleSaveCorrection);
-  if (improveWithAIButton) improveWithAIButton.addEventListener('click', improveWithAI);
-  
-  if (acceptAllChangesButton && transcriptionElement && comparisonModal) {
-    acceptAllChangesButton.addEventListener('click', () => {
-      // Get the stored improved text instead of trying to parse the diff
-      const improvedText = textComparisonDiv.getAttribute('data-improved-text');
-      if (improvedText) {
-        transcriptionElement.textContent = improvedText;
-        comparisonModal.classList.add('hidden');
-        showSuccessMessage('Cambios aplicados correctamente');
-      }
-    });
-  }
-
-  if (cancelChangesButton && comparisonModal) {
-    cancelChangesButton.addEventListener('click', () => {
-      comparisonModal.classList.add('hidden');
-    });
-  }
-
-  // Initialize application
-  initializeTheme();
-  
-  try {
-    console.log('Initializing application...');
-    await initializeRecording();
-    
-    console.log('Initializing Firebase...');
-    db = await initializeFirebase();
-    
-    if (!db) {
-      console.error('Failed to initialize Firebase');
-      showSuccessMessage('Error durante la inicialización', {type: 'error'});
-    }
-  } catch (error) {
-    console.error('Error during initialization:', error);
-    showSuccessMessage('Error durante la inicialización', {type: 'error'});
-  }
-  
-  if (transcriptionElement) {
-    transcriptionElement.style.whiteSpace = 'pre-wrap';
-    transcriptionElement.style.wordBreak = 'break-word';
-  }
-});
-
-// Corrections management
-async function loadCorrections() {
-  console.log('Loading corrections...');
-  try {
-    if (!db) {
-      console.log('No database connection available');
-      return;
     }
 
-    // Clean up existing snapshot listener if any
-    if (unsubscribeSnapshot) {
-      unsubscribeSnapshot();
+    if (!allElementsFound) {
+        const errorMessage = "Error crítico: Uno o más elementos HTML de la app no se encontraron al cargar el DOM. Revisa la consola.";
+        alert(errorMessage);
+        if (statusDiv) { statusDiv.textContent = "Error crítico de UI."; statusDiv.className = 'status-error';}
+        return; 
     }
+    console.log("DEBUG: Todos los elementos HTML principales fueron encontrados en DOMContentLoaded.");
 
-    // Set up a single snapshot listener for corrections
-    unsubscribeSnapshot = db.collection('corrections')
-      .onSnapshot((snapshot) => {
-        corrections.clear();
-        snapshot.forEach(doc => {
-          const correction = doc.data();
-          corrections.set(correction.original, correction.correction);
+    const preferredTheme = localStorage.getItem('theme') || 'dark'; 
+    applyTheme(preferredTheme); 
+    setAccentRGB(); 
+    new MutationObserver(setAccentRGB).observe(document.body, { attributes: true, attributeFilter: ['data-theme']});
+
+    if (themeSwitch) {
+        themeSwitch.addEventListener('change', () => {
+            applyTheme(themeSwitch.checked ? 'dark' : 'light');
         });
-        console.log('Corrections updated:', Array.from(corrections.entries()));
-      }, (error) => {
-        console.error('Error in corrections snapshot:', error);
-      });
-
-  } catch (error) {
-    console.error('Error loading corrections:', error);
-    corrections = new Map();
-    showSuccessMessage('Error cargando correcciones', {type: 'error'});
-  }
-}
-
-// Audio Recording Functions
-async function initializeRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      // This will be triggered both for chunks and when stopping the recording
-      console.log('MediaRecorder stopped');
-    };
-
-    toggleButton.disabled = false;
-    statusElement.textContent = 'Listo para grabar';
-  } catch (error) {
-    console.error('Error al acceder al micrófono:', error);
-    statusElement.textContent = 'Error: No se pudo acceder al micrófono';
-    statusElement.classList.add('error');
-    toggleButton.disabled = true;
-  }
-}
-
-function toggleRecording() {
-  if (!mediaRecorder) {
-    console.error('MediaRecorder no está inicializado');
-    showSuccessMessage('Error: El micrófono no está disponible', {type: 'error'});
-    return;
-  }
-
-  if (!isRecording) {
-    startRecording();
-  } else {
-    stopRecording();
-  }
-}
-
-function startRecording() {
-  if (!mediaRecorder || mediaRecorder.state === 'recording') {
-    console.error('MediaRecorder no está listo o ya está grabando');
-    return;
-  }
-
-  try {
-    // Reset for new recording
-    audioChunks = [];
-    allTranscriptions = [];
-    recordingStartTime = Date.now();
-    
-    // Start recording
-    mediaRecorder.start();
-    isRecording = true;
-    toggleButton.classList.add('recording');
-    toggleButton.innerHTML = `
-      <svg class="stop-icon" viewBox="0 0 24 24">
-        <rect x="6" y="6" width="12" height="12"/>
-      </svg>
-      Detener Grabación
-    `;
-    statusElement.textContent = 'Grabando...';
-    
-    startTime = Date.now();
-    updateTimer();
-    timerInterval = setInterval(updateTimer, 1000);
-    
-    // Set up chunk interval - create a new chunk every 45 seconds
-    chunkInterval = setInterval(() => {
-      if (isRecording && mediaRecorder.state === 'recording') {
-        console.log('Creating new chunk after 45 seconds');
-        
-        // Stop the current recording to create a chunk
-        mediaRecorder.stop();
-        
-        // Process the chunk we just created
-        const currentChunks = [...audioChunks];
-        processAudioChunk(currentChunks);
-        
-        // Clear the chunks array for the next segment
-        audioChunks = [];
-        
-        // Start a new recording segment after a small delay
-        setTimeout(() => {
-          if (isRecording) {
-            mediaRecorder.start();
-            console.log('Started recording new chunk');
-          }
-        }, 100);
-      }
-    }, chunkDuration);
-    
-  } catch (error) {
-    console.error('Error al iniciar la grabación:', error);
-    showSuccessMessage('Error al iniciar la grabación', {type: 'error'});
-  }
-}
-
-function stopRecording() {
-  if (!mediaRecorder) {
-    console.error('MediaRecorder no está inicializado');
-    return;
-  }
-
-  try {
-    // Stop the chunk interval
-    clearInterval(chunkInterval);
-    
-    // Clear the timer interval
-    clearInterval(timerInterval);
-    
-    // Only stop the mediaRecorder if it's recording
-    if (mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      
-      // Process the final chunk after a small delay
-      setTimeout(() => {
-        if (audioChunks.length > 0) {
-          processAudioChunk(audioChunks, true);
-        } else {
-          // If no chunks to process, just update UI
-          finalizeRecording();
-        }
-      }, 200);
     } else {
-      // If already stopped (due to chunking), just process any remaining chunks
-      if (audioChunks.length > 0) {
-        processAudioChunk(audioChunks, true);
-      } else {
-        finalizeRecording();
-      }
+        console.error("DEBUG: themeSwitch no fue encontrado.");
     }
-    
-    isRecording = false;
-    toggleButton.classList.remove('recording');
-    toggleButton.innerHTML = `
-      <svg class="mic-icon" viewBox="0 0 24 24">
-        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-      </svg>
-      Iniciar Grabación
-    `;
-    statusElement.textContent = 'Procesando grabación...';
-    
-  } catch (error) {
-    console.error('Error al detener la grabación:', error);
-    showSuccessMessage('Error al detener la grabación', {type: 'error'});
-  }
-}
-
-async function processAudioChunk(chunks, isFinal = false) {
-  // Skip if no chunks
-  if (!chunks || chunks.length === 0) {
-    console.log('No audio chunks to process');
-    return;
-  }
-  
-  try {
-    console.log(`Processing audio chunk (isFinal: ${isFinal})`);
-    
-    // Create a blob from the audio chunks
-    const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-    
-    // Show loading indication only for final chunk to avoid flicker
-    if (isFinal) {
-      loadingElement.classList.remove('hidden');
-    }
-    
-    // Transcribe this chunk
-    const transcriptionText = await transcribeAudio(audioBlob);
-    
-    if (transcriptionText) {
-      // Add this transcription to our collection
-      allTranscriptions.push(transcriptionText);
-      
-      // If this is the final chunk, combine all transcriptions and update the UI
-      if (isFinal) {
-        finalizeRecording();
-      }
-    }
-  } catch (error) {
-    console.error('Error processing audio chunk:', error);
-    if (isFinal) {
-      showSuccessMessage('Error al procesar el audio', {type: 'error'});
-      finalizeRecording();
-    }
-  }
-}
-
-function finalizeRecording() {
-  // Combine all transcriptions
-  if (allTranscriptions.length > 0) {
-    const combinedText = allTranscriptions.join(' ');
-    updateTranscriptionText(combinedText);
-  }
-  
-  // Reset state
-  audioChunks = [];
-  allTranscriptions = [];
-  
-  // Update UI
-  loadingElement.classList.add('hidden');
-  statusElement.textContent = 'Listo para grabar';
-}
-
-function updateTimer() {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-  const seconds = (elapsed % 60).toString().padStart(2, '0');
-  timerElement.textContent = `${minutes}:${seconds}`;
-}
-
-// Text Processing Functions
-async function transcribeAudio(audioBlob) {
-  console.log(`Transcribing audio chunk of size: ${audioBlob.size} bytes`);
-  
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'audio/wav'
-      },
-      body: audioBlob
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error en la transcripción: ${response.status} ${errorText}`);
-    }
-
-    const result = await response.json();
-    
-    if (result.error) {
-      throw new Error(`Error API: ${result.error}`);
-    }
-    
-    const rawText = result.text || '';
-    console.log('Raw text from API:', rawText);
-    
-    if (!rawText || rawText.trim() === '') {
-      console.log('No text detected in this audio chunk');
-      return '';
-    }
-    
-    // Process the text and apply corrections
-    const processedText = processText(rawText);
-    console.log('Processed text from chunk:', processedText);
-    
-    return processedText;
-    
-  } catch (error) {
-    console.error('Error en la transcripción:', error);
-    statusElement.textContent = 'Error en la transcripción';
-    statusElement.classList.add('error');
-    return '';
-  }
-}
-
-function updateTranscriptionText(processedText) {
-  if (!processedText || processedText.trim() === '') return;
-  
-  // Get current selection or cursor position info
-  const selection = window.getSelection();
-  const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-  
-  // Only consider selection if it's within our transcription element
-  const isSelectionInTranscription = range && transcriptionElement.contains(range.commonAncestorContainer);
-  const isAtEnd = isSelectionInTranscription && 
-    range.startContainer === transcriptionElement && 
-    range.startOffset === transcriptionElement.childNodes.length;
-
-  if (isAtEnd || !isSelectionInTranscription) {
-    // Cursor at end or no valid selection - always append
-    const currentContent = transcriptionElement.textContent;
-    transcriptionElement.textContent = currentContent + 
-      (currentContent ? ' ' : '') + processedText.trim();
-  } else if (selection.toString().length > 0) {
-    // Text is selected - replace selection with smart formatting
-    const currentContent = transcriptionElement.textContent;
-    const formattedText = getSmartFormattedText(
-      currentContent, 
-      processedText, 
-      range.startOffset
-    );
-    transcriptionElement.textContent = 
-      currentContent.substring(0, range.startOffset) +
-      formattedText +
-      currentContent.substring(range.endOffset);
-  } else {
-    // Cursor is positioned - insert at cursor with smart formatting
-    const currentContent = transcriptionElement.textContent;
-    const formattedText = getSmartFormattedText(
-      currentContent, 
-      processedText, 
-      range.startOffset
-    );
-    transcriptionElement.textContent = 
-      currentContent.substring(0, range.startOffset) +
-      formattedText +
-      currentContent.substring(range.startOffset);
-  }
-  
-  // Move cursor to the end
-  const newRange = document.createRange();
-  newRange.selectNodeContents(transcriptionElement);
-  newRange.collapse(false); // collapse to end
-  selection.removeAllRanges();
-  selection.addRange(newRange);
-  transcriptionElement.focus();
-}
-
-function processText(text) {
-  console.log('Original text:', text);
-
-  // Paso 1: Proteger comas en números (Ej: "3,2 cm" → "3⎷2 cm")
-  let processed = text.replace(/(\d),(\d)/g, '$1⎷$2'); // Reemplaza "," entre números por un carácter especial
-
-  // Eliminar comas y puntos que no están protegidos
-  processed = processed.toLowerCase().replace(/[.,]/g, '');
-
-  // Restaurar comas protegidas (Ej: "3⎷2 cm" → "3,2 cm")
-  processed = processed.replace(/⎷/g, ',');
-
-  // Paso 2: Manejo de "punto y aparte", "punto y seguido", y "punto"
-  processed = processed
-    .replace(/punto y aparte/gi, '.\n\n')
-    .replace(/punto y seguido/gi, '.')
-    .replace(/\b(?<!y\s)punto\b/gi, '.');
-  console.log('Paso 2 - Después de reemplazar puntos:', processed);
-
-  // Paso 3: Reemplazo de "coma", asegurando que no afecte números protegidos
-  processed = processed.replace(/\bcoma\b(?!\s*\d)/gi, ',');
-
-  console.log('Paso 3 - Después de reemplazar comas:', processed);
-
-  // Paso 4: Manejo del espaciado entre líneas
-  processed = processed
-    .split(/\n+/)
-    .map(line => line.trim())
-    .join('\n\n');
-
-  // Paso 5: Capitalización de oraciones
-  processed = processed
-    .split(/\n+/)
-    .map(paragraph => {
-      return paragraph
-        .split(/\.\s+/)
-        .map(sentence => {
-          sentence = sentence.trim();
-          return sentence ? sentence.charAt(0).toUpperCase() + sentence.slice(1) : sentence;
-        })
-        .join('. ');
-    })
-    .join('\n\n');
-
-  // Paso 6: Espaciado después de puntuación, asegurando que no afecte números
-  processed = processed
-    .replace(/,(?!\d)/g, ', ') // Solo agrega espacio después de comas que no están en números
-    .replace(/\.(\S)/g, '. $1');
-
-  // Paso 7: Eliminación de puntuación repetida
-  processed = processed
-    .replace(/\.+/g, '.')
-    .replace(/,+/g, ',');
-
-  // Paso 8: Limpieza final y aplicación de correcciones
-  processed = processed
-    .split(/\n+/)
-    .map(paragraph => {
-      paragraph = paragraph.replace(/\s+([.,])/g, '$1'); // Elimina espacios antes de puntuación
-      paragraph = paragraph.replace(/([.,])(\S)/g, '$1 $2'); // Asegura espacio después de puntuación
-      paragraph = paragraph.charAt(0).toUpperCase() + paragraph.slice(1);
-      return paragraph.trim();
-    })
-    .join('\n')
-    .replace(/\n\s*\n\s*\n+/g, '\n\n'); // Elimina saltos de línea excesivos
-
-  // Aplicar correcciones si existen
-  if (typeof corrections !== 'undefined' && corrections.size > 0) {
-    corrections.forEach((correction, original) => {
-      const regex = new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      processed = processed.replace(regex, correction);
-    });
-  }
-
-  return processed;
-}
-
-
-function getSmartFormattedText(existingText, newText, position) {
-  // Remove any trailing periods from the new text
-  newText = newText.trim().replace(/\.$/, '');
-  
-  // Determine if we should capitalize based on context
-  const shouldCapitalize = position === 0 || 
-    (position > 0 && existingText.charAt(position - 1) === '.');
-  
-  // Add space if needed (not at start and previous char isn't space, period or newline)
-  const needsSpace = position > 0 && 
-    ![' ', '.', '\n'].includes(existingText.charAt(position - 1));
-
-  let formattedText = newText.trim();
-  if (shouldCapitalize) {
-    formattedText = formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
-  } else {
-    formattedText = formattedText.charAt(0).toLowerCase() + formattedText.slice(1);
-  }
-  
-  if (needsSpace) {
-    formattedText = ' ' + formattedText;
-  }
-  
-  return formattedText;
-}
-
-// Correction Functions
-async function saveCorrection(original, correction) {
-  try {
-    if (!db || !firestoreConnection) {
-      console.error('No database connection available');
-      showSuccessMessage('Error: No hay conexión a la base de datos', {type: 'error'});
-      return false;
-    }
-
-    await db.collection('corrections').add({
-      original,
-      correction,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    corrections.set(original, correction);
-    console.log('Correction saved to Firestore');
-    return true;
-
-  } catch (error) {
-    console.error('Error saving correction:', error);
-    showSuccessMessage('Error al guardar la corrección', {type: 'error'});
-    return false;
-  }
-}
-
-function showCorrectionModal() {
-  const selection = window.getSelection();
-  const selectedText = selection.toString().trim();
-
-  if (!selectedText) {
-    alert('Por favor, selecciona el texto que deseas corregir');
-    return;
-  }
-
-  selectedTextElement.textContent = selectedText;
-  correctionTextArea.value = selectedText;
-  correctionModal.classList.remove('hidden');
-}
-
-function hideCorrectionModal() {
-  correctionModal.classList.add('hidden');
-  selectedTextElement.textContent = '';
-  correctionTextArea.value = '';
-}
-
-async function handleSaveCorrection() {
-  const originalText = selectedTextElement.textContent;
-  const correctionText = correctionTextArea.value.trim();
-
-  if (originalText === correctionText) {
-    alert('La corrección es igual al texto original');
-    return;
-  }
-
-  const success = await saveCorrection(originalText, correctionText);
-  if (success) {
-    const currentText = transcriptionElement.textContent;
-    transcriptionElement.textContent = currentText.replace(originalText, correctionText);
-    hideCorrectionModal();
-    showSuccessMessage('Corrección guardada');
-  }
-}
-
-// AI Improvement Functions
-async function improveWithAI() {
-  const originalText = transcriptionElement?.textContent?.trim();
-  if (!originalText) {
-    showSuccessMessage('No hay texto para mejorar');
-    return;
-  }
-
-  loadingElement.classList.remove('hidden');
-  statusElement.textContent = 'Mejorando texto con IA...';
-
-  try {
-    const requestBody = {
-      max_tokens: 3000,
-      stream: false,
-      messages: [{
-        role: "system",
-        content: "Eres un experto asistente de transcripción de textos médicos. Este es un texto de dictado bruto de tipo médico, en concreto un informe radiológico. Los signos de puntuación están incluidos en el dictado, no añadas ningun otro y capitaliza el texto correctamente, respetando los saltos de linea tal y como estan, sin añadir ni quitar saltos a los ya existentes. Además haras una interpretación del texto pudiendo cambiar palabras si crees que el dictado bruto queria decir otra cosa. Por ultimo quiero que me devuelvas la transcripción corregida como tal, sin otros comentarios adicionales tuyos"
-      }, {
-        role: "user",
-        content: originalText
-      }],
-      response_format: {
-        type: "text"
-      },
-      agent_id: AI_AGENT_ID
-    };
-
-    const response = await fetch('https://api.mistral.ai/v1/agents/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AI_API_KEY}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error API: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.choices && data.choices[0] && data.choices[0].message) {
-      const improvedText = data.choices[0].message.content;
-      showImprovedText(originalText, improvedText);
-    } else {
-      throw new Error('Formato de respuesta inválido');
-    }
-  } catch (error) {
-    console.error('Error al mejorar el texto:', error);
-    showSuccessMessage('Error al procesar el texto con IA');
-  } finally {
-    loadingElement.classList.add('hidden');
-    statusElement.textContent = 'Listo para grabar';
-  }
-}
-
-function showImprovedText(original, improved) {
-  // Create arrays of words
-  const originalWords = original.split(/(\s+)/);
-  const improvedWords = improved.split(/(\s+)/);
-  
-  // Initialize variables for the diff
-  let diffHtml = '';
-  let i = 0;
-  let j = 0;
-  
-  while (i < originalWords.length || j < improvedWords.length) {
-    if (i >= originalWords.length) {
-      // All remaining words in improved are additions
-      while (j < improvedWords.length) {
-        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-        j++;
-      }
-      break;
-    }
-    
-    if (j >= improvedWords.length) {
-      // All remaining words in original are removals
-      while (i < originalWords.length) {
-        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-        i++;
-      }
-      break;
-    }
-    
-    if (originalWords[i] === improvedWords[j]) {
-      // Words match, keep as is
-      diffHtml += originalWords[i];
-      i++;
-      j++;
-    } else {
-      // Words differ, try to find next match
-      let found = false;
-      
-      // Look ahead in improved text
-      for (let k = j + 1; k < improvedWords.length && k < j + 3; k++) {
-        if (originalWords[i] === improvedWords[k]) {
-          // Found match, mark intermediate words as added
-          while (j < k) {
-            diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-            j++;
-          }
-          found = true;
-          break;
-        }
-      }
-      
-      if (!found) {
-        // Look ahead in original text
-        for (let k = i + 1; k < originalWords.length && k < i + 3; k++) {
-          if (originalWords[k] === improvedWords[j]) {
-            // Found match, mark intermediate words as removed
-            while (i < k) {
-              diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-              i++;
-            }
-            found = true;
-            break;
-          }
-        }
-      }
-      
-      if (!found) {
-        // No match found within window, mark current words as removed/added
-        diffHtml += `<span class="diff-removed">${originalWords[i]}</span>`;
-        diffHtml += `<span class="diff-added">${improvedWords[j]}</span>`;
-        i++;
-        j++;
-      }
-    }
-  }
-  
-  // Store the improved text in a data attribute for later use
-  textComparisonDiv.setAttribute('data-improved-text', improved);
-  
-  textComparisonDiv.innerHTML = `
-    <div class="text-diff">
-      ${diffHtml}
-    </div>
-  `;
-
-  comparisonModal.classList.remove('hidden');
-}
-
-// Utility Functions
-function showSuccessMessage(message, options = {}) {
-  const container = document.querySelector('.container');
-  const {type = 'success'} = options;
-  
-  const successMessage = document.createElement('div');
-  successMessage.className = `status-message ${type}`;
-  successMessage.textContent = message;
-  container.appendChild(successMessage);
-
-  setTimeout(() => {
-    successMessage.classList.add('show');
-  }, 100);
-
-  setTimeout(() => {
-    successMessage.classList.remove('show');
-    setTimeout(() => successMessage.remove(), 300);
-  }, 3000);
-}
-
-// Cleanup Function
-function cleanup() {
-  if (unsubscribeSnapshot) {
-    unsubscribeSnapshot();
-  }
-  
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-  }
-}
-
-// Theme Management
-function initializeTheme() {
-  const themeToggle = document.getElementById('themeToggle');
-  const themeLabel = document.getElementById('themeLabel');
-  
-  // Check for saved theme preference or system preference
-  const savedTheme = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  
-  // Set initial theme
-  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    themeToggle.checked = true;
-    themeLabel.textContent = '☀️';
-  }
-
-  // Theme toggle handler
-  themeToggle.addEventListener('change', (e) => {
-    if (e.target.checked) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('theme', 'dark');
-      themeLabel.textContent = '☀️';
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem('theme', 'light');
-      themeLabel.textContent = '🌙';
-    }
-  });
-}
-
-// Keyboard Shortcuts
-document.addEventListener('keydown', function(event) {
-  if (event.shiftKey && event.metaKey && event.key === 'Shift') {
-    event.preventDefault();
-    toggleButton.click();
-  }
 });
 
-// Cleanup on page unload
-window.addEventListener('unload', cleanup);
+
+document.addEventListener('firebaseReady', () => {
+    console.log("DEBUG: Evento firebaseReady RECIBIDO. Llamando a initializeAuthAndApp...");
+    initializeAuthAndApp();
+});
+
+function initializeAuthAndApp() {
+    console.log("DEBUG: initializeAuthAndApp - INICIO de la función.");
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const loginEmailInput = document.getElementById('login-email');
+    const loginPasswordInput = document.getElementById('login-password');
+    const signupEmailInput = document.getElementById('signup-email');
+    const signupPasswordInput = document.getElementById('signup-password');
+    const loginButton = document.getElementById('loginButton'); 
+    const signupButton = document.getElementById('signupButton'); 
+    const showSignupLink = document.getElementById('showSignupLink');
+    const showLoginLink = document.getElementById('showLoginLink');
+    const loginErrorDiv = document.getElementById('login-error');
+    const signupErrorDiv = document.getElementById('signup-error');
+    const userDisplaySpan = document.getElementById('userDisplay');
+    const logoutButton = document.getElementById('logoutButton');
+
+    const authElements = {authContainer, appContainer, loginForm, signupForm, loginEmailInput, loginPasswordInput, signupEmailInput, signupPasswordInput, loginButton, signupButton, showSignupLink, showLoginLink, loginErrorDiv, signupErrorDiv, userDisplaySpan, logoutButton};
+    for (const elName in authElements) {
+        if (!authElements[elName]) {
+            console.error(`DEBUG: initializeAuthAndApp - Elemento Auth NO encontrado: ${elName}`);
+            alert(`Error crítico: Falta el elemento de UI para autenticación: ${elName}`);
+            return; 
+        }
+    }
+    console.log("DEBUG: initializeAuthAndApp - Elementos Auth DOM seleccionados correctamente.");
+
+    const auth = window.auth;
+    const createUserWithEmailAndPassword = window.createUserWithEmailAndPassword;
+    const signInWithEmailAndPassword = window.signInWithEmailAndPassword;
+    const signOut = window.signOut;
+    const onAuthStateChanged = window.onAuthStateChanged;
+
+    if (!auth || !onAuthStateChanged) {
+        console.error("DEBUG: initializeAuthAndApp - Error crítico: Firebase Auth o onAuthStateChanged no están disponibles.");
+        alert("Error crítico: Problema al cargar Firebase Auth.");
+        return;
+    }
+    console.log("DEBUG: initializeAuthAndApp - Funciones de Firebase Auth disponibles.");
+
+    showSignupLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.style.display = 'none'; signupForm.style.display = 'block'; loginErrorDiv.textContent = ''; signupErrorDiv.textContent = ''; });
+    showLoginLink.addEventListener('click', (e) => { e.preventDefault(); signupForm.style.display = 'none'; loginForm.style.display = 'block'; loginErrorDiv.textContent = ''; signupErrorDiv.textContent = ''; });
+
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); const email = signupEmailInput.value; const password = signupPasswordInput.value;
+        signupErrorDiv.textContent = ''; signupButton.disabled = true; signupButton.textContent = 'Registrando...';
+        try { await createUserWithEmailAndPassword(auth, email, password); }
+        catch (error) { signupErrorDiv.textContent = getFirebaseErrorMessage(error); }
+        finally { signupButton.disabled = false; signupButton.textContent = 'Registrarse'; }
+    });
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); const email = loginEmailInput.value; const password = loginPasswordInput.value;
+        loginErrorDiv.textContent = ''; loginButton.disabled = true; loginButton.textContent = 'Iniciando...';
+        try { await signInWithEmailAndPassword(auth, email, password); }
+        catch (error) { loginErrorDiv.textContent = getFirebaseErrorMessage(error); }
+        finally { loginButton.disabled = false; loginButton.textContent = 'Iniciar Sesión'; }
+    });
+
+    logoutButton.addEventListener('click', async () => {
+        try { await signOut(auth); }
+        catch (error) { console.error('DEBUG: Error al cerrar sesión:', error); alert("Error al cerrar sesión."); }
+    });
+    
+    console.log("DEBUG: initializeAuthAndApp - Suscribiendo onAuthStateChanged listener...");
+    onAuthStateChanged(auth, async (user) => { 
+        console.log("DEBUG: onAuthStateChanged - CALLBACK EJECUTADO. User object:", user ? user.uid : null); 
+        if (user) {
+            currentUserId = user.uid; 
+            console.log("DEBUG: onAuthStateChanged - Usuario ESTÁ autenticado. UID:", currentUserId, "Email:", user.email);
+            document.body.classList.remove('logged-out'); document.body.classList.add('logged-in');
+            authContainer.style.display = 'none'; appContainer.style.display = 'flex'; 
+            userDisplaySpan.textContent = `${user.email || 'Usuario'}`;
+            
+            await loadUserVocabularyFromFirestore(currentUserId); 
+
+            if (!window.dictationAppInitialized) {
+                console.log("DEBUG: onAuthStateChanged - Llamando a initializeDictationAppLogic para el usuario:", currentUserId);
+                initializeDictationAppLogic(currentUserId); 
+                window.dictationAppInitialized = true;
+            } else {
+                console.log("DEBUG: onAuthStateChanged - App de dictado ya inicializada. Refrescando estado inicial de botones.");
+                if (typeof updateButtonStates === "function") updateButtonStates("initial"); 
+            }
+        } else {
+            currentUserId = null; 
+            customVocabulary = {}; 
+            learnedCorrections = {};
+            commonMistakeNormalization = {};
+            console.log("DEBUG: onAuthStateChanged - Usuario NO está autenticado o sesión cerrada.");
+            document.body.classList.remove('logged-in'); document.body.classList.add('logged-out');
+            authContainer.style.display = 'block'; appContainer.style.display = 'none';
+            if (userDisplaySpan) userDisplaySpan.textContent = '';
+            if (window.currentMediaRecorder && window.currentMediaRecorder.state !== "inactive") {
+                try { window.currentMediaRecorder.stop(); } 
+                catch(e) { console.warn("DEBUG: onAuthStateChanged - Error al detener MediaRecorder en logout:", e); }
+            }
+            window.dictationAppInitialized = false; 
+        }
+    });
+    console.log("DEBUG: initializeAuthAndApp - onAuthStateChanged listener suscrito.");
+
+    function getFirebaseErrorMessage(error) {
+        switch (error.code) {
+            case 'auth/invalid-email': return 'El formato del email no es válido.';
+            case 'auth/user-disabled': return 'Esta cuenta de usuario ha sido deshabilitada.';
+            case 'auth/user-not-found': return 'No se encontró usuario con este email.';
+            case 'auth/wrong-password': return 'La contraseña es incorrecta.';
+            case 'auth/email-already-in-use': return 'Este email ya está registrado.';
+            case 'auth/weak-password': return 'La contraseña es demasiado débil.';
+            default: return error.message || "Error desconocido de autenticación.";
+        }
+    }
+} 
+
+function initializeDictationAppLogic(userId) {
+    console.log(`DEBUG: initializeDictationAppLogic para usuario: ${userId} - Asignando listeners.`);
+    
+    if (!startRecordBtn.dataset.listenerAttached) { 
+        startRecordBtn.addEventListener('click', () => {
+            if (isProcessingClick) { console.warn("DEBUG: startRecordBtn - Clic ignorado (debouncing)"); return; }
+            isProcessingClick = true;
+            toggleRecordingState();
+            setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
+        });
+        startRecordBtn.dataset.listenerAttached = 'true';
+    }
+    if (!pauseResumeBtn.dataset.listenerAttached) { 
+        pauseResumeBtn.addEventListener('click', () => {
+            if (isProcessingClick) { console.warn("DEBUG: pauseResumeBtn - Clic ignorado (debouncing)"); return; }
+            isProcessingClick = true;
+            handlePauseResume();
+            setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
+        }); 
+        pauseResumeBtn.dataset.listenerAttached = 'true';
+    }
+    if (!retryProcessBtn.dataset.listenerAttached) { retryProcessBtn.addEventListener('click', () => { if (currentAudioBlob) { if (isRecording || isPaused) { alert("Detén la grabación actual antes de reenviar."); return; } processAudioBlobAndInsertText(currentAudioBlob); }}); retryProcessBtn.dataset.listenerAttached = 'true';}
+    if (!copyPolishedTextBtn.dataset.listenerAttached) { copyPolishedTextBtn.addEventListener('click', async () => { const h = headerArea.value.trim(); const r = polishedTextarea.value.trim(); let t = ""; if(h){t+=h;} if(r){if(t){t+="\n\n";} t+=r;} if(t===''){setStatus("Nada que copiar.", "idle", 2000); return;} try{await navigator.clipboard.writeText(t); setStatus("¡Texto copiado!", "success", 2000);}catch(e){console.error('Error copia:',e);setStatus("Error copia.", "error", 3000);}}); copyPolishedTextBtn.dataset.listenerAttached = 'true';}
+    if (correctTextSelectionBtn && !correctTextSelectionBtn.dataset.listenerAttached) { correctTextSelectionBtn.addEventListener('click', handleCorrectTextSelection); correctTextSelectionBtn.dataset.listenerAttached = 'true';}
+    if (resetReportBtn && !resetReportBtn.dataset.listenerAttached) { 
+        resetReportBtn.addEventListener('click', () => {
+            if (confirm("¿Estás seguro de que quieres borrar el contenido de Técnica e Informe?")) {
+                headerArea.value = "";
+                polishedTextarea.value = "";
+                setStatus("Informe reseteado.", "idle", 2000);
+            }
+        });
+        resetReportBtn.dataset.listenerAttached = 'true';
+    }
+    if (techniqueButtonsContainer && !techniqueButtonsContainer.dataset.listenerAttached) { techniqueButtonsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' && e.target.dataset.techniqueText) { headerArea.value = e.target.dataset.techniqueText; headerArea.focus(); }}); techniqueButtonsContainer.dataset.listenerAttached = 'true';}
+    if (clearHeaderButton && !clearHeaderButton.dataset.listenerAttached) { clearHeaderButton.addEventListener('click', () => { headerArea.value = ""; headerArea.focus(); }); clearHeaderButton.dataset.listenerAttached = 'true';}
+    if (manageVocabButton && !manageVocabButton.dataset.listenerAttached) { manageVocabButton.addEventListener('click', openVocabManager); manageVocabButton.dataset.listenerAttached = 'true'; manageVocabButton.disabled = false; }
+    if (modalCloseButtonVocab && !modalCloseButtonVocab.dataset.listenerAttached) { modalCloseButtonVocab.addEventListener('click', closeVocabManager); modalCloseButtonVocab.dataset.listenerAttached = 'true'; }
+    if (modalAddNewRuleButtonVocab && !modalAddNewRuleButtonVocab.dataset.listenerAttached) { modalAddNewRuleButtonVocab.addEventListener('click', handleAddNewVocabRule); modalAddNewRuleButtonVocab.dataset.listenerAttached = 'true'; }
+    if (vocabManagerModal && !vocabManagerModal.dataset.listenerAttached) { vocabManagerModal.addEventListener('click', (e) => { if (e.target === vocabManagerModal) closeVocabManager(); }); vocabManagerModal.dataset.listenerAttached = 'true'; }
+    
+    if (!document.body.dataset.keydownListenerAttached) { 
+        document.addEventListener('keydown', function(event) {
+            if (event.shiftKey && (event.metaKey || event.ctrlKey) && event.key === 'Shift') {
+                event.preventDefault(); 
+                if (document.body.classList.contains('logged-in') && startRecordBtn && !startRecordBtn.disabled) {
+                    if (isProcessingClick) { return; }
+                    isProcessingClick = true; toggleRecordingState(); 
+                    setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS); 
+                }
+            }
+            else if (event.shiftKey && event.altKey && event.key.toUpperCase() === 'P') { 
+                event.preventDefault();
+                if (document.body.classList.contains('logged-in') && pauseResumeBtn && !pauseResumeBtn.disabled) {
+                    if (isProcessingClick) { return; }
+                    isProcessingClick = true; handlePauseResume(); 
+                    setTimeout(() => { isProcessingClick = false; }, CLICK_DEBOUNCE_MS);
+                }
+            }
+        });
+        document.body.dataset.keydownListenerAttached = 'true'; 
+    }
+    
+    updateButtonStates("initial"); 
+} 
+
+function applyTheme(theme) { document.body.setAttribute('data-theme', theme); localStorage.setItem('theme', theme); if (themeSwitch) themeSwitch.checked = theme === 'dark'; if (mainTitleImage && mainTitleImageDark) { mainTitleImage.style.display = theme === 'light' ? 'inline-block' : 'none'; mainTitleImageDark.style.display = theme === 'dark' ? 'inline-block' : 'none'; } }
+function setAccentRGB() { try { const bS = getComputedStyle(document.body); if (!bS) return; const aC = bS.getPropertyValue('--accent-color').trim(); if (aC.startsWith('#')) { const r = parseInt(aC.slice(1,3),16), g = parseInt(aC.slice(3,5),16), b = parseInt(aC.slice(5,7),16); document.documentElement.style.setProperty('--accent-color-rgb',`${r},${g},${b}`); } else if (aC.startsWith('rgb')) { const p = aC.match(/[\d.]+/g); if (p && p.length >=3) document.documentElement.style.setProperty('--accent-color-rgb',`${p[0]},${p[1]},${p[2]}`);}} catch (e) { console.warn("Failed to set --accent-color-rgb:", e); }}
+function setStatus(message, type = "idle", duration = 0) { if (!statusDiv) return; statusDiv.textContent = message; statusDiv.className = ''; statusDiv.classList.add(`status-${type}`); if (duration > 0) { setTimeout(() => { if (statusDiv.textContent === message) updateButtonStates("initial"); }, duration); }}
+function startRecordingTimer() { stopRecordingTimer(); updateRecordingTimeDisplay(); recordingTimerInterval = setInterval(() => { if (!isPaused) { recordingSeconds++; updateRecordingTimeDisplay();}}, 1000); }
+function stopRecordingTimer() { clearInterval(recordingTimerInterval); }
+function updateRecordingTimeDisplay() { const m=Math.floor(recordingSeconds/60), s=recordingSeconds%60; recordingTimeDisplay.textContent = isRecording||isPaused ? `Tiempo: ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : ""; }
+function resetRecordingTimerDisplay() { recordingTimeDisplay.textContent = ""; recordingSeconds = 0; }
+function setupVolumeMeter(stream) { volumeMeterContainer.style.display='block'; if(!audioContext) audioContext=new(window.AudioContext||window.webkitAudioContext)(); if(audioContext.state==='suspended') audioContext.resume(); analyser=audioContext.createAnalyser(); microphoneSource=audioContext.createMediaStreamSource(stream); microphoneSource.connect(analyser); analyser.fftSize=256; analyser.smoothingTimeConstant=0.3; const l=analyser.frequencyBinCount, d=new Uint8Array(l); function draw(){if(!isRecording||isPaused){if(isPaused){volumeMeterBar.classList.add('paused'); volumeMeterBar.style.background='var(--button-default-bg)';}else{volumeMeterBar.classList.remove('paused'); volumeMeterBar.style.background='var(--volume-bar-gradient)';} animationFrameId=requestAnimationFrame(draw); return;} animationFrameId=requestAnimationFrame(draw); analyser.getByteFrequencyData(d); let s=0; for(let i=0;i<l;i++){s+=d[i];} let a=s/l; let v=(a/130)*100; v=Math.min(100,Math.max(0,v)); volumeMeterBar.style.width=v+'%'; volumeMeterBar.classList.remove('paused'); volumeMeterBar.style.background='var(--volume-bar-gradient)';} draw(); }
+function stopVolumeMeter() { if(animationFrameId) cancelAnimationFrame(animationFrameId); if(microphoneSource){microphoneSource.disconnect(); microphoneSource=null;} volumeMeterBar.style.width='0%'; volumeMeterBar.classList.remove('paused'); volumeMeterContainer.style.display='none';}
+function toggleRecordingState() { if(isRecording){if(mediaRecorder&&(mediaRecorder.state==="recording"||mediaRecorder.state==="paused")){mediaRecorder.stop();setStatus("Deteniendo...","processing");}else{isRecording=false;isPaused=false;updateButtonStates("initial");}}else{startActualRecording();}}
+async function startActualRecording() { 
+    console.log("DEBUG startActualRecording: polishedTextarea.selectionStart =", polishedTextarea.selectionStart, "polishedTextarea.selectionEnd =", polishedTextarea.selectionEnd);
+    if (polishedTextarea.selectionStart !== polishedTextarea.selectionEnd) {
+        isDictatingForReplacement = true;
+        replacementSelectionStart = polishedTextarea.selectionStart;
+        replacementSelectionEnd = polishedTextarea.selectionEnd;
+        console.log("DEBUG startActualRecording: MODO REEMPLAZO ACTIVADO. Selección de", replacementSelectionStart, "a", replacementSelectionEnd);
+        setStatus("Dicte el reemplazo...", "processing");
+    } else {
+        isDictatingForReplacement = false;
+        insertionPoint = polishedTextarea.selectionStart; 
+        // NO limpiar polishedTextarea.value si isDictatingForReplacement es false y hay contenido,
+        // para permitir añadir al final o insertar en el cursor.
+        // Limpiar solo si es un dictado completamente nuevo y el textarea ya estaba vacío.
+        if (polishedTextarea.value.trim() === "") {
+             // No es estrictamente necesario limpiar si está vacío, pero no hace daño.
+        }
+        console.log("DEBUG startActualRecording: MODO INSERCIÓN/AÑADIR. Punto de inserción:", insertionPoint);
+        setStatus("Solicitando permiso...", "processing");
+    }
+    isPaused = false; audioChunks = []; currentAudioBlob = null; recordingSeconds = 0; 
+    audioPlaybackSection.style.display = 'none'; 
+    if (audioPlayback.src) { URL.revokeObjectURL(audioPlayback.src); audioPlayback.src = ''; audioPlayback.removeAttribute('src');}
+    if (!userApiKey) { alert('API Key?'); setStatus("Error Key","error"); updateButtonStates("initial"); isDictatingForReplacement = false; return; } 
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        isRecording = true; setupVolumeMeter(stream); startRecordingTimer(); 
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        window.currentMediaRecorder = mediaRecorder; 
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onpause = () => { setStatus(isDictatingForReplacement ? 'Reemplazo pausado.' : 'Dictado pausado.', 'idle'); isPaused = true; volumeMeterBar.classList.add('paused'); volumeMeterBar.style.background = 'var(--button-default-bg)'; updateButtonStates("paused"); };
+        mediaRecorder.onresume = () => { setStatus(isDictatingForReplacement ? 'Dictando reemplazo...' : 'Grabando... (Reanudado)', 'processing'); isPaused = false; volumeMeterBar.classList.remove('paused'); volumeMeterBar.style.background = 'var(--volume-bar-gradient)'; updateButtonStates("recording"); };
+        mediaRecorder.onstop = async () => {
+            isRecording = false; isPaused = false; 
+            stopVolumeMeter(); stopRecordingTimer(); 
+            setStatus('Grabación detenida. Procesando...', 'processing');
+            if (audioChunks.length === 0) { setStatus("No audio.", "error", 3000); updateButtonStates("stopped_error"); isDictatingForReplacement = false; return; }
+            currentAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            if (currentAudioBlob.size === 0) { setStatus("Audio vacío.", "error", 3000); updateButtonStates("stopped_error"); isDictatingForReplacement = false; return; }
+            const audioURL = URL.createObjectURL(currentAudioBlob);
+            audioPlayback.src = audioURL; 
+            await processAudioBlobAndInsertText(currentAudioBlob);
+        };
+        mediaRecorder.onerror = e => { isRecording = false; isPaused = false; isDictatingForReplacement = false; stopVolumeMeter(); stopRecordingTimer(); resetRecordingTimerDisplay(); setStatus(`Error MediaRec: ${e.error.name}`, "error", 4000); updateButtonStates("error"); };
+        mediaRecorder.start();
+        if (isDictatingForReplacement) {
+             setStatus('Dicte el reemplazo...', "processing");
+        } else {
+             if (statusDiv.textContent.toLowerCase() !== 'solicitando permiso...') {
+                setStatus('Grabando...', "processing"); 
+             }
+        }
+        updateButtonStates("recording");      
+    } catch (e) {
+        isRecording = false; isPaused = false; isDictatingForReplacement = false;
+        stopVolumeMeter(); stopRecordingTimer(); resetRecordingTimerDisplay();
+        setStatus(`Error Mic: ${e.message}.`, "error", 4000);
+        updateButtonStates("initial");
+    }
+}
+async function processAudioBlobAndInsertText(audioBlob) {
+    updateButtonStates("processing_audio"); 
+    console.log("DEBUG processAudioBlobAndInsertText: isDictatingForReplacement =", isDictatingForReplacement);
+    try {
+        const base64Audio = await blobToBase64(audioBlob);
+        if (!base64Audio || base64Audio.length < 100) throw new Error("Fallo Base64.");
+        
+        let processedNewText = await transcribeAndPolishAudio(base64Audio); 
+        console.log("DEBUG processAudioBlobAndInsertText: Texto recibido de transcribeAndPolishAudio:", JSON.stringify(processedNewText.substring(0,100) + "..."));
+
+        const currentContent = polishedTextarea.value; 
+
+        if (isDictatingForReplacement) {
+            console.log("DEBUG processAudioBlobAndInsertText: Ejecutando lógica de REEMPLAZO DE SELECCIÓN.");
+            const textBeforeSelection = currentContent.substring(0, replacementSelectionStart);
+            const textAfterSelection = currentContent.substring(replacementSelectionEnd);
+            
+            if (processedNewText.length > 0) {
+                const charBefore = textBeforeSelection.trim().slice(-1); 
+                const needsCapital = replacementSelectionStart === 0 || charBefore === '.' || charBefore === '!' || charBefore === '?' || textBeforeSelection.trim().endsWith('\n');
+                if (needsCapital) {
+                    processedNewText = processedNewText.charAt(0).toUpperCase() + processedNewText.slice(1);
+                } else {
+                    if (processedNewText.charAt(0) === processedNewText.charAt(0).toUpperCase() && processedNewText.charAt(0) !== processedNewText.charAt(0).toLowerCase()) { 
+                        processedNewText = processedNewText.charAt(0).toLowerCase() + processedNewText.slice(1);
+                    }
+                }
+            }
+            
+            let smartSpaceBefore = "";
+            if (textBeforeSelection.length > 0 && !/\s$/.test(textBeforeSelection) && processedNewText.length > 0 && !/^\s/.test(processedNewText) && !/^[,.;:!?)]/.test(processedNewText)) { smartSpaceBefore = " "; }
+            let smartSpaceAfter = "";
+            if (textAfterSelection.length > 0 && !/^\s/.test(textAfterSelection) && processedNewText.length > 0 && !/\s$/.test(processedNewText) && !/[([{]$/.test(processedNewText)) { smartSpaceAfter = " "; }
+            
+            polishedTextarea.value = textBeforeSelection + smartSpaceBefore + processedNewText + smartSpaceAfter + textAfterSelection;
+            const newCursorPos = replacementSelectionStart + smartSpaceBefore.length + processedNewText.length;
+            polishedTextarea.selectionStart = polishedTextarea.selectionEnd = newCursorPos;
+            setStatus('Texto reemplazado.', 'success', 3000);
+        } else { 
+            console.log("DEBUG processAudioBlobAndInsertText: Ejecutando lógica de INSERCIÓN/AÑADIR en el punto:", insertionPoint);
+            const textBeforeCursor = currentContent.substring(0, insertionPoint);
+            const textAfterCursor = currentContent.substring(insertionPoint);
+
+            if (processedNewText.length > 0) {
+                const charBefore = textBeforeCursor.trim().slice(-1);
+                const needsCapital = insertionPoint === 0 || charBefore === '.' || charBefore === '!' || charBefore === '?' || textBeforeCursor.trim().endsWith('\n');
+                if (needsCapital) {
+                    processedNewText = processedNewText.charAt(0).toUpperCase() + processedNewText.slice(1);
+                } else {
+                     if (processedNewText.charAt(0) === processedNewText.charAt(0).toUpperCase() && processedNewText.charAt(0) !== processedNewText.charAt(0).toLowerCase()) { 
+                        processedNewText = processedNewText.charAt(0).toLowerCase() + processedNewText.slice(1);
+                    }
+                }
+            }
+
+            let smartSpaceBefore = "";
+            if (textBeforeCursor.length > 0 && !/\s$/.test(textBeforeCursor) && processedNewText.length > 0 && !/^\s/.test(processedNewText) && !/^[,.;:!?)]/.test(processedNewText) ) {
+                smartSpaceBefore = " ";
+            }
+             let smartSpaceAfter = "";
+            if (textAfterCursor.length > 0 && !/^\s/.test(textAfterCursor) && processedNewText.length > 0 && !/\s$/.test(processedNewText) && !/[([{]$/.test(processedNewText)) {
+                smartSpaceAfter = " ";
+            }
+
+            polishedTextarea.value = textBeforeCursor + smartSpaceBefore + processedNewText + smartSpaceAfter + textAfterCursor;
+            const newCursorPos = insertionPoint + smartSpaceBefore.length + processedNewText.length;
+            polishedTextarea.selectionStart = polishedTextarea.selectionEnd = newCursorPos;
+            setStatus('Texto insertado/añadido.', 'success', 3000);
+        }
+        updateButtonStates("success_processing");
+    } catch (error) {
+        console.error('Error en processAudioBlobAndInsertText:', error);
+        setStatus(`Error Proc: ${error.message}`, "error", 4000);
+        // No modificar polishedTextarea si falla el procesamiento del nuevo audio si era un reemplazo,
+        // pero si era un dictado nuevo y el textarea estaba vacío, sí mostrar el error.
+        if (!isDictatingForReplacement && currentContent.trim() === "") { 
+             polishedTextarea.value = `Error: ${error.message}`; 
+        }
+        updateButtonStates("error_processing"); 
+    } finally {
+        isDictatingForReplacement = false; 
+    }
+}
+function handlePauseResume() { if(!mediaRecorder||!isRecording)return;if(mediaRecorder.state==="recording"){mediaRecorder.pause();}else if(mediaRecorder.state==="paused"){mediaRecorder.resume();}}
+function updateButtonStates(state) { startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;copyPolishedTextBtn.disabled=false;correctTextSelectionBtn.disabled=true; if(resetReportBtn) resetReportBtn.disabled = false; startRecordBtn.textContent="Empezar Dictado";startRecordBtn.classList.remove("stop-style");pauseResumeBtn.textContent="Pausar";let showPlayer=false;if(currentAudioBlob){if(["initial","stopped_success","error_processing","success_processing","stopped_error"].includes(state)){showPlayer=true;}}if(audioPlaybackSection)audioPlaybackSection.style.display=showPlayer?'block':'none';else console.warn("audioPlaybackSection null en updateButtonStates");switch(state){case "initial":startRecordBtn.disabled=false;if(statusDiv&&statusDiv.textContent.toLowerCase()!=="listo"&&!statusDiv.textContent.toLowerCase().includes("error")&&!statusDiv.textContent.toLowerCase().includes("pausada")&&!statusDiv.textContent.toLowerCase().includes("reemplazo"))setStatus("Listo","idle");resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "recording":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(resetReportBtn) resetReportBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='grabando...'&&statusDiv.textContent.toLowerCase()!=='dicte el reemplazo...')setStatus('Grabando...','processing');break;case "paused":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;pauseResumeBtn.textContent="Reanudar";retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";if(resetReportBtn) resetReportBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='reemplazo pausado.'&&statusDiv.textContent.toLowerCase()!=='dictado pausado.')setStatus('Grabación pausada.','idle');break;case "stopped_success":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "stopped_error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;case "processing_audio":startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(resetReportBtn) resetReportBtn.disabled=true;break;case "error_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "success_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;default:startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;}}
+async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;polishedTextarea.focus();}
+function blobToBase64(b){return new Promise((res,rej)=>{if(!b||b.size===0)return rej(new Error("Blob nulo"));const r=new FileReader();r.onloadend=()=>{if(r.result){const s=r.result.toString().split(',')[1];if(!s)return rej(new Error("Fallo Base64"));res(s);}else rej(new Error("FileReader sin resultado"));};r.onerror=e=>rej(e);r.readAsDataURL(b);});}
+async function callGeminiAPI(p,isTxt=false){if(!userApiKey)throw new Error('No API Key');const u=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`;const t=isTxt?0.1:0.2;const y={contents:[{parts:p}],generationConfig:{temperature:t}};console.log(`Gemini (isTxt:${isTxt},temp:${t}). Prompt(inicio):`,JSON.stringify(p[0]).substring(0,200)+"...");const resp=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(y)});if(!resp.ok){const eD=await resp.json();console.error("Error Gemini API:",eD);throw new Error(`Error API:${eD.error?.message||resp.statusText}(${resp.status})`);}const d=await resp.json();if(d.candidates?.[0]?.content?.parts?.[0]?.text)return d.candidates[0].content.parts[0].text;if(d.promptFeedback?.blockReason)throw new Error(`Bloqueado:${d.promptFeedback.blockReason}.${d.promptFeedback.blockReasonMessage||''}`);if(d.candidates?.[0]?.finishReason&&d.candidates[0].finishReason!=="STOP")throw new Error(`Gemini fin:${d.candidates[0].finishReason}.`);if(d.candidates?.[0]?.finishReason==="STOP"&&!d.candidates?.[0]?.content?.parts?.[0]?.text)return"";throw new Error('Gemini respuesta inesperada.');}
+
+function cleanupArtifacts(text) {
+    if (!text || typeof text !== 'string') return text || "";
+    let cleanedText = text;
+    // console.log("DEBUG cleanupArtifacts: Texto ENTRANTE para limpieza:", JSON.stringify(cleanedText));
+    let trimmedForQuotesCheck = cleanedText.trim(); 
+    if (trimmedForQuotesCheck.startsWith('"') && trimmedForQuotesCheck.endsWith('"') && trimmedForQuotesCheck.length > 2) {
+        cleanedText = trimmedForQuotesCheck.substring(1, trimmedForQuotesCheck.length - 1).trim();
+        // console.log("DEBUG cleanupArtifacts: Comillas dobles envolventes eliminadas:", JSON.stringify(cleanedText));
+    }
+    cleanedText = cleanedText.replace(/(\s[pP])+[ \t]*$/gm, ""); 
+    cleanedText = cleanedText.replace(/[pP]{2,}[ \t]*$/gm, "");   
+    cleanedText = cleanedText.replace(/\s+[pP][\s.]*$/gm, ""); 
+    const trimmedTextForPunctuationCheck = cleanedText.trim(); 
+    const wordCount = trimmedTextForPunctuationCheck.split(/\s+/).filter(Boolean).length;
+    if (wordCount > 0 && wordCount <= 5) { 
+        if (trimmedTextForPunctuationCheck.endsWith('.') && 
+            !trimmedTextForPunctuationCheck.endsWith('..') && 
+            !trimmedTextForPunctuationCheck.endsWith('...') && 
+            (trimmedTextForPunctuationCheck.length === 1 || (trimmedTextForPunctuationCheck.length > 1 && trimmedTextForPunctuationCheck.charAt(trimmedTextForPunctuationCheck.length - 2) !== '.'))) {
+            if (trimmedTextForPunctuationCheck.length <= 1 || !/[.!?]$/.test(trimmedTextForPunctuationCheck.substring(0, trimmedTextForPunctuationCheck.length -1).trim())) {
+                // console.log("DEBUG cleanupArtifacts: Fragmento corto termina en punto, eliminando:", JSON.stringify(trimmedTextForPunctuationCheck));
+                cleanedText = trimmedTextForPunctuationCheck.slice(0, -1);
+            }
+        }
+    }
+    cleanedText = cleanedText.replace(/\n+$/, "");
+    cleanedText = cleanedText.replace(/\s+([.!?])$/, "$1");
+    cleanedText = cleanedText.replace(/ +/g, ' ');
+    // console.log("DEBUG cleanupArtifacts: Texto SALIENTE después de limpieza:", JSON.stringify(cleanedText.trim()));
+    return cleanedText.trim(); 
+}
+
+function capitalizeSentencesProperly(text) {
+    if (!text || typeof text !== 'string' || text.trim() === "") {
+        return text || ""; 
+    }
+    let processedText = text.trim(); 
+    processedText = processedText.replace(
+        /([.!?])(\s*)([a-záéíóúüñ])/g, 
+        (match, punctuation, whitespace, letter) => {
+            return punctuation + whitespace + letter.toUpperCase();
+        }
+    );
+    return processedText;
+}
+
+async function transcribeAndPolishAudio(base64Audio){
+    let transcribedText = '';
+    try{
+        setStatus('Transcribiendo...','processing');
+        const transcriptPromptParts = [
+            {text:"Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Ignora sonidos de respiración o carraspeos. Si el hablante dice 'coma', 'punto', etc., transcríbelo tal cual como texto, no como el signo de puntuación. El objetivo es una transcripción fiel palabra por palabra. Si el audio termina abruptamente sin una palabra de puntuación, NO añadas ninguna."},
+            {inline_data:{mime_type:"audio/webm",data:base64Audio}}
+        ];
+        transcribedText = await callGeminiAPI(transcriptPromptParts, false); 
+        console.log("---Transcripción Original (Consola)---\n",JSON.stringify(transcribedText),"\n-----------------------------------");
+        transcribedText = cleanupArtifacts(transcribedText);
+        console.log("---Transcripción Original LIMPIA (Consola)---\n",JSON.stringify(transcribedText),"\n-----------------------------------");
+    } catch(e){
+        console.error("Error transcripción:",e);throw new Error(`Fallo transcripción:${e.message}`);
+    }
+    if(!transcribedText || transcribedText.trim()==="") throw new Error("Transcripción vacía después de limpieza inicial.");
+    
+    let polishedByAI = '';
+    try{
+        setStatus('Puliendo...','processing');
+        const polishPromptParts = [{
+            text:`Por favor, revisa el siguiente texto. Aplica las siguientes modificaciones ÚNICAMENTE:
+1.  Interpreta y reemplaza las siguientes palabras dictadas como signos de puntuación y formato EXACTAMENTE como se indica: 'coma' -> ',', 'punto' -> '.', 'punto y aparte' -> '.\\n\\n', 'nueva línea' -> '\\n\\n', 'dos puntos' -> ':', 'punto y coma' -> ';', 'interrogación' -> '?', 'exclamación' -> '!'. Asegúrate de que 'punto y aparte' y 'nueva línea' resulten en dos saltos de línea si es un párrafo nuevo.
+2.  Corrige ÚNICAMENTE errores ortográficos evidentes y objetivos.
+3.  Corrige ÚNICAMENTE errores gramaticales OBJETIVOS Y CLAROS que impidan la comprensión.
+4.  NO CAMBIES la elección de palabras del hablante si son gramaticalmente correctas y comprensibles.
+5.  NO REESTRUCTURES frases si son gramaticalmente correctas.
+6.  PRESERVA el estilo y las expresiones exactas del hablante. NO intentes "mejorar" el texto.
+7.  Al reemplazar palabras clave de puntuación (como "coma" por ","), asegúrate de que no resulten en signos de puntuación duplicados consecutivos (ej. ",," o ".."). Si esto ocurre, mantén solo un signo de puntuación. Evita espacios innecesarios alrededor de la puntuación.
+8.  Capitaliza la primera letra de una oración SOLO si sigue a un '.', '?', o '!' dictados explícitamente y que hayas insertado, o si es el inicio absoluto del texto completo.
+9.  CRUCIAL: NO AÑADAS NINGÚN SIGNO DE PUNTUACIÓN (especialmente un punto final '.') AL FINAL DEL TEXTO PROCESADO A MENOS QUE LA PALABRA "punto" (o equivalente para otra puntuación) HAYA SIDO DICTADA EXPLÍCITAMENTE COMO LA ÚLTIMA PARTE DE LA TRANSCRIPCIÓN ORIGINAL. Si la transcripción original no termina con una palabra de puntuación, el texto procesado tampoco debe terminar con un signo de puntuación añadido por ti.
+
+Texto a procesar:
+"${transcribedText}"`
+        }];
+        polishedByAI = await callGeminiAPI(polishPromptParts, true);
+    } catch(e){
+        console.error("Error pulido IA:",e);
+        setStatus(`Fallo pulido IA:${e.message}. Usando transcripción limpia.`, "error", 4000);
+        polishedByAI = transcribedText; 
+    }
+
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de pulido IA (o fallback):", JSON.stringify(polishedByAI));
+    let textAfterAIPolishClean = polishedByAI;
+    console.log("DEBUG transcribeAndPolishAudio: ANTES de limpieza de comas duplicadas:", JSON.stringify(textAfterAIPolishClean));
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,\s*,/g, ','); 
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,/g, ',');   
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/,,+/g, ',');     
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/(?<!\.)\.\.(?!\.)/g, '.'); 
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/\.\s+\./g, '.'); 
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/\s+([,.;:!?])/g, '$1'); 
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/([,.;:!?])([a-zA-Z0-9À-ÿ])/g, '$1 $2'); 
+    console.log("DEBUG transcribeAndPolishAudio: DESPUÉS de limpieza de puntuación duplicada:", JSON.stringify(textAfterAIPolishClean));
+
+    let cleanedAgain = cleanupArtifacts(textAfterAIPolishClean); 
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de SEGUNDA limpieza de artefactos:", JSON.stringify(cleanedAgain));
+    let capitalizedText = capitalizeSentencesProperly(cleanedAgain);
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de capitalización de PUNTUACIÓN:", JSON.stringify(capitalizedText));
+    let customCorrectedText = applyAllUserCorrections(capitalizedText);
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de correcciones de usuario:", JSON.stringify(customCorrectedText));
+    let finalText = customCorrectedText.replace(/\s*\n\s*(\n)/g,'$1').replace(/\s+\n/g, '\n'); 
+    finalText = finalText.replace(/\n{3,}/g, '\n\n'); 
+    console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual de inserción):", JSON.stringify(finalText));
+    return finalText;
+}
+
+async function loadUserVocabularyFromFirestore(userId) { if (!userId || !window.db) { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; return; } console.log(`DEBUG: Cargando vocabulario (estilo index(2).html) para usuario: ${userId}`); const vocabDocRef = window.doc(window.db, "userVocabularies", userId); try { const docSnap = await window.getDoc(vocabDocRef); if (docSnap.exists()) { const firestoreData = docSnap.data(); customVocabulary = firestoreData.rulesMap || {}; learnedCorrections = firestoreData.learnedMap || {}; commonMistakeNormalization = firestoreData.normalizations || {}; console.log("DEBUG: Vocabulario cargado. Reglas:", Object.keys(customVocabulary).length, "Aprendidas:", Object.keys(learnedCorrections).length, "Normaliz.:", Object.keys(commonMistakeNormalization).length); } else { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; console.log("DEBUG: No doc de vocabulario. Usando vacíos."); } } catch (error) { console.error("Error cargando vocabulario:", error); customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; setStatus("Error al cargar personalizaciones.", "error", 3000); } }
+async function saveUserVocabularyToFirestore() { if (!currentUserId || !window.db) { console.error("DEBUG: No hay userId o DB para guardar vocabulario."); return; } const vocabToSaveForLog = JSON.parse(JSON.stringify(customVocabulary)); console.log(`DEBUG: Guardando vocabulario para ${currentUserId}. Contenido de customVocabulary (rulesMap) a guardar:`, vocabToSaveForLog); const vocabDocRef = window.doc(window.db, "userVocabularies", currentUserId); const dataToSave = { rulesMap: customVocabulary, learnedMap: learnedCorrections, normalizations: commonMistakeNormalization }; try { await window.setDoc(vocabDocRef, dataToSave); console.log("DEBUG: Vocabulario del usuario SOBRESCRITO en Firestore con el estado actual de los 3 mapas."); } catch (error) { console.error("Error guardando vocabulario del usuario:", error); setStatus("Error al guardar personalizaciones.", "error", 3000); } }
+function applyAllUserCorrections(text) { if (!text) return ""; let processedText = text; if (Object.keys(customVocabulary).length > 0) { console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); for (const errorKey of sortedCustomKeys) { const correctValue = customVocabulary[errorKey]; try { const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); processedText = processedText.replace(regex, correctValue); } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } } } return processedText; }
+function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function openVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) { console.error("Modal de vocabulario no encontrado."); return; } populateVocabManagerList(); vocabManagerModal.style.display = 'flex'; }
+function closeVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) return; vocabManagerModal.style.display = 'none'; }
+function populateVocabManagerList() { vocabManagerList = vocabManagerList || document.getElementById('vocabManagerList'); if (!vocabManagerList) { console.error("Lista del modal de vocabulario no encontrada."); return; } vocabManagerList.innerHTML = ''; const keys = Object.keys(customVocabulary).sort(); if (keys.length === 0) { vocabManagerList.innerHTML = '<li>No hay reglas personalizadas (rulesMap).</li>'; return; } keys.forEach(key => { const value = customVocabulary[key]; const listItem = document.createElement('li'); listItem.innerHTML = `<span class="vocab-key">${key}</span> <span class="vocab-arrow">➔</span> <span class="vocab-value">${value}</span> <div class="vocab-actions"><button class="edit-vocab-btn" data-key="${key}">Editar</button><button class="delete-vocab-btn" data-key="${key}">Borrar</button></div>`; listItem.querySelector('.edit-vocab-btn').addEventListener('click', () => handleEditVocabRule(key)); listItem.querySelector('.delete-vocab-btn').addEventListener('click', () => handleDeleteVocabRule(key)); vocabManagerList.appendChild(listItem); }); }
+async function handleAddNewVocabRule() { const errorKeyRaw = prompt("Texto incorrecto (o palabra a reemplazar):"); if (!errorKeyRaw || errorKeyRaw.trim() === "") return; const errorKey = errorKeyRaw.trim().toLowerCase(); const correctValueRaw = prompt(`Corrección para "${errorKeyRaw}":`); if (correctValueRaw === null) return; const correctValue = correctValueRaw.trim(); if (customVocabulary[errorKey] === correctValue && correctValue !== "") { alert("Regla ya existe con el mismo valor."); return; } customVocabulary[errorKey] = correctValue; await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla añadida/actualizada.", "success", 2000); }
+async function handleEditVocabRule(keyToEdit) { console.log("DEBUG: handleEditVocabRule - Clave a editar:", keyToEdit, "Valor actual:", customVocabulary[keyToEdit]); const currentValue = customVocabulary[keyToEdit]; const newErrorKeyRaw = prompt(`Editar CLAVE (original: "${keyToEdit}"):\n(Dejar vacío para mantener la clave original)`, keyToEdit); if (newErrorKeyRaw === null) { console.log("DEBUG: handleEditVocabRule - Edición de clave cancelada."); return; } const newErrorKey = (newErrorKeyRaw.trim() === "" ? keyToEdit : newErrorKeyRaw.trim()).toLowerCase(); const newCorrectValueRaw = prompt(`Editar VALOR para "${newErrorKey}" (original: "${currentValue}"):\nIntroduce el nuevo valor correcto:`, currentValue); if (newCorrectValueRaw === null) { console.log("DEBUG: handleEditVocabRule - Edición de valor cancelada."); return; } const newCorrectValue = newCorrectValueRaw.trim(); if (newErrorKey !== keyToEdit && customVocabulary.hasOwnProperty(newErrorKey)) { alert(`La clave "${newErrorKey}" ya existe.`); console.warn("DEBUG: handleEditVocabRule - Intento de duplicar clave:", newErrorKey); return; } const oldCustomVocabularyState = JSON.parse(JSON.stringify(customVocabulary)); if (newErrorKey !== keyToEdit) { console.log(`DEBUG: handleEditVocabRule - Clave cambió. Borrando clave antigua: "${keyToEdit}"`); delete customVocabulary[keyToEdit]; } customVocabulary[newErrorKey] = newCorrectValue; console.log("DEBUG: handleEditVocabRule - customVocabulary ANTES de guardar:", oldCustomVocabularyState); console.log("DEBUG: handleEditVocabRule - customVocabulary DESPUÉS de modificar localmente:", customVocabulary); await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla de vocabulario actualizada.", "success", 2000); }
+async function handleDeleteVocabRule(keyToDelete) { console.log("DEBUG: handleDeleteVocabRule - Clave a borrar:", keyToDelete); if (confirm(`¿Estás seguro de que quieres borrar la regla para "${keyToDelete}"?`)) { const oldCustomVocabularyState = JSON.parse(JSON.stringify(customVocabulary)); delete customVocabulary[keyToDelete]; console.log("DEBUG: handleDeleteVocabRule - customVocabulary ANTES de guardar:", oldCustomVocabularyState); console.log("DEBUG: handleDeleteVocabRule - customVocabulary DESPUÉS de borrar localmente:", customVocabulary); await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla de vocabulario borrada.", "success", 2000); } else { console.log("DEBUG: handleDeleteVocabRule - Borrado cancelado por el usuario."); } }
+
+console.log("DEBUG: Script principal (fuera de DOMContentLoaded y firebaseReady) evaluado. Esperando firebaseReady...");

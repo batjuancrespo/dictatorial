@@ -33,6 +33,27 @@ let replacementSelectionStart = 0;
 let replacementSelectionEnd = 0;
 let insertionPoint = 0; 
 
+// --- Mapa de Palabras Numéricas ---
+const numberWordsMap = {
+    'cero': '0', 'uno': '1', 'un': '1', 'dos': '2', 'tres': '3', 'cuatro': '4',
+    'cinco': '5', 'seis': '6', 'siete': '7', 'ocho': '8', 'nueve': '9',
+    'diez': '10', 'once': '11', 'doce': '12', 'trece': '13', 'catorce': '14',
+    'quince': '15', 'dieciséis': '16', 'diecisiete': '17', 'dieciocho': '18', 'diecinueve': '19',
+    'veinte': '20', 'veintiuno': '21', 'veintiún': '21', 'veintidos': '22', 'veintidós': '22', 
+    'veintitres': '23', 'veintitrés': '23', 'veinticuatro': '24', 'veinticinco': '25',
+    'veintiseis': '26', 'veintiséis': '26', 'veintisiete': '27', 'veintiocho': '28', 'veintinueve': '29',
+    'treinta': '30', 'cuarenta': '40', 'cincuenta': '50', 'sesenta': '60',
+    'setenta': '70', 'ochenta': '80', 'noventa': '90',
+    'cien': '100', 'ciento': '100', 
+    'doscientos': '200', 'trescientos': '300', 'cuatrocientos': '400', 'quinientos': '500',
+    'seiscientos': '600', 'setecientos': '700', 'ochocientos': '800', 'novecientos': '900',
+    'mil': '1000'
+};
+const decimalWordsDict = { 
+    'coma': ',',
+    'con': ',', 
+};
+
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DEBUG: DOMContentLoaded event fired.");
@@ -443,11 +464,11 @@ async function callGeminiAPI(p,isTxt=false){if(!userApiKey)throw new Error('No A
 function cleanupArtifacts(text) {
     if (!text || typeof text !== 'string') return text || "";
     let cleanedText = text;
-    // console.log("DEBUG cleanupArtifacts: Texto ENTRANTE para limpieza:", JSON.stringify(cleanedText));
+    console.log("DEBUG cleanupArtifacts: Texto ENTRANTE para limpieza:", JSON.stringify(cleanedText));
     let trimmedForQuotesCheck = cleanedText.trim(); 
     if (trimmedForQuotesCheck.startsWith('"') && trimmedForQuotesCheck.endsWith('"') && trimmedForQuotesCheck.length > 2) {
         cleanedText = trimmedForQuotesCheck.substring(1, trimmedForQuotesCheck.length - 1).trim();
-        // console.log("DEBUG cleanupArtifacts: Comillas dobles envolventes eliminadas:", JSON.stringify(cleanedText));
+        console.log("DEBUG cleanupArtifacts: Comillas dobles envolventes eliminadas:", JSON.stringify(cleanedText));
     }
     cleanedText = cleanedText.replace(/(\s[pP])+[ \t]*$/gm, ""); 
     cleanedText = cleanedText.replace(/[pP]{2,}[ \t]*$/gm, "");   
@@ -460,7 +481,7 @@ function cleanupArtifacts(text) {
             !trimmedTextForPunctuationCheck.endsWith('...') && 
             (trimmedTextForPunctuationCheck.length === 1 || (trimmedTextForPunctuationCheck.length > 1 && trimmedTextForPunctuationCheck.charAt(trimmedTextForPunctuationCheck.length - 2) !== '.'))) {
             if (trimmedTextForPunctuationCheck.length <= 1 || !/[.!?]$/.test(trimmedTextForPunctuationCheck.substring(0, trimmedTextForPunctuationCheck.length -1).trim())) {
-                // console.log("DEBUG cleanupArtifacts: Fragmento corto termina en punto, eliminando:", JSON.stringify(trimmedTextForPunctuationCheck));
+                console.log("DEBUG cleanupArtifacts: Fragmento corto termina en punto, eliminando:", JSON.stringify(trimmedTextForPunctuationCheck));
                 cleanedText = trimmedTextForPunctuationCheck.slice(0, -1);
             }
         }
@@ -468,7 +489,7 @@ function cleanupArtifacts(text) {
     cleanedText = cleanedText.replace(/\n+$/, "");
     cleanedText = cleanedText.replace(/\s+([.!?])$/, "$1");
     cleanedText = cleanedText.replace(/ +/g, ' ');
-    // console.log("DEBUG cleanupArtifacts: Texto SALIENTE después de limpieza:", JSON.stringify(cleanedText.trim()));
+    console.log("DEBUG cleanupArtifacts: Texto SALIENTE después de limpieza:", JSON.stringify(cleanedText.trim()));
     return cleanedText.trim(); 
 }
 
@@ -529,6 +550,7 @@ Texto a procesar:
     }
 
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de pulido IA (o fallback):", JSON.stringify(polishedByAI));
+    
     let textAfterAIPolishClean = polishedByAI;
     console.log("DEBUG transcribeAndPolishAudio: ANTES de limpieza de comas duplicadas:", JSON.stringify(textAfterAIPolishClean));
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,\s*,/g, ','); 
@@ -546,11 +568,76 @@ Texto a procesar:
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de capitalización de PUNTUACIÓN:", JSON.stringify(capitalizedText));
     let customCorrectedText = applyAllUserCorrections(capitalizedText);
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de correcciones de usuario:", JSON.stringify(customCorrectedText));
-    let finalText = customCorrectedText.replace(/\s*\n\s*(\n)/g,'$1').replace(/\s+\n/g, '\n'); 
+    
+    // La conversión de números a dígitos se aplica aquí
+    let textWithDigits = convertWordNumbersToDigits(customCorrectedText);
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de conversión de números:", JSON.stringify(textWithDigits.substring(0,150) + "..."));
+    
+    let finalText = textWithDigits.replace(/\s*\n\s*\n/g,'\n').replace(/\s+\n/g, '\n'); 
     finalText = finalText.replace(/\n{3,}/g, '\n\n'); 
     console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual de inserción):", JSON.stringify(finalText));
     return finalText;
 }
+
+// --- Función para convertir números en palabras a dígitos (SIMPLIFICADA) ---
+function convertWordNumbersToDigits(text) {
+    if (!text || typeof text !== 'string') return text || "";
+    // console.log("DEBUG convertWordNumbersToDigits: ENTRADA:", JSON.stringify(text));
+    let simplerText = text;
+
+    const allNumberWords = Object.keys(numberWordsMap);
+    const allDecimalSeparatorWords = Object.keys(decimalWordsDict);
+
+    // Patrón para "palabraNumero <coma|con> palabraNumero"
+    // Escapar las palabras para usarlas en la regex de forma segura
+    const escapedNumWords = allNumberWords.map(w => escapeRegExp(w)).join('|');
+    const escapedDecWords = allDecimalSeparatorWords.map(w => escapeRegExp(w)).join('|');
+
+    const patternSimpleDecimal = new RegExp(
+        `\\b(${escapedNumWords})\\b\\s+(${escapedDecWords})\\s+\\b(${escapedNumWords})\\b`,
+        'gi'
+    );
+    simplerText = simplerText.replace(patternSimpleDecimal, (match, word1, decimalWord, word2) => {
+        const num1 = numberWordsMap[word1.toLowerCase()];
+        const num2 = numberWordsMap[word2.toLowerCase()];
+        if (num1 && num2) {
+            const result = `${num1}${decimalWordsDict[decimalWord.toLowerCase()]}${num2}`; // Usa el separador del dict
+            console.log(`DEBUG convertWordNumbersToDigits: Reemplazado (decimal) "${match}" por "${result}"`);
+            return result;
+        }
+        return match; 
+    });
+
+    // Reemplazar números simples (palabraNumero) -> digito
+    // Se hace después para no interferir con "cuatro coma seis"
+    allNumberWords.forEach(word => {
+        const regex = new RegExp(`\\b${escapeRegExp(word)}\\b(?![a-záéíóúüñ])`, 'gi'); 
+        simplerText = simplerText.replace(regex, (match) => {
+            // Heurística simple para "un/una"
+            if ((match.toLowerCase() === 'un' || match.toLowerCase() === 'una')) {
+                const nextWordMatch = simplerText.substring(simplerText.toLowerCase().indexOf(match.toLowerCase()) + match.length).trimStart().match(/^([a-záéíóúüñ]+)/i);
+                const nextWord = nextWordMatch ? nextWordMatch[0].toLowerCase() : "";
+                const commonUnits = ['cm', 'mm', 'ml', 'grados', 'años', 'meses', 'dias', 'uds', 'unidad', 'unidades'];
+                if (!commonUnits.includes(nextWord) && isNaN(parseInt(nextWord))) { // Si la siguiente palabra no es unidad ni número
+                     console.log(`DEBUG convertWordNumbersToDigits: Omitiendo conversión de "${match}" (contexto no numérico aparente). Siguiente palabra: "${nextWord}"`);
+                    return match; // No convertir si parece artículo
+                }
+            }
+            const replacement = numberWordsMap[match.toLowerCase()];
+            // console.log(`DEBUG convertWordNumbersToDigits: Reemplazado (simple) "${match}" por "${replacement}"`);
+            return replacement;
+        });
+    });
+    
+    // Limpieza final de espacios alrededor de comas numéricas si se formaron tipo "4 , 6"
+    simplerText = simplerText.replace(/(\d)\s*,\s*(\d)/g, '$1,$2'); 
+    
+    if (text !== simplerText) { // Solo loguear si hubo cambios
+        console.log("DEBUG convertWordNumbersToDigits (simple): SALIDA:", JSON.stringify(simplerText));
+    }
+    return simplerText;
+}
+
 
 async function loadUserVocabularyFromFirestore(userId) { if (!userId || !window.db) { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; return; } console.log(`DEBUG: Cargando vocabulario (estilo index(2).html) para usuario: ${userId}`); const vocabDocRef = window.doc(window.db, "userVocabularies", userId); try { const docSnap = await window.getDoc(vocabDocRef); if (docSnap.exists()) { const firestoreData = docSnap.data(); customVocabulary = firestoreData.rulesMap || {}; learnedCorrections = firestoreData.learnedMap || {}; commonMistakeNormalization = firestoreData.normalizations || {}; console.log("DEBUG: Vocabulario cargado. Reglas:", Object.keys(customVocabulary).length, "Aprendidas:", Object.keys(learnedCorrections).length, "Normaliz.:", Object.keys(commonMistakeNormalization).length); } else { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; console.log("DEBUG: No doc de vocabulario. Usando vacíos."); } } catch (error) { console.error("Error cargando vocabulario:", error); customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; setStatus("Error al cargar personalizaciones.", "error", 3000); } }
 async function saveUserVocabularyToFirestore() { if (!currentUserId || !window.db) { console.error("DEBUG: No hay userId o DB para guardar vocabulario."); return; } const vocabToSaveForLog = JSON.parse(JSON.stringify(customVocabulary)); console.log(`DEBUG: Guardando vocabulario para ${currentUserId}. Contenido de customVocabulary (rulesMap) a guardar:`, vocabToSaveForLog); const vocabDocRef = window.doc(window.db, "userVocabularies", currentUserId); const dataToSave = { rulesMap: customVocabulary, learnedMap: learnedCorrections, normalizations: commonMistakeNormalization }; try { await window.setDoc(vocabDocRef, dataToSave); console.log("DEBUG: Vocabulario del usuario SOBRESCRITO en Firestore con el estado actual de los 3 mapas."); } catch (error) { console.error("Error guardando vocabulario del usuario:", error); setStatus("Error al guardar personalizaciones.", "error", 3000); } }

@@ -542,8 +542,14 @@ Texto a procesar:
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de capitalización de PUNTUACIÓN:", JSON.stringify(capitalizedText));
     let customCorrectedText = applyAllUserCorrections(capitalizedText);
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de correcciones de usuario:", JSON.stringify(customCorrectedText));
-    let finalText = customCorrectedText.replace(/\s*\n\s*\n/g,'\n\n').replace(/\s+\n/g, '\n'); 
+    
+    let textWithParagraphs = customCorrectedText.replace(/\.[\n](?!\n)/g, '.\n\n');
+    textWithParagraphs = textWithParagraphs.replace(/([!?])[\n](?!\n)/g, '$1\n\n');
+
+    let finalText = textWithParagraphs.replace(/\s+\n/g, '\n'); 
     finalText = finalText.replace(/\n{3,}/g, '\n\n'); 
+    
+    finalText = capitalizeSentencesProperly(finalText); // Re-capitalizar después de los cambios de \n
     console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual de inserción):", JSON.stringify(finalText));
     return finalText;
 }

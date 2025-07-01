@@ -3,42 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dictado Radiológico IA Avanzado</title>
+    <title>Dictado Radiológico IA</title>
     <link rel="stylesheet" href="style.css">
     <!-- Firebase SDK Imports -->
     <script type="module">
+      // Configuración de Firebase (REEMPLAZA CON TUS VALORES REALES)
       const firebaseConfig = {
-         apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", // USA TU API KEY REAL
+         apiKey: "AIzaSyA_VQH1y-px8-QF3gMw3VOPjiiU1OefDBo", // EJEMPLO, USA TU API KEY REAL
          authDomain: "almacena-correcciones-dictado.firebaseapp.com",
          projectId: "almacena-correcciones-dictado",
          storageBucket: "almacena-correcciones-dictado.appspot.com",
          messagingSenderId: "209194920272",
          appId: "1:209194920272:web:ccbec69d0a5aa88789e455",
+         measurementId: "G-6PQSKYMDP0" 
        };
 
       try {
+            console.log("DEBUG: Intentando cargar Firebase SDKs...");
             const firebaseAppModule = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
             const firestoreModule = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
             const firebaseAuthModule = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
+            console.log("DEBUG: Módulos Firebase importados.");
 
             window.firebaseApp = firebaseAppModule.initializeApp(firebaseConfig);
+            console.log("DEBUG: Firebase App inicializada:", window.firebaseApp ? "Éxito" : "Fallo");
+
             window.db = firestoreModule.getFirestore(window.firebaseApp);
             window.auth = firebaseAuthModule.getAuth(window.firebaseApp);
-            
+            console.log("DEBUG: Firestore y Auth inicializados:", window.db ? "DB Ok" : "DB Fallo", window.auth ? "Auth Ok" : "Auth Fallo");
+
             window.doc = firestoreModule.doc;
             window.getDoc = firestoreModule.getDoc;
             window.setDoc = firestoreModule.setDoc;
+            window.collection = firestoreModule.collection;
             
             window.createUserWithEmailAndPassword = firebaseAuthModule.createUserWithEmailAndPassword;
             window.signInWithEmailAndPassword = firebaseAuthModule.signInWithEmailAndPassword;
             window.signOut = firebaseAuthModule.signOut;
             window.onAuthStateChanged = firebaseAuthModule.onAuthStateChanged;
             
+            console.log("DEBUG: Firebase SDKs cargados y funciones exportadas a window.");
             document.dispatchEvent(new CustomEvent('firebaseReady'));
+            console.log("DEBUG: Evento firebaseReady disparado.");
+
       } catch (error) {
           console.error("Error crítico inicializando Firebase:", error);
-          alert("Error crítico: No se pudo inicializar Firebase.");
-          document.body.innerHTML = '<h1>Error de Carga de Firebase</h1><p>Revisa la consola y la configuración del proyecto.</p>';
+          alert("Error crítico: No se pudo inicializar Firebase. La aplicación no funcionará correctamente. Revisa la consola.");
+          document.body.innerHTML = '<h1>Error de Carga de Firebase</h1><p>Revisa la consola y la configuración de Firebase.</p>';
       }
     </script>
 </head>
@@ -87,11 +98,7 @@
                             <button id="retryProcessBtn" class="btn-retry" disabled>Reenviar audio</button>
                             <button id="copyPolishedTextBtn" class="btn-copy" title="Copiar texto completo">Copiar Todo</button>
                             <button id="correctTextSelectionBtn" class="btn-correct" disabled>Corregir Selección</button>
-                            <button id="resetReportBtn" class="btn-danger" title="Borrar contenido de Técnica e Informe">💣 Resetear</button> 
-                        </div>
-                        <div class="history-controls">
-                            <button id="undoButton" disabled>Deshacer</button>
-                            <button id="redoButton" disabled>Rehacer</button>
+                            <button id="resetReportBtn" class="btn-danger" title="Borrar contenido de Técnica e Informe">💣 Resetear Informe</button> 
                         </div>
                         <p id="recordingTimeDisplay"></p>
                         <p id="status" class="status-idle">Listo</p>
@@ -120,24 +127,23 @@
                              <button id="manageVocabButton" class="btn-blue" disabled>Gestionar Vocabulario</button> 
                         </div>
                     </div>
-                    <div class="container templates-section">
-                        <h3>Plantillas</h3>
-                        <div id="templatesContainer" class="templates-container">
-                            <p class="no-items-message">Cargando plantillas...</p>
-                        </div>
-                        <div class="button-group" style="margin-top: 15px;">
-                            <button id="manageTemplatesButton" class="btn-blue" disabled>Gestionar Plantillas</button>
-                        </div>
-                    </div>
                     <div class="container technique-section"> 
-                        <h3>Técnica Rápida</h3>
+                        <h3>Seleccionar Técnica</h3>
                         <div id="techniqueButtons">
                             <div class="technique-group">
                                 <button class="btn-tech-red" data-technique-text="Se realiza exploración abdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Abd Art+Portal</button>
+                                <button class="btn-tech-red" data-technique-text="Se realiza exploración abdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase portal.">Abd Portal</button>
+                                <button class="btn-tech-red" data-technique-text="Se realiza exploración toracoabdominal tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Tórax+Abd Art+Portal</button>
+                                <button class="btn-tech-red" data-technique-text="Se realiza exploración sin administración endovenosa de contraste con adquisición de imágenes en reposo y durante maniobra de Valsalva.">Abd Hernia</button>
+                                <button class="btn-tech-red" data-technique-text="Se realiza exploración sin y tras la administración endovenosa de contraste con adquisición de imágenes en fase arterial y portal.">Abd 3 Fases</button>
                                 <button class="btn-tech-blue" data-technique-text="Exploración ecográfica con sonda multifrecuencia.">Eco Abd</button>
                             </div>
                             <div class="technique-group">
                                 <button class="btn-tech-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T1 en fase y fuera de fase, T2 sin y con saturación grasa, difusión y estudio dinámico tras la administración endovenosa de contraste.">RM Hepática</button>
+                                <button class="btn-tech-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T1 en fase y fuera de fase, T2 sin y con saturación grasa, estudio dinámico tras la administración endovenosa de contraste completándose la valoración con cortes radiales respecto al colédoco orientados a la valoración de la via biliar.">ColangioRM</button>
+                                <button class="btn-tech-yellow" data-technique-text="Se realiza exploración abdominal con secuencias potenciadas en T2, difusión y estudio dinámico tras la administración endovenosa de contraste previa distensión de las asas intestinales. Exploración orientada a la valoración de asas de intestino delgado.">EnteroRM</button>
+                                <button class="btn-tech-yellow" data-technique-text="Se realiza exploración pélvica con secuencias potenciadas en T2 sin y con saturación grasa y difusión.">RM Fístulas</button>
+                                <button class="btn-tech-yellow" data-technique-text="Se realiza exploración pélvica con secuencias potenciadas en T2 sin y con saturación grasa en los tres planos del espacio, difusión y estudio dinámico tras la administración endovenosa de contraste.">RM Neo Pelvis</button>
                                 <button id="clearHeaderButton" class="btn-tech-gray">Borrar Técnica</button>
                             </div>
                         </div>
@@ -150,26 +156,17 @@
             </div> 
         </div> 
     </div>
-
-    <!-- Modales -->
-    <div id="vocabManagerModal" class="modal-overlay">
+    <div id="vocabManagerModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <button id="modalCloseButtonVocab" class="modal-close-button">×</button>
-            <h3>Gestionar Vocabulario</h3>
+            <h3>Gestionar Vocabulario Personalizado</h3>
             <p><small>Las claves (texto incorrecto) se guardan en minúsculas.</small></p>
             <ul id="vocabManagerList"></ul>
-            <div class="modal-actions"><button id="modalAddNewRuleButtonVocab" class="btn-record">Añadir Nueva Regla</button></div>
+            <div class="modal-actions">
+                <button id="modalAddNewRuleButtonVocab" class="btn-record">Añadir Nueva Regla</button>
+            </div>
         </div>
     </div>
-    <div id="templateManagerModal" class="modal-overlay">
-        <div class="modal-content">
-            <button id="modalCloseButtonTemplate" class="modal-close-button">×</button>
-            <h3>Gestionar Plantillas</h3>
-            <ul id="templateManagerList"></ul>
-            <div class="modal-actions"><button id="modalAddNewTemplateButton" class="btn-record">Añadir Nueva Plantilla</button></div>
-        </div>
-    </div>
-
     <script type="module" src="script.js"></script> 
 </body>
 </html>

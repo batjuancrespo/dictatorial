@@ -245,7 +245,31 @@ function initializeDictationAppLogic(userId) {
         pauseResumeBtn.dataset.listenerAttached = 'true';
     }
     if (!retryProcessBtn.dataset.listenerAttached) { retryProcessBtn.addEventListener('click', () => { if (currentAudioBlob) { if (isRecording || isPaused) { alert("Detén la grabación actual antes de reenviar."); return; } processAudioBlobAndInsertText(currentAudioBlob); }}); retryProcessBtn.dataset.listenerAttached = 'true';}
-    if (!copyPolishedTextBtn.dataset.listenerAttached) { copyPolishedTextBtn.addEventListener('click', async () => { const h = headerArea.value.trim(); const r = polishedTextarea.value.trim(); let t = ""; if(h){t+=h;} if(r){if(t){t+="\n\n";} t+=r;} if(t===''){setStatus("Nada que copiar.", "idle", 2000); return;} try{await navigator.clipboard.writeText(t); setStatus("¡Texto copiado!", "success", 2000);}catch(e){console.error('Error copia:',e);setStatus("Error copia.", "error", 3000);}}); copyPolishedTextBtn.dataset.listenerAttached = 'true';}
+    
+    // *** LISTENER DEL BOTÓN DE COPIAR RESTAURADO AQUÍ ***
+    if (!copyPolishedTextBtn.dataset.listenerAttached) { 
+        copyPolishedTextBtn.addEventListener('click', async () => { 
+            const h = headerArea.value.trim(); 
+            const r = polishedTextarea.value.trim(); 
+            let t = ""; 
+            if(h){t+=h;} 
+            if(r){if(t){t+="\n\n";} t+=r;} 
+            if(t===''){
+                setStatus("Nada que copiar.", "idle", 2000); 
+                return;
+            } 
+            try {
+                await navigator.clipboard.writeText(t); 
+                setStatus("¡Texto copiado!", "success", 2000);
+            } catch(e) {
+                console.error('Error copia:',e);
+                setStatus("Error al copiar.", "error", 3000);
+            }
+        }); 
+        copyPolishedTextBtn.dataset.listenerAttached = 'true';
+        console.log("DEBUG: Listener añadido a copyPolishedTextBtn.");
+    }
+
     if (correctTextSelectionBtn && !correctTextSelectionBtn.dataset.listenerAttached) { correctTextSelectionBtn.addEventListener('click', handleCorrectTextSelection); correctTextSelectionBtn.dataset.listenerAttached = 'true';}
     if (resetReportBtn && !resetReportBtn.dataset.listenerAttached) { 
         resetReportBtn.addEventListener('click', () => {
@@ -476,7 +500,7 @@ async function transcribeAndPolishAudio(base64Audio){
     try{
         setStatus('Transcribiendo...','processing');
         const transcriptPromptParts = [
-            {text:"Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Ignora sonidos de respiración o carraspeos. Si el hablante dice 'coma', 'punto', etc., transcríbelo tal cual como texto, no como el signo de puntuación. El objetivo es una transcripción fiel palabra por palabra. Si el audio termina abruptamente sin una palabra de puntuación, NO añadas ninguna."},
+            {text:"Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Ignora sonidos de respiración o carraspeos. Si el hablante dice 'coma', 'punto', 'punto y aparte' o 'nueva línea', transcríbelo tal cual como texto. El objetivo es una transcripción fiel palabra por palabra. Si el audio termina abruptamente sin una palabra de puntuación, NO añadas ninguna."},
             {inline_data:{mime_type:"audio/webm",data:base64Audio}}
         ];
         transcribedText = await callGeminiAPI(transcriptPromptParts, false); 

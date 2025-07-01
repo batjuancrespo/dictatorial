@@ -300,17 +300,18 @@ function setupVolumeMeter(stream) { volumeMeterContainer.style.display='block'; 
 function stopVolumeMeter() { if(animationFrameId) cancelAnimationFrame(animationFrameId); if(microphoneSource){microphoneSource.disconnect(); microphoneSource=null;} volumeMeterBar.style.width='0%'; volumeMeterBar.classList.remove('paused'); volumeMeterContainer.style.display='none';}
 function toggleRecordingState() { if(isRecording){if(mediaRecorder&&(mediaRecorder.state==="recording"||mediaRecorder.state==="paused")){mediaRecorder.stop();setStatus("Deteniendo...","processing");}else{isRecording=false;isPaused=false;updateButtonStates("initial");}}else{startActualRecording();}}
 async function startActualRecording() { 
-    console.log("DEBUG startActualRecording: polishedTextarea.selectionStart =", polishedTextarea.selectionStart, "polishedTextarea.selectionEnd =", polishedTextarea.selectionEnd);
     if (polishedTextarea.selectionStart !== polishedTextarea.selectionEnd) {
         isDictatingForReplacement = true;
         replacementSelectionStart = polishedTextarea.selectionStart;
         replacementSelectionEnd = polishedTextarea.selectionEnd;
-        console.log("DEBUG startActualRecording: MODO REEMPLAZO ACTIVADO. Selección de", replacementSelectionStart, "a", replacementSelectionEnd);
         setStatus("Dicte el reemplazo...", "processing");
     } else {
         isDictatingForReplacement = false;
         insertionPoint = polishedTextarea.selectionStart; 
-        console.log("DEBUG startActualRecording: MODO INSERCIÓN/AÑADIR. Punto de inserción:", insertionPoint);
+        if (polishedTextarea.value.trim() === "") {
+             // Solo limpiar si está vacío, para no borrar un informe en progreso si se hace clic por error
+             polishedTextarea.value = '';
+        }
         setStatus("Solicitando permiso...", "processing");
     }
     isPaused = false; audioChunks = []; currentAudioBlob = null; recordingSeconds = 0; 
@@ -355,18 +356,15 @@ async function startActualRecording() {
 }
 async function processAudioBlobAndInsertText(audioBlob) {
     updateButtonStates("processing_audio"); 
-    console.log("DEBUG processAudioBlobAndInsertText: isDictatingForReplacement =", isDictatingForReplacement);
     try {
         const base64Audio = await blobToBase64(audioBlob);
         if (!base64Audio || base64Audio.length < 100) throw new Error("Fallo Base64.");
         
         let processedNewText = await transcribeAndPolishAudio(base64Audio); 
-        console.log("DEBUG processAudioBlobAndInsertText: Texto recibido de transcribeAndPolishAudio:", JSON.stringify(processedNewText.substring(0,100) + "..."));
 
         const currentContent = polishedTextarea.value; 
 
         if (isDictatingForReplacement) {
-            console.log("DEBUG processAudioBlobAndInsertText: Ejecutando lógica de REEMPLAZO DE SELECCIÓN.");
             const textBeforeSelection = currentContent.substring(0, replacementSelectionStart);
             const textAfterSelection = currentContent.substring(replacementSelectionEnd);
             
@@ -392,7 +390,6 @@ async function processAudioBlobAndInsertText(audioBlob) {
             polishedTextarea.selectionStart = polishedTextarea.selectionEnd = newCursorPos;
             setStatus('Texto reemplazado.', 'success', 3000);
         } else { 
-            console.log("DEBUG processAudioBlobAndInsertText: Ejecutando lógica de INSERCIÓN/AÑADIR en el punto:", insertionPoint);
             const textBeforeCursor = currentContent.substring(0, insertionPoint);
             const textAfterCursor = currentContent.substring(insertionPoint);
 
@@ -436,7 +433,7 @@ async function processAudioBlobAndInsertText(audioBlob) {
 }
 function handlePauseResume() { if(!mediaRecorder||!isRecording)return;if(mediaRecorder.state==="recording"){mediaRecorder.pause();}else if(mediaRecorder.state==="paused"){mediaRecorder.resume();}}
 function updateButtonStates(state) { startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;copyPolishedTextBtn.disabled=false;correctTextSelectionBtn.disabled=true; if(resetReportBtn) resetReportBtn.disabled = false; startRecordBtn.textContent="Empezar Dictado";startRecordBtn.classList.remove("stop-style");pauseResumeBtn.textContent="Pausar";let showPlayer=false;if(currentAudioBlob){if(["initial","stopped_success","error_processing","success_processing","stopped_error"].includes(state)){showPlayer=true;}}if(audioPlaybackSection)audioPlaybackSection.style.display=showPlayer?'block':'none';else console.warn("audioPlaybackSection null en updateButtonStates");switch(state){case "initial":startRecordBtn.disabled=false;if(statusDiv&&statusDiv.textContent.toLowerCase()!=="listo"&&!statusDiv.textContent.toLowerCase().includes("error")&&!statusDiv.textContent.toLowerCase().includes("pausada")&&!statusDiv.textContent.toLowerCase().includes("reemplazo"))setStatus("Listo","idle");resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "recording":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(resetReportBtn) resetReportBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='grabando...'&&statusDiv.textContent.toLowerCase()!=='dicte el reemplazo...')setStatus('Grabando...','processing');break;case "paused":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;pauseResumeBtn.textContent="Reanudar";retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";if(resetReportBtn) resetReportBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='reemplazo pausado.'&&statusDiv.textContent.toLowerCase()!=='dictado pausado.')setStatus('Grabación pausada.','idle');break;case "stopped_success":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "stopped_error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;case "processing_audio":startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(resetReportBtn) resetReportBtn.disabled=true;break;case "error_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "success_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;default:startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;}}
-async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;const normKey=normalizeText(ruleKey);if(!learnedCorrections[normKey]){learnedCorrections[normKey]={correctKey:normalizeText(fCT),count:0};}learnedCorrections[normKey].count++;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;polishedTextarea.focus();}
+async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); const normKey = normalizeText(ruleKey); const normCorrection = normalizeText(fCT); let ruleApplied = false; if(ruleKey !== fCT.toLowerCase() || fCT === "" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT; ruleApplied = true;} if (normKey && normCorrection && normKey !== normCorrection) {if (!learnedCorrections[normKey]){learnedCorrections[normKey]={correctKey:fCT,count:0};} learnedCorrections[normKey].count++; ruleApplied = true; console.log(`Corrección aprendida actualizada para "${normKey}". Nuevo contador: ${learnedCorrections[normKey].count}`);} if(ruleApplied){await saveUserVocabularyToFirestore();setStatus(`Regla guardada/actualizada.`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;polishedTextarea.focus();}
 function blobToBase64(b){return new Promise((res,rej)=>{if(!b||b.size===0)return rej(new Error("Blob nulo"));const r=new FileReader();r.onloadend=()=>{if(r.result){const s=r.result.toString().split(',')[1];if(!s)return rej(new Error("Fallo Base64"));res(s);}else rej(new Error("FileReader sin resultado"));};r.onerror=e=>rej(e);r.readAsDataURL(b);});}
 async function callGeminiAPI(p,isTxt=false){if(!userApiKey)throw new Error('No API Key');const u=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`;const t=isTxt?0.1:0.2;const y={contents:[{parts:p}],generationConfig:{temperature:t}};console.log(`Gemini (isTxt:${isTxt},temp:${t}). Prompt(inicio):`,JSON.stringify(p[0]).substring(0,200)+"...");const resp=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(y)});if(!resp.ok){const eD=await resp.json();console.error("Error Gemini API:",eD);throw new Error(`Error API:${eD.error?.message||resp.statusText}(${resp.status})`);}const d=await resp.json();if(d.candidates?.[0]?.content?.parts?.[0]?.text)return d.candidates[0].content.parts[0].text;if(d.promptFeedback?.blockReason)throw new Error(`Bloqueado:${d.promptFeedback.blockReason}.${d.promptFeedback.blockReasonMessage||''}`);if(d.candidates?.[0]?.finishReason&&d.candidates[0].finishReason!=="STOP")throw new Error(`Gemini fin:${d.candidates[0].finishReason}.`);if(d.candidates?.[0]?.finishReason==="STOP"&&!d.candidates?.[0]?.content?.parts?.[0]?.text)return"";throw new Error('Gemini respuesta inesperada.');}
 
@@ -469,9 +466,16 @@ function cleanupArtifacts(text) {
 }
 
 function capitalizeSentencesProperly(text) {
-    if (!text || typeof text !== 'string' || text.trim() === "") { return text || ""; }
+    if (!text || typeof text !== 'string' || text.trim() === "") {
+        return text || ""; 
+    }
     let processedText = text.trim(); 
-    processedText = processedText.replace( /([.!?])(\s*)([a-záéíóúüñ])/g, (match, punctuation, whitespace, letter) => { return punctuation + whitespace + letter.toUpperCase(); });
+    processedText = processedText.replace(
+        /([.!?])(\s*)([a-záéíóúüñ])/g, 
+        (match, punctuation, whitespace, letter) => {
+            return punctuation + whitespace + letter.toUpperCase();
+        }
+    );
     return processedText;
 }
 
@@ -544,18 +548,64 @@ Texto a procesar:
 
 async function loadUserVocabularyFromFirestore(userId) { if (!userId || !window.db) { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; return; } console.log(`DEBUG: Cargando vocabulario (estilo index(2).html) para usuario: ${userId}`); const vocabDocRef = window.doc(window.db, "userVocabularies", userId); try { const docSnap = await window.getDoc(vocabDocRef); if (docSnap.exists()) { const firestoreData = docSnap.data(); customVocabulary = firestoreData.rulesMap || {}; learnedCorrections = firestoreData.learnedMap || {}; commonMistakeNormalization = firestoreData.normalizations || {}; console.log("DEBUG: Vocabulario cargado. Reglas:", Object.keys(customVocabulary).length, "Aprendidas:", Object.keys(learnedCorrections).length, "Normaliz.:", Object.keys(commonMistakeNormalization).length); } else { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; console.log("DEBUG: No doc de vocabulario. Usando vacíos."); } } catch (error) { console.error("Error cargando vocabulario:", error); customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; setStatus("Error al cargar personalizaciones.", "error", 3000); } }
 async function saveUserVocabularyToFirestore() { if (!currentUserId || !window.db) { console.error("DEBUG: No hay userId o DB para guardar vocabulario."); return; } const vocabToSaveForLog = JSON.parse(JSON.stringify(customVocabulary)); console.log(`DEBUG: Guardando vocabulario para ${currentUserId}. Contenido de customVocabulary (rulesMap) a guardar:`, vocabToSaveForLog); const vocabDocRef = window.doc(window.db, "userVocabularies", currentUserId); const dataToSave = { rulesMap: customVocabulary, learnedMap: learnedCorrections, normalizations: commonMistakeNormalization }; try { await window.setDoc(vocabDocRef, dataToSave); console.log("DEBUG: Vocabulario del usuario SOBRESCRITO en Firestore con el estado actual de los 3 mapas."); } catch (error) { console.error("Error guardando vocabulario del usuario:", error); setStatus("Error al guardar personalizaciones.", "error", 3000); } }
-function applyAllUserCorrections(text) { if (!text) return ""; let processedText = text; if (Object.keys(customVocabulary).length > 0) { console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); for (const errorKey of sortedCustomKeys) { const correctValue = customVocabulary[errorKey]; try { const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); processedText = processedText.replace(regex, correctValue); } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } } } return processedText; }
+function applyAllUserCorrections(text) { 
+    if (!text) return ""; 
+    let processedText = text; 
+    const LEARNED_THRESHOLD = 2; // Umbral para aplicar correcciones aprendidas
+
+    // 1. APLICAR NORMALIZACIONES COMUNES
+    if (Object.keys(commonMistakeNormalization).length > 0) {
+        console.log("DEBUG: Aplicando normalizaciones comunes...");
+        const sortedNormKeys = Object.keys(commonMistakeNormalization).sort((a, b) => b.length - a.length);
+        for (const mistakeKey of sortedNormKeys) {
+            const normalizedForm = commonMistakeNormalization[mistakeKey];
+            try {
+                const regex = new RegExp(`\\b${escapeRegExp(mistakeKey)}\\b`, 'gi');
+                processedText = processedText.replace(regex, normalizedForm);
+            } catch (e) { console.error(`Error regex (norm): "${mistakeKey}"`, e); }
+        }
+    }
+
+    // 2. APLICAR CORRECCIONES APRENDIDAS
+    if (Object.keys(learnedCorrections).length > 0) {
+        console.log("DEBUG: Aplicando correcciones aprendidas...");
+        const sortedLearnedKeys = Object.keys(learnedCorrections).sort((a, b) => b.length - a.length);
+        for (const learnedError of sortedLearnedKeys) {
+            const correctionData = learnedCorrections[learnedError];
+            if (correctionData && correctionData.count >= LEARNED_THRESHOLD) {
+                try {
+                    const regex = new RegExp(`\\b${escapeRegExp(learnedError)}\\b`, 'gi');
+                    // Asumimos que `correctKey` en `learnedMap` es el texto final deseado, no normalizado.
+                    processedText = processedText.replace(regex, correctionData.correctKey);
+                } catch (e) { console.error(`Error regex (learned): "${learnedError}"`, e); }
+            }
+        }
+    }
+
+    // 3. APLICAR VOCABULARIO PERSONALIZADO (rulesMap)
+    if (Object.keys(customVocabulary).length > 0) { 
+        console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); 
+        const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); 
+        for (const errorKey of sortedCustomKeys) { 
+            const correctValue = customVocabulary[errorKey]; 
+            try { 
+                const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); 
+                processedText = processedText.replace(regex, correctValue); 
+            } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } 
+        } 
+    } 
+    return processedText; 
+}
 function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function normalizeText(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text.toLowerCase().replace(/[.,:;!?()"'-]/g, '').replace(/\s+/g, ' ').trim();
+}
 function openVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) { console.error("Modal de vocabulario no encontrado."); return; } populateVocabManagerList(); vocabManagerModal.style.display = 'flex'; }
 function closeVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) return; vocabManagerModal.style.display = 'none'; }
 function populateVocabManagerList() { vocabManagerList = vocabManagerList || document.getElementById('vocabManagerList'); if (!vocabManagerList) { console.error("Lista del modal de vocabulario no encontrada."); return; } vocabManagerList.innerHTML = ''; const keys = Object.keys(customVocabulary).sort(); if (keys.length === 0) { vocabManagerList.innerHTML = '<li>No hay reglas personalizadas (rulesMap).</li>'; return; } keys.forEach(key => { const value = customVocabulary[key]; const listItem = document.createElement('li'); listItem.innerHTML = `<span class="vocab-key">${key}</span> <span class="vocab-arrow">➔</span> <span class="vocab-value">${value}</span> <div class="vocab-actions"><button class="edit-vocab-btn" data-key="${key}">Editar</button><button class="delete-vocab-btn" data-key="${key}">Borrar</button></div>`; listItem.querySelector('.edit-vocab-btn').addEventListener('click', () => handleEditVocabRule(key)); listItem.querySelector('.delete-vocab-btn').addEventListener('click', () => handleDeleteVocabRule(key)); vocabManagerList.appendChild(listItem); }); }
 async function handleAddNewVocabRule() { const errorKeyRaw = prompt("Texto incorrecto (o palabra a reemplazar):"); if (!errorKeyRaw || errorKeyRaw.trim() === "") return; const errorKey = errorKeyRaw.trim().toLowerCase(); const correctValueRaw = prompt(`Corrección para "${errorKeyRaw}":`); if (correctValueRaw === null) return; const correctValue = correctValueRaw.trim(); if (customVocabulary[errorKey] === correctValue && correctValue !== "") { alert("Regla ya existe con el mismo valor."); return; } customVocabulary[errorKey] = correctValue; await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla añadida/actualizada.", "success", 2000); }
 async function handleEditVocabRule(keyToEdit) { console.log("DEBUG: handleEditVocabRule - Clave a editar:", keyToEdit, "Valor actual:", customVocabulary[keyToEdit]); const currentValue = customVocabulary[keyToEdit]; const newErrorKeyRaw = prompt(`Editar CLAVE (original: "${keyToEdit}"):\n(Dejar vacío para mantener la clave original)`, keyToEdit); if (newErrorKeyRaw === null) { console.log("DEBUG: handleEditVocabRule - Edición de clave cancelada."); return; } const newErrorKey = (newErrorKeyRaw.trim() === "" ? keyToEdit : newErrorKeyRaw.trim()).toLowerCase(); const newCorrectValueRaw = prompt(`Editar VALOR para "${newErrorKey}" (original: "${currentValue}"):\nIntroduce el nuevo valor correcto:`, currentValue); if (newCorrectValueRaw === null) { console.log("DEBUG: handleEditVocabRule - Edición de valor cancelada."); return; } const newCorrectValue = newCorrectValueRaw.trim(); if (newErrorKey !== keyToEdit && customVocabulary.hasOwnProperty(newErrorKey)) { alert(`La clave "${newErrorKey}" ya existe.`); console.warn("DEBUG: handleEditVocabRule - Intento de duplicar clave:", newErrorKey); return; } const oldCustomVocabularyState = JSON.parse(JSON.stringify(customVocabulary)); if (newErrorKey !== keyToEdit) { console.log(`DEBUG: handleEditVocabRule - Clave cambió. Borrando clave antigua: "${keyToEdit}"`); delete customVocabulary[keyToEdit]; } customVocabulary[newErrorKey] = newCorrectValue; console.log("DEBUG: handleEditVocabRule - customVocabulary ANTES de guardar:", oldCustomVocabularyState); console.log("DEBUG: handleEditVocabRule - customVocabulary DESPUÉS de modificar localmente:", customVocabulary); await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla de vocabulario actualizada.", "success", 2000); }
 async function handleDeleteVocabRule(keyToDelete) { console.log("DEBUG: handleDeleteVocabRule - Clave a borrar:", keyToDelete); if (confirm(`¿Estás seguro de que quieres borrar la regla para "${keyToDelete}"?`)) { const oldCustomVocabularyState = JSON.parse(JSON.stringify(customVocabulary)); delete customVocabulary[keyToDelete]; console.log("DEBUG: handleDeleteVocabRule - customVocabulary ANTES de guardar:", oldCustomVocabularyState); console.log("DEBUG: handleDeleteVocabRule - customVocabulary DESPUÉS de borrar localmente:", customVocabulary); await saveUserVocabularyToFirestore(); populateVocabManagerList(); setStatus("Regla de vocabulario borrada.", "success", 2000); } else { console.log("DEBUG: handleDeleteVocabRule - Borrado cancelado por el usuario."); } }
-
-function normalizeText(text) {
-    if (!text) return '';
-    return text.toLowerCase().replace(/[.,:;!?()"'-]/g, '').replace(/\s+/g, ' ').trim();
-}
 
 console.log("DEBUG: Script principal (fuera de DOMContentLoaded y firebaseReady) evaluado. Esperando firebaseReady...");

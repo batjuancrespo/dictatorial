@@ -309,7 +309,6 @@ async function startActualRecording() {
         isDictatingForReplacement = false;
         insertionPoint = polishedTextarea.selectionStart; 
         if (polishedTextarea.value.trim() === "") {
-             // Solo limpiar si está vacío, para no borrar un informe en progreso si se hace clic por error
              polishedTextarea.value = '';
         }
         setStatus("Solicitando permiso...", "processing");
@@ -510,6 +509,7 @@ async function transcribeAndPolishAudio(base64Audio){
 7.  Al reemplazar palabras clave de puntuación (como "coma" por ","), asegúrate de que no resulten en signos de puntuación duplicados consecutivos (ej. ",," o ".."). Si esto ocurre, mantén solo un signo de puntuación.
 8.  Capitaliza la primera letra de una oración SOLO si sigue a un '.', '?', o '!' dictados explícitamente y que hayas insertado, o si es el inicio absoluto del texto completo.
 9.  CRUCIAL: NO AÑADAS NINGÚN SIGNO DE PUNTUACIÓN (especialmente un punto final '.') AL FINAL DEL TEXTO PROCESADO A MENOS QUE LA PALABRA "punto" (o equivalente para otra puntuación) HAYA SIDO DICTADA EXPLÍCITAMENTE COMO LA ÚLTIMA PARTE DE LA TRANSCRIPCIÓN ORIGINAL. Si la transcripción original no termina con una palabra de puntuación, el texto procesado tampoco debe terminar con un signo de puntuación añadido por ti.
+10. IMPORTANTE: Para conectar ideas, prefiere usar una COMA (,) en lugar de un punto y coma (;) antes de frases que comienzan con "no identificándose", "no observándose", "apreciándose", etc.
 
 Texto a procesar:
 "${transcribedText}"`
@@ -524,7 +524,10 @@ Texto a procesar:
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de pulido IA (o fallback):", JSON.stringify(polishedByAI));
     
     let textAfterAIPolishClean = polishedByAI;
-    console.log("DEBUG transcribeAndPolishAudio: ANTES de limpieza de comas duplicadas:", JSON.stringify(textAfterAIPolishClean));
+    console.log("DEBUG transcribeAndPolishAudio: ANTES de limpieza de punto y coma:", JSON.stringify(textAfterAIPolishClean));
+    textAfterAIPolishClean = textAfterAIPolishClean.replace(/;\s+(no\s|sin\s|con\s|y\s)?(identificándose|observándose|apreciándose|objetivándose|destacando|sugiriendo|correspondiendo)/gi,', $1$2');
+    console.log("DEBUG transcribeAndPolishAudio: DESPUÉS de limpieza de punto y coma:", JSON.stringify(textAfterAIPolishClean));
+
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,\s*,/g, ','); 
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,/g, ',');   
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,,+/g, ',');     
@@ -532,8 +535,7 @@ Texto a procesar:
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/\.\s+\./g, '.'); 
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/\s+([,.;:!?])/g, '$1'); 
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/([,.;:!?])([a-zA-Z0-9À-ÿ])/g, '$1 $2'); 
-    console.log("DEBUG transcribeAndPolishAudio: DESPUÉS de limpieza de puntuación duplicada:", JSON.stringify(textAfterAIPolishClean));
-
+    
     let cleanedAgain = cleanupArtifacts(textAfterAIPolishClean); 
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de SEGUNDA limpieza de artefactos:", JSON.stringify(cleanedAgain));
     let capitalizedText = capitalizeSentencesProperly(cleanedAgain);
@@ -548,59 +550,9 @@ Texto a procesar:
 
 async function loadUserVocabularyFromFirestore(userId) { if (!userId || !window.db) { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; return; } console.log(`DEBUG: Cargando vocabulario (estilo index(2).html) para usuario: ${userId}`); const vocabDocRef = window.doc(window.db, "userVocabularies", userId); try { const docSnap = await window.getDoc(vocabDocRef); if (docSnap.exists()) { const firestoreData = docSnap.data(); customVocabulary = firestoreData.rulesMap || {}; learnedCorrections = firestoreData.learnedMap || {}; commonMistakeNormalization = firestoreData.normalizations || {}; console.log("DEBUG: Vocabulario cargado. Reglas:", Object.keys(customVocabulary).length, "Aprendidas:", Object.keys(learnedCorrections).length, "Normaliz.:", Object.keys(commonMistakeNormalization).length); } else { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; console.log("DEBUG: No doc de vocabulario. Usando vacíos."); } } catch (error) { console.error("Error cargando vocabulario:", error); customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; setStatus("Error al cargar personalizaciones.", "error", 3000); } }
 async function saveUserVocabularyToFirestore() { if (!currentUserId || !window.db) { console.error("DEBUG: No hay userId o DB para guardar vocabulario."); return; } const vocabToSaveForLog = JSON.parse(JSON.stringify(customVocabulary)); console.log(`DEBUG: Guardando vocabulario para ${currentUserId}. Contenido de customVocabulary (rulesMap) a guardar:`, vocabToSaveForLog); const vocabDocRef = window.doc(window.db, "userVocabularies", currentUserId); const dataToSave = { rulesMap: customVocabulary, learnedMap: learnedCorrections, normalizations: commonMistakeNormalization }; try { await window.setDoc(vocabDocRef, dataToSave); console.log("DEBUG: Vocabulario del usuario SOBRESCRITO en Firestore con el estado actual de los 3 mapas."); } catch (error) { console.error("Error guardando vocabulario del usuario:", error); setStatus("Error al guardar personalizaciones.", "error", 3000); } }
-function applyAllUserCorrections(text) { 
-    if (!text) return ""; 
-    let processedText = text; 
-    const LEARNED_THRESHOLD = 2; // Umbral para aplicar correcciones aprendidas
-
-    // 1. APLICAR NORMALIZACIONES COMUNES
-    if (Object.keys(commonMistakeNormalization).length > 0) {
-        console.log("DEBUG: Aplicando normalizaciones comunes...");
-        const sortedNormKeys = Object.keys(commonMistakeNormalization).sort((a, b) => b.length - a.length);
-        for (const mistakeKey of sortedNormKeys) {
-            const normalizedForm = commonMistakeNormalization[mistakeKey];
-            try {
-                const regex = new RegExp(`\\b${escapeRegExp(mistakeKey)}\\b`, 'gi');
-                processedText = processedText.replace(regex, normalizedForm);
-            } catch (e) { console.error(`Error regex (norm): "${mistakeKey}"`, e); }
-        }
-    }
-
-    // 2. APLICAR CORRECCIONES APRENDIDAS
-    if (Object.keys(learnedCorrections).length > 0) {
-        console.log("DEBUG: Aplicando correcciones aprendidas...");
-        const sortedLearnedKeys = Object.keys(learnedCorrections).sort((a, b) => b.length - a.length);
-        for (const learnedError of sortedLearnedKeys) {
-            const correctionData = learnedCorrections[learnedError];
-            if (correctionData && correctionData.count >= LEARNED_THRESHOLD) {
-                try {
-                    const regex = new RegExp(`\\b${escapeRegExp(learnedError)}\\b`, 'gi');
-                    // Asumimos que `correctKey` en `learnedMap` es el texto final deseado, no normalizado.
-                    processedText = processedText.replace(regex, correctionData.correctKey);
-                } catch (e) { console.error(`Error regex (learned): "${learnedError}"`, e); }
-            }
-        }
-    }
-
-    // 3. APLICAR VOCABULARIO PERSONALIZADO (rulesMap)
-    if (Object.keys(customVocabulary).length > 0) { 
-        console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); 
-        const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); 
-        for (const errorKey of sortedCustomKeys) { 
-            const correctValue = customVocabulary[errorKey]; 
-            try { 
-                const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); 
-                processedText = processedText.replace(regex, correctValue); 
-            } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } 
-        } 
-    } 
-    return processedText; 
-}
+function applyAllUserCorrections(text) { if (!text) return ""; let processedText = text; const LEARNED_THRESHOLD = 2; if (Object.keys(commonMistakeNormalization).length > 0) { console.log("DEBUG: Aplicando normalizaciones comunes..."); const sortedNormKeys = Object.keys(commonMistakeNormalization).sort((a, b) => b.length - a.length); for (const mistakeKey of sortedNormKeys) { const normalizedForm = commonMistakeNormalization[mistakeKey]; try { const regex = new RegExp(`\\b${escapeRegExp(mistakeKey)}\\b`, 'gi'); processedText = processedText.replace(regex, normalizedForm); } catch (e) { console.error(`Error regex (norm): "${mistakeKey}"`, e); } } } if (Object.keys(learnedCorrections).length > 0) { console.log("DEBUG: Aplicando correcciones aprendidas..."); const sortedLearnedKeys = Object.keys(learnedCorrections).sort((a, b) => b.length - a.length); for (const learnedError of sortedLearnedKeys) { const correctionData = learnedCorrections[learnedError]; if (correctionData && correctionData.count >= LEARNED_THRESHOLD) { try { const regex = new RegExp(`\\b${escapeRegExp(learnedError)}\\b`, 'gi'); processedText = processedText.replace(regex, correctionData.correctKey); } catch (e) { console.error(`Error regex (learned): "${learnedError}"`, e); } } } } if (Object.keys(customVocabulary).length > 0) { console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); for (const errorKey of sortedCustomKeys) { const correctValue = customVocabulary[errorKey]; try { const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); processedText = processedText.replace(regex, correctValue); } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } } } return processedText; }
 function escapeRegExp(string) { return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-function normalizeText(text) {
-    if (!text || typeof text !== 'string') return '';
-    return text.toLowerCase().replace(/[.,:;!?()"'-]/g, '').replace(/\s+/g, ' ').trim();
-}
+function normalizeText(text) { if (!text || typeof text !== 'string') return ''; return text.toLowerCase().replace(/[.,:;!?()"'-]/g, '').replace(/\s+/g, ' ').trim();}
 function openVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) { console.error("Modal de vocabulario no encontrado."); return; } populateVocabManagerList(); vocabManagerModal.style.display = 'flex'; }
 function closeVocabManager() { vocabManagerModal = vocabManagerModal || document.getElementById('vocabManagerModal'); if (!vocabManagerModal) return; vocabManagerModal.style.display = 'none'; }
 function populateVocabManagerList() { vocabManagerList = vocabManagerList || document.getElementById('vocabManagerList'); if (!vocabManagerList) { console.error("Lista del modal de vocabulario no encontrada."); return; } vocabManagerList.innerHTML = ''; const keys = Object.keys(customVocabulary).sort(); if (keys.length === 0) { vocabManagerList.innerHTML = '<li>No hay reglas personalizadas (rulesMap).</li>'; return; } keys.forEach(key => { const value = customVocabulary[key]; const listItem = document.createElement('li'); listItem.innerHTML = `<span class="vocab-key">${key}</span> <span class="vocab-arrow">➔</span> <span class="vocab-value">${value}</span> <div class="vocab-actions"><button class="edit-vocab-btn" data-key="${key}">Editar</button><button class="delete-vocab-btn" data-key="${key}">Borrar</button></div>`; listItem.querySelector('.edit-vocab-btn').addEventListener('click', () => handleEditVocabRule(key)); listItem.querySelector('.delete-vocab-btn').addEventListener('click', () => handleDeleteVocabRule(key)); vocabManagerList.appendChild(listItem); }); }

@@ -465,16 +465,9 @@ function cleanupArtifacts(text) {
 }
 
 function capitalizeSentencesProperly(text) {
-    if (!text || typeof text !== 'string' || text.trim() === "") {
-        return text || ""; 
-    }
+    if (!text || typeof text !== 'string' || text.trim() === "") { return text || ""; }
     let processedText = text.trim(); 
-    processedText = processedText.replace(
-        /([.!?])(\s*)([a-záéíóúüñ])/g, 
-        (match, punctuation, whitespace, letter) => {
-            return punctuation + whitespace + letter.toUpperCase();
-        }
-    );
+    processedText = processedText.replace( /([.!?])(\s*)([a-záéíóúüñ])/g, (match, punctuation, whitespace, letter) => { return punctuation + whitespace + letter.toUpperCase(); });
     return processedText;
 }
 
@@ -500,16 +493,12 @@ async function transcribeAndPolishAudio(base64Audio){
         setStatus('Puliendo...','processing');
         const polishPromptParts = [{
             text:`Por favor, revisa el siguiente texto. Aplica las siguientes modificaciones ÚNICAMENTE:
-1.  Interpreta y reemplaza las siguientes palabras dictadas como signos de puntuación y formato: 'coma' -> ',', 'punto' -> '.', 'punto y aparte' -> '.\\n', 'nueva línea' -> '\\n', 'dos puntos' -> ':', 'punto y coma' -> ';', 'interrogación' -> '?', 'exclamación' -> '!'.
+1.  Interpreta y reemplaza las siguientes palabras dictadas como signos y marcadores: 'coma' -> ',', 'punto' -> '.', 'punto y aparte' -> '. [PARAGRAPH]', 'nueva línea' -> '[NEWLINE]', 'dos puntos' -> ':', 'punto y coma' -> ';', 'interrogación' -> '?', 'exclamación' -> '!'.
 2.  Corrige ÚNICAMENTE errores ortográficos evidentes y objetivos.
 3.  Corrige ÚNICAMENTE errores gramaticales OBJETIVOS Y CLAROS que impidan la comprensión.
-4.  NO CAMBIES la elección de palabras del hablante si son gramaticalmente correctas y comprensibles.
-5.  NO REESTRUCTURES frases si son gramaticalmente correctas.
-6.  PRESERVA el estilo y las expresiones exactas del hablante. NO intentes "mejorar" el texto.
-7.  Al reemplazar palabras clave de puntuación, asegúrate de que no resulten en signos de puntuación duplicados consecutivos (ej. ",,").
-8.  Capitaliza la primera letra de una oración SOLO si sigue a un '.', '?', o '!' dictados explícitamente, o si es el inicio absoluto del texto.
-9.  CRUCIAL: NO AÑADAS NINGÚN SIGNO DE PUNTUACIÓN final a menos que se haya dictado explícitamente.
-10. IMPORTANTE: Para conectar ideas, prefiere usar una COMA (,) en lugar de un punto y coma (;) antes de frases que comienzan con "no identificándose", "no observándose", etc.
+4.  NO CAMBIES la elección de palabras del hablante si son gramaticalmente correctas. PRESERVA el estilo.
+5.  Capitaliza la primera letra de cada oración.
+6.  NO AÑADAS puntuación final a menos que se dicte explícitamente.
 
 Texto a procesar:
 "${transcribedText}"`
@@ -521,16 +510,12 @@ Texto a procesar:
         polishedByAI = transcribedText; 
     }
 
-    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de pulido IA (o fallback):", JSON.stringify(polishedByAI));
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de pulido IA (con marcadores):", JSON.stringify(polishedByAI));
     
-    let textWithRealNewlines = polishedByAI.replace(/\\n/g, '\n');
-    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de reemplazar '\\n' literales:", JSON.stringify(textWithRealNewlines));
-
+    let textWithRealNewlines = polishedByAI.replace(/\[PARAGRAPH\]/g, '\n\n').replace(/\[NEWLINE\]/g, '\n');
+    console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de reemplazar marcadores:", JSON.stringify(textWithRealNewlines));
+    
     let textAfterAIPolishClean = textWithRealNewlines;
-    console.log("DEBUG transcribeAndPolishAudio: ANTES de limpieza de punto y coma:", JSON.stringify(textAfterAIPolishClean));
-    textAfterAIPolishClean = textAfterAIPolishClean.replace(/;\s+(no\s|sin\s|con\s|y\s)?(identificándose|observándose|apreciándose|objetivándose|destacando|sugiriendo|correspondiendo)/gi,', $1$2');
-    console.log("DEBUG transcribeAndPolishAudio: DESPUÉS de limpieza de punto y coma:", JSON.stringify(textAfterAIPolishClean));
-
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,\s*,/g, ','); 
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,\s*,/g, ',');   
     textAfterAIPolishClean = textAfterAIPolishClean.replace(/,,+/g, ',');     
@@ -541,19 +526,16 @@ Texto a procesar:
     
     let cleanedAgain = cleanupArtifacts(textAfterAIPolishClean); 
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de SEGUNDA limpieza de artefactos:", JSON.stringify(cleanedAgain));
+    
     let capitalizedText = capitalizeSentencesProperly(cleanedAgain);
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de capitalización de PUNTUACIÓN:", JSON.stringify(capitalizedText));
+    
     let customCorrectedText = applyAllUserCorrections(capitalizedText);
     console.log("DEBUG transcribeAndPolishAudio: Texto DESPUÉS de correcciones de usuario:", JSON.stringify(customCorrectedText));
     
-    let textWithParagraphs = customCorrectedText.replace(/\.[\n](?!\n)/g, '.\n\n');
-    textWithParagraphs = textWithParagraphs.replace(/([!?])[\n](?!\n)/g, '$1\n\n');
+    let finalText = customCorrectedText.replace(/\n{3,}/g, '\n\n'); 
+    console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual):", JSON.stringify(finalText));
     
-    let finalText = textWithParagraphs.replace(/\s+\n/g, '\n'); 
-    finalText = finalText.replace(/\n{3,}/g, '\n\n'); 
-    
-    finalText = capitalizeSentencesProperly(finalText); 
-    console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual de inserción):", JSON.stringify(finalText));
     return finalText;
 }
 

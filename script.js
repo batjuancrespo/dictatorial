@@ -17,7 +17,7 @@ let isRecording = false;
 let isPaused = false;
 let recordingTimerInterval; 
 let recordingSeconds = 0;  
-const userApiKey = 'AIzaSyASbB99MVIQ7dt3MzjhidgoHUlMXIeWvGc'; // API Key de Gemini
+const userApiKey = 'AIzaSyAD4AOda0D-PbDhwRA3tCInSwBoVz24-8E'; // API Key de Gemini
 
 // --- Variables para el Vocabulario del Usuario (estilo index (2).html) ---
 let currentUserId = null;      

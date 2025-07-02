@@ -585,38 +585,68 @@ function capitalizeSentencesProperly(text) {
 // ==============================================================================
 
 /**
- * VERSIÓN FINAL - MÉTODO SIMPLE Y DIRECTO: Aplica reglas de puntuación.
+ * VERSIÓN FINAL - MÉTODO MIXTO: Combina un parseo explícito con limpieza final.
+ * Este método es robusto y evita los problemas de espaciado de versiones anteriores.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    let processedText = ` ${text} `;
+    // Unificamos frases compuestas a una sola palabra para facilitar el manejo.
+    let processedText = text
+        .replace(/\bpunto y aparte\b/gi, 'puntoaparte')
+        .replace(/\bpunto y seguido\b/gi, 'puntoseguido')
+        .replace(/\bnueva línea\b/gi, 'nuevalinea');
 
-    // --- PASO 1: Reemplazar frases compuestas ---
-    // La regex busca la frase y OPCIONALMENTE una coma/punto y espacios antes.
-    // Al reemplazar todo el conjunto, eliminamos la puntuación redundante.
-    processedText = processedText.replace(/[,.]?\s*\bpunto y aparte\b/gi, '.\n');
-    processedText = processedText.replace(/[,.]?\s*\bpunto y seguido\b/gi, '. ');
-    processedText = processedText.replace(/[,.]?\s*\bnueva línea\b/gi, '\n');
+    const words = processedText.split(/\s+/);
+    const result = [];
 
-    // --- PASO 2: Reemplazar palabras simples ---
-    processedText = processedText.replace(/[,.]?\s*\bpunto\b/gi, '. ');
-    processedText = processedText.replace(/[,.]?\s*\bcoma\b/gi, ', ');
+    for (const word of words) {
+        // Limpiamos la palabra de posible puntuación pegada para la comparación
+        const cleanWord = word.replace(/[.,:;!?]$/, '').toLowerCase();
+
+        switch (cleanWord) {
+            case "puntoaparte":
+                result.push(".\n");
+                break;
+            case "puntoseguido":
+            case "punto":
+                result.push(". ");
+                break;
+            case "coma":
+                result.push(", ");
+                break;
+            case "nuevalinea":
+                result.push("\n");
+                break;
+            case "dospuntos":
+                result.push(": ");
+                break;
+            // Añade más casos si es necesario
+            default:
+                // Si la palabra no es un comando, la añadimos tal cual.
+                result.push(word);
+                break;
+        }
+    }
+
+    // Unimos el resultado y realizamos una limpieza final y exhaustiva.
+    let final_text = result.join(" ");
+
+    // Eliminar la puntuación que la IA haya podido transcribir ANTES de nuestros comandos.
+    // Ej: "palabra, . " se convierte en "palabra. "
+    final_text = final_text.replace(/([,.:;!?])\s*([,.:;!?])/g, '$2');
     
-    // --- PASO 3: Reemplazar el resto ---
-    processedText = processedText.replace(/\bdos puntos\b/gi, ': ');
-    processedText = processedText.replace(/\bpunto y coma\b/gi, '; ');
-    // Puedes añadir más reglas simples aquí
+    // Normalizar espacios alrededor de la puntuación
+    final_text = final_text.replace(/\s+([,.:;!?\n])/g, '$1'); // Quita espacio ANTES
+    final_text = final_text.replace(/([,.:;!?])([a-zA-ZáéíóúüñÁÉÍÓÚÑ])/g, '$1 $2'); // Pone espacio DESPUÉS
+    
+    // Limpieza final de espacios y saltos de línea
+    final_text = final_text.replace(/ {2,}/g, ' ');
+    final_text = final_text.replace(/\n\s+/g, '\n');
 
-    // --- PASO 4: Limpieza final ---
-    // Esta sección limpia cualquier artefacto que las reglas anteriores puedan haber creado.
-    processedText = processedText.replace(/\s*([.,:;!?\n])\s*/g, '$1 '); // Normaliza el espacio alrededor de la puntuación
-    processedText = processedText.replace(/\n\s+/g, '\n'); // Elimina espacios al inicio de una nueva línea
-    processedText = processedText.replace(/ {2,}/g, ' '); // Elimina dobles espacios
-
-    return processedText.trim();
+    return final_text.trim();
 }
 
 

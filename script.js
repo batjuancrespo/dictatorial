@@ -568,8 +568,11 @@ function capitalizeSentencesProperly(text) {
         return text || ""; 
     }
     let processedText = text.trim(); 
+    // Capitalize the very first letter of the entire text
+    processedText = processedText.charAt(0).toUpperCase() + processedText.slice(1);
+    // Capitalize after a sentence-ending punctuation mark followed by whitespace
     processedText = processedText.replace(
-        /([.!?])(\s*)([a-záéíóúüñ])/g, 
+        /([.!?\n])(\s+)([a-záéíóúüñ])/g, 
         (match, punctuation, whitespace, letter) => {
             return punctuation + whitespace + letter.toUpperCase();
         }
@@ -578,66 +581,95 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === REEMPLAZA SOLO ESTA FUNCIÓN EN script.js (VERSIÓN 3.0 - DEFINITIVA) ===
+// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN 4.0) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 3.0 - DEFINITIVA: Aplica reglas de puntuación de forma determinista usando marcadores temporales.
- * Este método es inmune a los problemas de duplicación y orden de las reglas.
+ * VERSIÓN 4.0 - ROBUSTA Y EXPLÍCITA: Aplica reglas de puntuación.
+ * Este método es mucho más literal y fácil de depurar.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    let processedText = text;
+    // Dividimos el texto en palabras para un manejo más granular
+    const words = text.split(/\s+/);
+    const result = [];
+    let i = 0;
 
-    // --- PASO 1: Reemplazar palabras de puntuación por MARCADORES ÚNICOS ---
-    // Usamos marcadores que no aparecerán en el texto normal. Ej: %%PUNTO_APARTE%%
-    processedText = processedText.replace(/\bpunto y aparte\b/gi, '%%PUNTO_APARTE%%');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, '%%PUNTO_SEGUIDO%%');
-    processedText = processedText.replace(/\bpunto\b/gi, '%%PUNTO%%');
-    processedText = processedText.replace(/\bcoma\b/gi, '%%COMA%%');
-    processedText = processedText.replace(/\bnueva línea\b/gi, '%%NUEVA_LINEA%%');
-    processedText = processedText.replace(/\bdos puntos\b/gi, '%%DOS_PUNTOS%%');
-    processedText = processedText.replace(/\bpunto y coma\b/gi, '%%PUNTO_Y_COMA%%');
-    processedText = processedText.replace(/\binterrogación\b/gi, '%%INTERROGACION%%');
-    processedText = processedText.replace(/\bexclamación\b/gi, '%%EXCLAMACION%%');
+    while (i < words.length) {
+        let currentWord = words[i].toLowerCase();
+        let nextWord = (i + 1 < words.length) ? words[i+1].toLowerCase() : "";
+        let nextNextWord = (i + 2 < words.length) ? words[i+2].toLowerCase() : "";
 
-    // --- PASO 2: Eliminar signos de puntuación redundantes que estén junto a los marcadores ---
-    // Ej: ", %%PUNTO_APARTE%%" -> "%%PUNTO_APARTE%%"
-    // Ej: ".%%PUNTO%%" -> "%%PUNTO%%"
-    processedText = processedText.replace(/[.,:;!?]\s*(%%[A-Z_]+%%)/g, '$1');
+        // Detectar "punto y aparte" (3 palabras)
+        if (currentWord.replace(/[.,:;!?]$/, '') === "punto" && nextWord === "y" && nextNextWord.replace(/[.,:;!?]$/, '') === "aparte") {
+            // Elimina la puntuación anterior si existe (ej. una coma)
+            if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
+                let last = result.pop();
+                result.push(last.slice(0, -1));
+            }
+            result.push(".\n");
+            i += 3;
+            continue;
+        }
 
-    // --- PASO 3: Reemplazar los marcadores por los caracteres finales ---
-    processedText = processedText.replace(/%%PUNTO_APARTE%%/g, '.\n');
-    processedText = processedText.replace(/%%PUNTO_SEGUIDO%%/g, '. ');
-    processedText = processedText.replace(/%%PUNTO%%/g, '. ');
-    processedText = processedText.replace(/%%COMA%%/g, ', ');
-    processedText = processedText.replace(/%%NUEVA_LINEA%%/g, '\n');
-    processedText = processedText.replace(/%%DOS_PUNTOS%%/g, ': ');
-    processedText = processedText.replace(/%%PUNTO_Y_COMA%%/g, '; ');
-    processedText = processedText.replace(/%%INTERROGACION%%/g, '? ');
-    processedText = processedText.replace(/%%EXCLAMACION%%/g, '! ');
+        // Detectar "punto y seguido" (3 palabras)
+        if (currentWord.replace(/[.,:;!?]$/, '') === "punto" && nextWord === "y" && nextNextWord.replace(/[.,:;!?]$/, '') === "seguido") {
+            if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
+                let last = result.pop();
+                result.push(last.slice(0, -1));
+            }
+            result.push(". ");
+            i += 3;
+            continue;
+        }
+        
+        // Detectar "nueva línea" (2 palabras)
+        if (currentWord.replace(/[.,:;!?]$/, '') === "nueva" && nextWord.replace(/[.,:;!?]$/, '') === "línea") {
+            result.push("\n");
+            i += 2;
+            continue;
+        }
 
-    // --- PASO 4: Limpieza y Formateo Final (igual que antes) ---
-    // Elimina espacios ANTES de los signos de puntuación.
-    processedText = processedText.replace(/\s+([.,:;!?])/g, '$1');
-    
-    // Elimina espacios en blanco al final de una línea antes de un salto.
-    processedText = processedText.replace(/\s+\n/g, '\n');
+        // Detectar palabras de una sola palabra
+        switch (currentWord.replace(/[.,:;!?]$/, '')) { // Quitamos puntuación para la comparación
+            case "punto":
+                if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
+                    let last = result.pop();
+                    result.push(last.slice(0, -1));
+                }
+                result.push(". ");
+                i++;
+                break;
+            case "coma":
+                 if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
+                    let last = result.pop();
+                    result.push(last.slice(0, -1));
+                }
+                result.push(", ");
+                i++;
+                break;
+            // Añadir más casos de una palabra aquí si es necesario (dos puntos, etc.)
+            default:
+                result.push(words[i] + " ");
+                i++;
+                break;
+        }
+    }
 
-    // Asegura que no haya dobles saltos de línea.
-    processedText = processedText.replace(/\n\s*\n/g, '\n');
-
-    // Elimina dobles espacios en el resto del texto.
-    processedText = processedText.replace(/ +/g, ' ');
+    // Unir todo y limpiar
+    let processedText = result.join('');
+    processedText = processedText.replace(/\s+([.,:;!?\n])/g, '$1'); // Limpiar espacios antes de la puntuación
+    processedText = processedText.replace(/ +/g, ' '); // Limpiar dobles espacios
 
     return processedText.trim();
 }
+
+
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.
- * Ahora usa el modelo gemini-2.0-flash-lite.
  * @param {string} modelName - El nombre del modelo a usar.
  * @param {Array} promptParts - Las partes del prompt.
  * @param {boolean} isTextPrompt - Si es un prompt de solo texto.
@@ -647,13 +679,11 @@ async function callGeminiAPI(modelName, promptParts, isTextPrompt = false) {
     if (!userApiKey) throw new Error('No se encontró la API Key del usuario.');
     
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${userApiKey}`;
-    const temperature = isTextPrompt ? 0.2 : 0.3; // Un poco más de creatividad para el pulido de texto
+    const temperature = isTextPrompt ? 0.2 : 0.3;
 
     const payload = {
         contents: [{ parts: promptParts }],
-        generationConfig: {
-            temperature: temperature,
-        },
+        generationConfig: { temperature: temperature },
     };
 
     console.log(`%c[API Call] Enviando a ${modelName} (Temp: ${temperature})`, 'color: #888;', { prompt: JSON.stringify(promptParts).substring(0, 400) + '...' });
@@ -676,28 +706,19 @@ async function callGeminiAPI(modelName, promptParts, isTextPrompt = false) {
         return data.candidates[0].content.parts[0].text;
     }
     
-    // Manejo de errores más detallado
-    if (data.promptFeedback?.blockReason) {
-        throw new Error(`Prompt bloqueado: ${data.promptFeedback.blockReason}. ${data.promptFeedback.blockReasonMessage || ''}`);
-    }
-    if (data.candidates?.[0]?.finishReason && data.candidates[0].finishReason !== "STOP") {
-        throw new Error(`Generación de Gemini incompleta: ${data.candidates[0].finishReason}.`);
-    }
-    if (data.candidates?.[0]?.finishReason === "STOP" && !data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        return ""; // Respuesta vacía es válida
-    }
-
-    throw new Error('Respuesta de Gemini inesperada o vacía.');
+    if (data.promptFeedback?.blockReason) throw new Error(`Prompt bloqueado: ${data.promptFeedback.blockReason}.`);
+    if (data.candidates?.[0]?.finishReason !== "STOP") throw new Error(`Generación incompleta: ${data.candidates[0].finishReason}.`);
+    
+    return ""; // Respuesta vacía es válida
 }
 
 
 /**
- * VERSIÓN MEJORADA CON LOGS: Proceso completo de transcripción y pulido.
+ * VERSIÓN 4.0 CON FLUJO CORREGIDO: Proceso completo de transcripción y pulido.
  * @param {string} base64Audio - El audio codificado en Base64.
  * @returns {Promise<string>} - El texto final procesado.
  */
 async function transcribeAndPolishAudio(base64Audio) {
-    // Inicia un grupo de logs colapsado en la consola para esta ejecución
     console.groupCollapsed(`[Proceso de Dictado] ${new Date().toLocaleTimeString()}`);
     
     // --- PASO 1: Transcripción Literal ---
@@ -705,70 +726,57 @@ async function transcribeAndPolishAudio(base64Audio) {
     try {
         setStatus('Transcribiendo...', 'processing');
         const transcriptPromptParts = [
-            { text: "Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Transcribe palabras como 'punto', 'coma', 'punto y aparte' como texto, no como signos de puntuación. El objetivo es una transcripción fiel palabra por palabra." },
+            { text: "Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Transcribe palabras como 'punto', 'coma', 'punto y aparte' como texto, no como signos de puntuación. El objetivo es una transcripción fiel palabra por palabra, incluyendo los signos de puntuación que el hablante dicte (ej. si dice una coma, transcribe ',')." },
             { inline_data: { mime_type: "audio/webm", data: base64Audio } }
         ];
         transcribedText = await callGeminiAPI('gemini-2.0-flash-lite', transcriptPromptParts, false);
-        console.log("%c[PASO 1.1] Transcripción literal recibida de la IA:", "font-weight: bold; color: blue;", JSON.stringify(transcribedText));
-        
-        transcribedText = cleanupArtifacts(transcribedText);
-        console.log("%c[PASO 1.2] Transcripción después de limpieza inicial:", "font-weight: bold; color: blue;", JSON.stringify(transcribedText));
-
+        console.log("%c[PASO 1] Transcripción literal recibida:", "font-weight: bold; color: blue;", JSON.stringify(transcribedText));
     } catch (e) {
-        console.error("Error en el paso de transcripción:", e);
-        console.groupEnd(); // Cierra el grupo de logs
+        console.error("Error en la transcripción:", e);
+        console.groupEnd();
         throw new Error(`Fallo en la transcripción: ${e.message}`);
     }
     
-    if (!transcribedText || transcribedText.trim() === "") {
-        console.groupEnd();
-        throw new Error("La transcripción resultó vacía después de la limpieza inicial.");
-    }
-
-    // --- PASO 2: Aplicar Puntuación con Reglas (Determinista) ---
-    let textWithPunctuation = applyPunctuationRules(transcribedText);
-    console.log("%c[PASO 2] Texto después de aplicar reglas de puntuación (JS):", "font-weight: bold; color: green;", JSON.stringify(textWithPunctuation));
-    
-    // --- PASO 3: Pulido por IA (Ortografía y Gramática) ---
+    // --- PASO 2: Pulido de Ortografía y Gramática (IA) ---
     let polishedByAI = '';
     try {
         setStatus('Puliendo...', 'processing');
-        // Nuevo prompt que NO le pide a la IA manejar la puntuación, solo corregir.
         const polishPromptParts = [{
-            text: `Por favor, revisa el siguiente texto. Tu única tarea es corregir errores ortográficos y gramaticales OBJETIVOS Y CLAROS.
-            - NO cambies la elección de palabras del hablante si son correctas.
+            text: `Por favor, revisa el siguiente texto. Tu única tarea es corregir errores ortográficos y gramaticales objetivos.
+            - NO cambies la elección de palabras.
             - NO reestructures frases.
-            - MUY IMPORTANTE: Preserva todos los signos de puntuación existentes (puntos, comas, etc.) y los saltos de línea (\\n) exactamente como están en el texto de entrada. No añadas ni elimines puntuación.
+            - CRUCIAL: Mantén las palabras de puntuación (como "punto", "coma", "punto y aparte") y los signos de puntuación (como ",") EXACTAMENTE como están. No los conviertas ni los elimines.
             
             Texto a procesar:
-            "${textWithPunctuation}"`
+            "${transcribedText}"`
         }];
         
         polishedByAI = await callGeminiAPI('gemini-2.0-flash-lite', polishPromptParts, true);
-        console.log("%c[PASO 3.1] Texto pulido recibido de la IA:", "font-weight: bold; color: purple;", JSON.stringify(polishedByAI));
-        
+        console.log("%c[PASO 2] Texto pulido por IA:", "font-weight: bold; color: purple;", JSON.stringify(polishedByAI));
     } catch (e) {
-        console.error("Error en el paso de pulido por IA:", e);
-        setStatus(`Fallo en pulido IA. Usando texto pre-pulido.`, "error", 4000);
-        polishedByAI = textWithPunctuation; // Si la IA falla, usamos el texto con la puntuación que ya aplicamos
+        console.error("Error en el pulido por IA:", e);
+        setStatus(`Fallo en pulido. Usando transcripción original.`, "error", 4000);
+        polishedByAI = transcribedText;
     }
 
-    // --- PASO 4: Limpiezas Finales ---
-    let finalProcessing = cleanupArtifacts(polishedByAI);
-    console.log("%c[PASO 4.1] Texto después de SEGUNDA limpieza de artefactos:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
+    // --- PASO 3: Aplicar Puntuación con Reglas (Determinista) ---
+    const textWithPunctuation = applyPunctuationRules(polishedByAI);
+    console.log("%c[PASO 3] Texto después de aplicar reglas de puntuación (JS):", "font-weight: bold; color: green;", JSON.stringify(textWithPunctuation));
+
+    // --- PASO 4: Limpiezas y Capitalización Finales ---
+    let finalProcessing = cleanupArtifacts(textWithPunctuation);
+    console.log("%c[PASO 4.1] Después de limpieza de artefactos:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
     
     finalProcessing = capitalizeSentencesProperly(finalProcessing);
-    console.log("%c[PASO 4.2] Texto después de capitalización:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
+    console.log("%c[PASO 4.2] Después de capitalización:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
     
     finalProcessing = applyAllUserCorrections(finalProcessing);
-    console.log("%c[PASO 4.3] Texto después de correcciones de usuario:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
-
-    // Esta línea es un seguro final, aunque con el nuevo flujo debería ser menos necesaria.
-    let finalText = finalProcessing.replace(/\s*\n\s*\n/g, '\n').replace(/\s+\n/g, '\n');
-    console.log("%c[PASO FINAL] Texto listo para insertar:", "font-weight: bold; color: red;", JSON.stringify(finalText));
+    console.log("%c[PASO 4.3] Después de correcciones de usuario:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
     
-    console.groupEnd(); // Cierra el grupo de logs de esta ejecución
-    return finalText;
+    console.log("%c[PASO FINAL] Texto listo para insertar:", "font-weight: bold; color: red;", JSON.stringify(finalProcessing));
+    
+    console.groupEnd();
+    return finalProcessing;
 }
 
 // ==============================================================================

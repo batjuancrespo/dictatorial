@@ -581,57 +581,64 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === REEMPLAZA SOLO ESTA FUNCIÓN (VERSIÓN 7.0 - LIMPIEZA ESPECÍFICA) ===
+// === REEMPLAZA SOLO ESTA FUNCIÓN (VERSIÓN 9.0 - MANUAL Y EXPLÍCITA) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 7.0 - MÉTODO DE LIMPIEZA ESPECÍFICA: Aplica reglas de puntuación.
- * Este método refina la limpieza para evitar borrar puntuación legítima.
+ * VERSIÓN 9.0 - MÉTODO MANUAL Y EXPLÍCITO: Aplica reglas de puntuación.
+ * Abandona las regex complejas en favor de un parseo explícito a prueba de errores.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    let processedText = ` ${text} `;
+    // Reemplazos iniciales para unificar términos.
+    let processedText = text.replace(/\bpunto y aparte\b/gi, 'puntoaparte');
+    processedText = processedText.replace(/\bpunto y seguido\b/gi, 'puntoseguido');
+    processedText = processedText.replace(/\bnueva línea\b/gi, 'nuevalinea');
 
-    // --- PASO 1: Reemplazo simple y directo. ---
-    processedText = processedText.replace(/\bpunto y aparte\b/gi, '.\n');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, '. ');
-    processedText = processedText.replace(/\bpunto\b/gi, '. ');
-    processedText = processedText.replace(/\bcoma\b/gi, ', ');
-    processedText = processedText.replace(/\bnueva línea\b/gi, '\n');
-    processedText = processedText.replace(/\bdos puntos\b/gi, ': ');
-    processedText = processedText.replace(/\bpunto y coma\b/gi, '; ');
-    processedText = processedText.replace(/\binterrogación\b/gi, '? ');
-    processedText = processedText.replace(/\bexclamación\b/gi, '! ');
+    const punctuationMap = {
+        "puntoaparte": ".\n",
+        "puntoseguido": ". ",
+        "punto": ". ",
+        "coma": ", ",
+        "nuevalinea": "\n",
+        "dospuntos": ": ",
+        "puntoycoma": "; "
+        // Añadir más si es necesario
+    };
     
-    // --- PASO 2: Limpieza de patrones incorrectos. ---
-    // Este es el cambio clave. Solo eliminamos un punto si está seguido de otro signo de puntuación final.
-    // Esto previene que "coma punto" se convierta en "coma" en lugar de "coma.".
+    // Crear una expresión regular para dividir el texto por CUALQUIERA de nuestras palabras clave.
+    const splitRegex = new RegExp(`(\\b(?:${Object.keys(punctuationMap).join('|')})\\b)`, 'gi');
     
-    // Reemplaza ",." o ", ." por solo "."
-    processedText = processedText.replace(/,\s*\./g, '.');
-    
-    // Reemplaza ".." o ". ." por solo "."
-    processedText = processedText.replace(/\.\s*\./g, '.');
+    const fragments = processedText.split(splitRegex);
 
-    // --- PASO 3: Formateo final del espaciado. ---
-    // Elimina espacios ANTES de los signos de puntuación.
-    processedText = processedText.replace(/\s+([.,:;!?\n])/g, '$1');
+    let result = "";
+    for (let i = 0; i < fragments.length; i++) {
+        let fragment = fragments[i];
+        
+        if (punctuationMap[fragment.toLowerCase()]) {
+            // Es una palabra de puntuación.
+            
+            // 1. Limpiar el final del resultado anterior (quitar comas, puntos, espacios)
+            result = result.trim().replace(/[.,:;!?]$/, '').trim();
+            
+            // 2. Añadir la puntuación correcta.
+            result += punctuationMap[fragment.toLowerCase()];
+            
+        } else if (fragment.trim() !== "") {
+            // Es un fragmento de texto normal.
+            result += fragment;
+        }
+    }
     
-    // Asegura un espacio DESPUÉS de la puntuación, si no es un salto de línea o el final del texto.
-    processedText = processedText.replace(/([,;!?])([a-zA-ZáéíóúüñÁÉÍÓÚÑ])/g, '$1 $2');
-    
-    // Elimina dobles saltos de línea.
-    processedText = processedText.replace(/\n\s*\n/g, '\n');
+    // Limpieza final de espaciado
+    result = result.replace(/\s+([.,:;!?\n])/g, '$1'); // Espacios antes de puntuación
+    result = result.replace(/ {2,}/g, ' '); // Dobles espacios
 
-    // Elimina dobles espacios.
-    processedText = processedText.replace(/ {2,}/g, ' ');
-
-    return processedText.trim();
+    return result.trim();
 }
-
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.
  * @param {string} modelName - El nombre del modelo a usar.

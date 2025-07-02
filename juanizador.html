@@ -1,377 +1,109 @@
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asistente de Informes Radiológicos</title>
     <style>
-        /* --- CSS Variables --- */
+        /* --- CSS Unificado (Basado en style.css) --- */
         :root {
-            --bg-color: #f4f4f4; --container-bg: #fff; --text-color: #333; --text-muted-color: #555; --heading-color: #333; --border-color: #ccc; --border-light-color: #eee; --border-dashed-color: #ddd; --link-color: #007bff;
-            --button-primary-bg: #007bff; --button-primary-hover-bg: #0056b3; --button-primary-text: white; --button-secondary-bg: #6c757d; --button-secondary-hover-bg: #5a6268; --button-secondary-text: white;
-            --button-success-bg: #28a745; --button-success-hover-bg: #218838; --button-success-text: white; --button-danger-bg: #dc3545; --button-danger-hover-bg: #c82333; --button-danger-text: white; --button-warning-bg: #ffc107; --button-warning-hover-bg: #e0a800; --button-warning-text: #212529;
-            --button-info-bg: #17a2b8; --button-info-hover-bg: #138496; --button-info-text: white; --button-light-gray-bg: #e9e9e9; --button-light-gray-hover-bg: #d8d8d8; --button-light-gray-text: #333;
-            --button-violet-bg: #6f42c1; --button-violet-hover-bg: #5a349b; --button-violet-text: white;
-            --button-suggestion-bg: #f8f8f8; --button-suggestion-hover-bg: #e8e8e8; --button-suggestion-border: #ccc; --button-disabled-bg: #cccccc; --button-disabled-opacity: 0.7;
-            --input-bg: white; --input-border: #ccc; --input-text: #333; --header-area-bg: #f9f9f9; --header-area-border: #eee; --status-listening-color: #777; --status-base-color: #555;
-            --slider-thumb-bg: #007bff; --slider-track-bg: #ddd; --switch-bg: #ccc; --switch-thumb-bg: white; --switch-checked-bg: #007bff;
-            --juanizador-accent-color: var(--button-danger-bg);
-            --juanizador-secondary-color: var(--button-primary-bg);
-            --juanizador-primary-color: var(--heading-color);
-            --juanizador-dark-color: #34495e;
+            --bg-primary: #f4f8fa; --bg-secondary: #ffffff; --text-primary: #2f363d; --text-secondary: #5c6975; --border-color: #d0d7de; --border-light-color: #e9ecef; --accent-color: #007bff; --accent-text-color: #ffffff;
+            --btn-record-bg: #28a745; --btn-record-bg-hover: #218838; --btn-stop-bg: #dc3545; --btn-stop-bg-hover: #c82333; --btn-copy-bg: #fd7e14; --btn-copy-bg-hover: #e66f0d; --btn-copy-text: #ffffff; --btn-success-bg: var(--btn-record-bg); --btn-success-bg-hover: var(--btn-record-bg-hover); --btn-danger-bg: var(--btn-stop-bg); --btn-danger-bg-hover: var(--btn-stop-bg-hover);
+            --input-bg: #ffffff; --input-border: #ced4da; --input-text: #2f363d;
+            --switch-bg: #ccc; --switch-thumb-bg: white; --switch-checked-bg: #007bff;
+            --juanizador-accent-color: var(--btn-danger-bg);
+            --juanizador-secondary-color: var(--accent-color);
+            --juanizador-primary-color: var(--text-primary);
+            --juanizador-dark-color: #0056b3; /* Darker primary for hover */
+            --accent-color-rgb: 0, 123, 255;
         }
 
-        body.dark-mode {
-             --bg-color: #22272e; --container-bg: #2d333b; --text-color: #adbac7; --text-muted-color: #768390; --heading-color: #adbac7; --border-color: #444c56; --border-light-color: #373e47; --border-dashed-color: #444c56; --link-color: #539bf5;
-             --button-primary-bg: #377ef0; --button-primary-hover-bg: #539bf5; --button-secondary-bg: #444c56; --button-secondary-hover-bg: #5d6774; --button-secondary-text: #adbac7;
-             --button-success-bg: #347d39; --button-success-hover-bg: #46954a; --button-danger-bg: #e5534b; --button-danger-hover-bg: #f47067;
-             --button-warning-bg: #d9971a; --button-warning-hover-bg: #f0b72f; --button-warning-text: #22272e; --button-info-bg: #4387d9; --button-info-hover-bg: #539bf5; --button-light-gray-bg: #373e47; --button-light-gray-hover-bg: #444c56; --button-light-gray-text: #adbac7;
-             --button-violet-bg: #8a63d2; --button-violet-hover-bg: #9b7ae0;
-             --button-suggestion-bg: #373e47; --button-suggestion-hover-bg: #444c56; --button-suggestion-border: #5d6774; --button-disabled-bg: #444c56; --input-bg: #22272e; --input-border: #444c56; --input-text: #adbac7;
-             --header-area-bg: #22272e; --header-area-border: #373e47; --status-listening-color: #768390; --status-base-color: #768390;
-             --slider-thumb-bg: #539bf5; --slider-track-bg: #444c56; --switch-bg: #444c56; --switch-thumb-bg: #768390; --switch-checked-bg: #377ef0;
-            --juanizador-accent-color: var(--button-danger-bg);
-            --juanizador-secondary-color: var(--button-primary-bg);
-            --juanizador-primary-color: var(--heading-color);
-            --juanizador-dark-color: #5d6774;
+        body[data-theme="dark"] {
+            --bg-primary: #22272e; --bg-secondary: #2d333b; --text-primary: #adbac7; --text-secondary: #768390; --border-color: #444c56; --border-light-color: #373e47; --accent-color: #539bf5; --accent-text-color: #ffffff;
+            --btn-record-bg: #377ef0; --btn-record-bg-hover: #539bf5; --btn-stop-bg: #e5534b; --btn-stop-bg-hover: #f47067; --btn-copy-bg: #d9971a; --btn-copy-bg-hover: #f0b72f; --btn-copy-text: #22272e; --btn-success-bg: #28a745; --btn-success-bg-hover: #218838; --btn-danger-bg: var(--btn-stop-bg); --btn-danger-bg-hover: var(--btn-stop-bg-hover);
+            --input-bg: #22272e; --input-border: #444c56; --input-text: #adbac7;
+            --switch-bg: #444c56; --switch-thumb-bg: #768390; --switch-checked-bg: #377ef0;
+            --juanizador-accent-color: var(--btn-danger-bg);
+            --juanizador-secondary-color: var(--accent-color);
+            --juanizador-primary-color: var(--text-primary);
+            --juanizador-dark-color: #2188ff; /* Darker primary for hover in dark mode */
+            --accent-color-rgb: 83, 155, 245;
         }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        #app-container-juanizador {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .page-header {
-            background-color: var(--container-bg);
-            color: var(--heading-color);
-            padding: 15px 25px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+        /* --- Estructura General y Contenedores --- */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: var(--bg-primary); color: var(--text-primary); line-height: 1.6; transition: background-color 0.2s ease, color 0.2s ease; }
+        #app-container-juanizador { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .page-header { background-color: var(--bg-secondary); padding: 15px 25px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .page-header h1 { margin: 0; font-size: 1.8em; font-weight: 500; }
+        .header-controls { display: flex; align-items: center; gap: 20px; }
+        .juanizador-section { background-color: var(--bg-secondary); border-radius: 8px; padding: 20px 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .main-content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-title { font-size: 1.5em; color: var(--text-primary); font-weight: 500; margin-top: 0; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-light-color); }
         
-        .page-header h1 {
-            margin: 0;
-            font-size: 1.8em;
-            flex-grow: 1;
-        }
+        /* --- Botones y Controles --- */
+        .buttons-group { display: flex; gap: 12px; margin-bottom: 20px; }
+        .btn { border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 0.95em; font-weight: 500; transition: background-color 0.2s ease, transform 0.1s ease; text-align: center; }
+        .btn:active:not(:disabled) { transform: translateY(1px); }
+        .btn-main { background-color: var(--accent-color); color: var(--accent-text-color); }
+        .btn-main:hover { background-color: var(--btn-record-bg-hover); }
+        .btn-danger { background-color: var(--btn-danger-bg); color: var(--accent-text-color); }
+        .btn-danger:hover { background-color: var(--btn-danger-bg-hover); }
+        .btn-success { background-color: var(--btn-success-bg); color: var(--accent-text-color); }
+        .btn-success:hover { background-color: var(--btn-success-bg-hover); }
+        #backToDictationBtn { flex: 0 1 auto; padding: 8px 15px; font-size: 0.9em; }
+        #microphone-btn { background-color: var(--accent-color); color: var(--accent-text-color); border-radius: 50px; padding: 10px 20px; font-size: 1em; display: inline-flex; align-items: center; gap: 10px; }
+        #microphone-btn.recording { background-color: var(--juanizador-accent-color); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(var(--accent-color-rgb), 0.5); } 70% { box-shadow: 0 0 0 10px rgba(var(--accent-color-rgb), 0); } 100% { box-shadow: 0 0 0 0 rgba(var(--accent-color-rgb), 0); } }
+        
+        /* --- Inputs y Textareas --- */
+        textarea, select { width: 100%; padding: 10px; border: 1px solid var(--input-border); border-radius: 4px; background-color: var(--input-bg); color: var(--input-text); font-size: 1em; box-sizing: border-box; }
+        textarea:focus, select:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb), 0.3); }
+        #transcript { min-height: 150px; resize: vertical; margin-bottom: 20px; }
 
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
+        /* --- Selectores de Técnica --- */
+        .technique-selector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .selector-group { display: flex; flex-direction: column; gap: 8px; }
+        .selector-group label { font-weight: 500; color: var(--text-secondary); font-size: 0.9em; }
+        .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+        .checkbox-group label { display: flex; align-items: center; gap: 8px; font-weight: normal; color: var(--text-primary); cursor: pointer; }
+        .checkbox-group input[type="checkbox"] { margin-right: 5px; accent-color: var(--accent-color); }
 
-        .juanizador-section {
-            background-color: var(--container-bg);
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid var(--border-light-color);
-        }
+        /* --- Contenido Categorizado y Final --- */
+        .category { background-color: var(--bg-primary); border-left: 4px solid var(--accent-color); padding: 15px; margin-bottom: 10px; border-radius: 0 5px 5px 0; }
+        .category h3 { margin-top: 0; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; font-size: 1.1em; }
+        .category ul { padding-left: 20px; margin: 5px 0 0 0; color: var(--text-secondary); }
+        .finding-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; }
+        .finding-text { flex: 1; }
+        .category-reassign { padding: 5px 8px; font-size: 0.85em; min-width: 150px; }
+        #final-report { white-space: pre-wrap; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border: 1px solid var(--border-light-color); min-height: 100px; color: var(--text-primary); }
+        .technique-description { margin-bottom: 20px; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border-left: 4px solid var(--accent-color); }
+        .technique-description h3 { margin-top: 0; margin-bottom: 10px; font-weight: 500; }
+        
+        /* --- Indicadores de Carga --- */
+        .loading { text-align: center; margin: 20px 0; display: none; }
+        .spinner { border: 4px solid var(--border-light-color); width: 36px; height: 36px; border-radius: 50%; border-left-color: var(--accent-color); animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-message { font-style: italic; color: var(--text-secondary); }
 
-        .main-content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .section-title {
-            margin-top: 0;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-light-color);
-            color: var(--juanizador-primary-color);
-            font-size: 1.5em;
-        }
-
-        .voice-input {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #microphone-btn {
-            background-color: var(--juanizador-secondary-color);
-            color: var(--button-primary-text);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 16px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-        }
-
-        #microphone-btn:hover {
-            background-color: var(--juanizador-dark-color);
-        }
-
-        #microphone-btn svg {
-            margin-right: 10px;
-            height: 20px;
-            width: 20px;
-        }
-
-        #microphone-btn.recording {
-            background-color: var(--juanizador-accent-color);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        #transcript, .category-reassign, .selector-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--input-border);
-            border-radius: 5px;
-            background-color: var(--input-bg);
-            color: var(--input-text);
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        #transcript {
-            min-height: 150px;
-            resize: vertical;
-            margin-bottom: 20px;
-        }
-
-        .categorized-content {
-            margin-bottom: 20px;
-        }
-
-        .category {
-            background-color: var(--header-area-bg);
-            border-left: 4px solid var(--juanizador-secondary-color);
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 0 5px 5px 0;
-        }
-
-        .category h3 {
-            margin-top: 0;
-            margin-bottom: 8px;
-            color: var(--heading-color);
-        }
-
-        .category-content {
-            margin-left: 10px;
-            color: var(--text-muted-color);
-        }
-        .category-content ul {
-            padding-left: 20px;
-            margin-top: 5px;
-        }
-
-
-        #final-report {
-            white-space: pre-wrap;
-            background-color: var(--header-area-bg);
-            padding: 15px;
-            border-radius: 5px;
-            border: 1px solid var(--border-color);
-            min-height: 100px;
-            color: var(--text-color);
-        }
-
-        .buttons-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .btn {
-            color: var(--button-primary-text);
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.95em;
-            flex: 1;
-            transition: background-color 0.3s ease;
-            text-align: center;
-            min-width: 100px;
-        }
-        .btn.btn-main { background-color: var(--button-primary-bg); }
-        .btn.btn-main:hover { background-color: var(--button-primary-hover-bg); }
-
-        .btn.btn-danger { background-color: var(--button-danger-bg); color: var(--button-danger-text); }
-        .btn.btn-danger:hover { background-color: var(--button-danger-hover-bg); }
-
-        .btn.btn-success { background-color: var(--button-success-bg); color: var(--button-success-text); }
-        .btn.btn-success:hover { background-color: var(--button-success-hover-bg); }
-
-        #backToDictationBtn {
-            flex: 0 1 auto;
-            padding: 8px 15px;
-            font-size: 0.9em;
-        }
-
-
-        .loading {
-            text-align: center;
-            margin: 20px 0;
-            display: none;
-        }
-
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border-left-color: var(--juanizador-secondary-color);
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .status-message {
-            margin-top: 10px;
-            font-style: italic;
-            color: var(--text-muted-color);
-        }
-
-        .technique-selector-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
-
-        .selector-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .selector-group label {
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: var(--heading-color);
-        }
-
-        .technique-description {
-            margin-bottom: 20px;
-            background-color: var(--header-area-bg);
-            padding: 15px;
-            border-radius: 5px;
-            border-left: 4px solid var(--juanizador-secondary-color);
-        }
-
-        .technique-description h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            color: var(--heading-color);
-        }
-
-        .technique-description p {
-            margin: 0;
-            color: var(--text-color);
-        }
-
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .checkbox-group label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: normal;
-            color: var(--text-color);
-            cursor: pointer;
-        }
-        .checkbox-group input[type="checkbox"] {
-            margin-right: 5px;
-            accent-color: var(--juanizador-secondary-color);
-        }
-
-
-        .finding-item {
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 5px 0;
-        }
-
-        .finding-text {
-            flex: 1;
-            margin-right: 10px;
-        }
-
-        .finding-controls {
-            display: flex;
-            gap: 5px;
-        }
-
-        .category-reassign {
-            padding: 5px 8px;
-            font-size: 0.85em;
-            min-width: 150px;
-        }
-
+        /* --- Theme Switch --- */
         .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; }
-        .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; }
-        .theme-switch input { display: none; }
-        .slider.round { background-color: var(--switch-bg); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; }
-        .slider.round:before { background-color: var(--switch-thumb-bg); bottom: 3px; content: ""; height: 18px; left: 3px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; }
-        input:checked + .slider.round { background-color: var(--switch-checked-bg); }
-        input:checked + .slider.round:before { transform: translateX(24px); }
-        .theme-switch-wrapper span { margin-left: 8px; font-size: 0.9em; color: var(--text-muted-color); }
+        .theme-switch { display: inline-block; height: 22px; position: relative; width: 42px; }
+        .theme-switch input { display:none; }
+        .slider { background-color: var(--switch-bg); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 22px; }
+        .slider:before { background-color: var(--switch-thumb-bg); bottom: 2px; content: ""; height: 18px; left: 2px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--switch-checked-bg); }
+        input:checked + .slider:before { transform: translateX(20px); }
+        .theme-switch-label { margin-left: 8px; font-size: 0.9em; color: var(--text-secondary); }
 
-
-        @media (max-width: 992px) {
-            .main-content-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+        /* --- Responsive --- */
+        @media (max-width: 992px) { .main-content-grid { grid-template-columns: 1fr; } }
         @media (max-width: 768px) {
-            .page-header {
-                flex-direction: column;
-                gap: 10px;
-                align-items: flex-start;
-            }
-            .page-header h1 {
-                text-align: left;
-                 margin-bottom: 10px;
-            }
-            .header-controls {
-                width: 100%;
-                justify-content: space-between;
-            }
-            #backToDictationBtn {
-                 margin-left: 0;
-            }
-            .technique-selector-grid {
-                grid-template-columns: 1fr;
-            }
+            .page-header { flex-direction: column; gap: 15px; align-items: flex-start; }
+            .header-controls { width: 100%; justify-content: space-between; }
         }
     </style>
 </head>
-<body class="light-mode">
+<body data-theme="light">
     <div id="app-container-juanizador">
         <header class="page-header">
             <h1>Asistente de Informes Radiológicos</h1>
@@ -380,9 +112,9 @@
                 <div class="theme-switch-wrapper">
                     <label class="theme-switch" for="themeToggleCheckboxJuanizador">
                         <input type="checkbox" id="themeToggleCheckboxJuanizador">
-                        <span class="slider round"></span>
+                        <span class="slider"></span>
                     </label>
-                    <span id="themeToggleLabelJuanizador">Tema Oscuro</span>
+                    <span id="themeToggleLabelJuanizador" class="theme-switch-label">Tema Oscuro</span>
                 </div>
             </div>
         </header>
@@ -390,7 +122,7 @@
         <div class="juanizador-section technique-selector">
             <div class="technique-selector-grid">
                 <div class="selector-group">
-                    <label for="imaging-technique">Técnica de Imagen:</label>
+                    <label for="imaging-technique">Técnica de Imagen</label>
                     <select id="imaging-technique">
                         <option value="tac">TAC</option>
                         <option value="rm">RM</option>
@@ -399,7 +131,7 @@
                 </div>
                 
                 <div class="selector-group" id="tac-scope-container">
-                    <label for="tac-scope">Alcance del TAC:</label>
+                    <label for="tac-scope">Alcance del TAC</label>
                     <select id="tac-scope">
                         <option value="toracoabdominal">Toracoabdominal</option>
                         <option value="torax">Torácico</option>
@@ -408,7 +140,7 @@
                 </div>
                 
                 <div class="selector-group" id="rm-type-container" style="display: none;">
-                    <label for="rm-type">Tipo de RM:</label>
+                    <label for="rm-type">Tipo de RM</label>
                     <select id="rm-type">
                         <option value="hepatica">RM Hepática</option>
                         <option value="colangio">ColangioRM</option>
@@ -419,7 +151,7 @@
                 </div>
                 
                 <div class="selector-group" id="contrast-container">
-                    <label for="contrast-use">Contraste:</label>
+                    <label for="contrast-use">Contraste</label>
                     <select id="contrast-use">
                         <option value="sin">Sin contraste</option>
                         <option value="con">Con contraste</option>
@@ -427,7 +159,7 @@
                 </div>
                 
                 <div class="selector-group" id="phase-container" style="display: none;">
-                    <label for="contrast-phase">Fase:</label>
+                    <label>Fase</label>
                     <div class="checkbox-group">
                         <label><input type="checkbox" name="phase" value="arterial"> Arterial</label>
                         <label><input type="checkbox" name="phase" value="portal"> Portal</label>
@@ -441,17 +173,14 @@
             <div class="juanizador-section input-section">
                 <h2 class="section-title">Entrada de Hallazgos</h2>
                 
-                <div class="voice-input">
-                    <button id="microphone-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                        Iniciar Dictado
+                <div class="voice-input" style="text-align: center; margin-bottom: 20px;">
+                    <button id="microphone-btn" class="btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                        <span id="mic-text">Iniciar Dictado</span>
                     </button>
                 </div>
                 
-                <textarea id="transcript" placeholder="Los hallazgos dictados aparecerán aquí..."></textarea>
+                <textarea id="transcript" placeholder="Los hallazgos dictados o pegados desde la página anterior aparecerán aquí..."></textarea>
                 
                 <div class="buttons-group">
                     <button id="categorize-btn" class="btn btn-main">Categorizar Hallazgos</button>
@@ -463,9 +192,7 @@
                     <p class="status-message">Categorizando hallazgos...</p>
                 </div>
                 
-                <div class="categorized-content" id="categorized-content">
-                    <!-- Categorías generadas dinámicamente -->
-                </div>
+                <div id="categorized-content"></div>
             </div>
             
             <div class="juanizador-section output-section">
@@ -486,9 +213,7 @@
                     <p id="technique-text"></p>
                 </div>
                 
-                <div id="final-report">
-                    El informe generado aparecerá aquí...
-                </div>
+                <div id="final-report">El informe generado aparecerá aquí...</div>
             </div>
         </div>
     </div>
@@ -496,177 +221,315 @@
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-        // --- Theme Toggle Logic ---
-        const themeToggleCheckboxJuanizador = document.getElementById('themeToggleCheckboxJuanizador');
-        const themeToggleLabelJuanizador = document.getElementById('themeToggleLabelJuanizador');
+        // --- Theme Management ---
+        const themeToggle = document.getElementById('themeToggleCheckboxJuanizador');
+        const themeLabel = document.getElementById('themeToggleLabelJuanizador');
 
-        function applyThemeJuanizador(theme) { // 'theme' será 'light' o 'dark'
-            if (theme === 'dark') {
-                document.body.classList.add('dark-mode');
-                document.body.classList.remove('light-mode');
-            } else {
-                document.body.classList.add('light-mode');
-                document.body.classList.remove('dark-mode');
-            }
-            if (themeToggleCheckboxJuanizador) themeToggleCheckboxJuanizador.checked = theme === 'dark';
-            if (themeToggleLabelJuanizador) themeToggleLabelJuanizador.textContent = theme === 'dark' ? 'Tema Claro' : 'Tema Oscuro';
+        function applyTheme(theme) {
+            document.body.setAttribute('data-theme', theme);
+            if (themeToggle) themeToggle.checked = theme === 'dark';
+            if (themeLabel) themeLabel.textContent = theme === 'dark' ? 'Tema Claro' : 'Tema Oscuro';
         }
 
-        function toggleThemeJuanizador() {
-            const currentTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
-            applyThemeJuanizador(currentTheme);
-            localStorage.setItem('themePreferenceJuanizador', currentTheme); // Guarda preferencia local de esta página
+        function toggleTheme() {
+            const newTheme = themeToggle.checked ? 'dark' : 'light';
+            applyTheme(newTheme);
+            localStorage.setItem('themePreferenceJuanizador', newTheme);
+            localStorage.setItem('sharedThemePreference', newTheme);
         }
 
-        if (themeToggleCheckboxJuanizador) {
-            themeToggleCheckboxJuanizador.addEventListener('change', toggleThemeJuanizador);
-        }
-        // --- End Theme Toggle ---
-
-        /*********************
-         * CONFIG CONSTANTS
-         *********************/
-        const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0'; 
-        const MODEL_NAME = 'gemini-2.0-flash-lite';
+        if (themeToggle) themeToggle.addEventListener('change', toggleTheme);
+        
+        // --- Configuration Constants ---
+        const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0'; // WARNING: Exposed API Key
+        const MODEL_NAME = 'gemini-1.5-flash';
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-        const anatomicalCategories = [
-            { id: 0, name: "Tiroides/glándula tiroidea" }, { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" }, { id: 2, name: "Adenopatías mediastínicas" }, { id: 3, name: "Parénquima pulmonar" }, { id: 4, name: "Derrame pleural y cambios secundarios" }, { id: 5, name: "Hígado, porta y confluente esplenomesentérico venoso" }, { id: 6, name: "Vesícula y vía biliar" }, { id: 7, name: "Páncreas" }, { id: 8, name: "Bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria" }, { id: 9, name: "Cámara gástrica, asas intestinales" }, { id: 10, name: "Líquido libre o adenopatías intra-abdominales" }, { id: 11, name: "Aorta y grandes vasos mesentéricos" }, { id: 12, name: "Esqueleto axial" }, { id: 13, name: "Otros hallazgos" }
-        ];
+        const anatomicalCategories = [ { id: 0, name: "Tiroides/glándula tiroidea" }, { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" }, { id: 2, name: "Adenopatías mediastínicas" }, { id: 3, name: "Parénquima pulmonar" }, { id: 4, name: "Derrame pleural y cambios secundarios" }, { id: 5, name: "Hígado, porta y confluente esplenomesentérico venoso" }, { id: 6, name: "Vesícula y vía biliar" }, { id: 7, name: "Páncreas" }, { id: 8, name: "Bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria" }, { id: 9, name: "Cámara gástrica, asas intestinales" }, { id: 10, name: "Líquido libre o adenopatías intra-abdominales" }, { id: 11, name: "Aorta y grandes vasos mesentéricos" }, { id: 12, name: "Esqueleto axial" }, { id: 13, name: "Otros hallazgos" } ];
+        const categoryPrompts = { 0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'", 1: "Describe SOLO los hallazgos en estructuras mediastínicas vasculares y/o corazón. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'", 2: "Describe SOLO los hallazgos en adenopatías mediastínicas. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se identifican adenopatías mediastínicas de tamaño significativo.'", 3: "Describe SOLO los hallazgos en el parénquima pulmonar. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el parénquima pulmonar no existen imágenes nodulares ni aumentos de densidad sugestivos de afectación patológica.'", 4: "Describe SOLO los hallazgos sobre derrame pleural. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se objetiva derrame pleural.'", 5: "Sigue este esquema para hígado, porta y confluente venoso: 1. Rasgos de hepatopatía crónica (si los hay, usa 'el hígado es de contornos lobulados y parénquima discretamente heterogéneo'; si no, usa 'el hígado es de bordes lisos y densidad homogénea'). 2. Describe lesiones ocupantes de espacio de forma concisa. 3. Describe hallazgos en porta, vena esplénica y mesentérica. Si no hay hallazgos, devuelve EXACTAMENTE: 'El hígado es de bordes lisos y densidad homogénea no identificándose lesiones ocupantes de espacio. Vena porta, esplénica y mesentérica de calibre normal, permeables.'", 6: "Describe SOLO los hallazgos en vesícula y vía biliar. Si no hay hallazgos, devuelve EXACTAMENTE: 'Vesícula biliar normodistendida, de paredes finas, sin evidencia de litiasis en su interior. Vía biliar intra y extrahepática no dilatada.'", 7: "Describe SOLO los hallazgos en el páncreas. Si no hay hallazgos, devuelve EXACTAMENTE: 'Páncreas homogéneo y bien definido sin lesiones focales ni dilatación del ducto pancreático principal.'", 8: "Describe SOLO los hallazgos en bazo, suprarrenales, riñones, vías excretoras y vejiga. Si no hay hallazgos, devuelve EXACTAMENTE: 'Bazo, glándulas suprarrenales y riñones de tamaño, morfología y densidad normales, sin evidencia de lesiones focales. Vías excretoras, uréteres y vejiga urinaria sin alteraciones radiológicas significativas.'", 9: "Describe SOLO los hallazgos en cámara gástrica y asas intestinales. Si no hay hallazgos, devuelve EXACTAMENTE: 'Cámara gástrica moderadamente distendida sin hallazgos relevantes. Asas intestinales de delgado y marco cólico sin engrosamientos parietales ni cambios de calibre significativos.'", 10: "Describe SOLO líquido libre o adenopatías intra-abdominales. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se observa líquido libre ni adenopatías intra-abdominales de aspecto patológico.'", 11: "Describe SOLO hallazgos en aorta y grandes vasos mesentéricos. Si no hay hallazgos, devuelve EXACTAMENTE: 'Aorta y grandes vasos mesentéricos de calibre normal, sin hallazgos significativos.'", 12: "Describe SOLO hallazgos en el esqueleto axial. Si no hay hallazgos, devuelve EXACTAMENTE: 'Esqueleto axial incluido en el estudio sin lesiones focales ni anomalías morfológicas relevantes.'", 13: "Describe SOLO hallazgos que no correspondan a otras categorías. Si no hay hallazgos, devuelve EXACTAMENTE: 'No hay otros hallazgos relevantes que reportar.'" };
 
-        const categoryPrompts = {
-            0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'",
-            1: "Describe SOLO los hallazgos mencionados en estructuras mediastínicas vasculares y/o corazón, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'",
-            2: "Describe SOLO los hallazgos mencionados en adenopatías mediastínicas, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se identifican adenopatías mediastínicas de tamaño significativo.'",
-            3: "Describe SOLO los hallazgos mencionados en el parénquima pulmonar, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el parénquima pulmonar no existen imágenes nodulares ni aumentos de densidad sugestivos de afectación patológica'",
-            4: "Describe SOLO los hallazgos mencionados sobre derrame pleural, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se objetiva derrame pleural.'",
-            5: " A la hora de describir los hallazgos en el hígado, porta y confluente esplenomesentérico venoso me gusta seguir un esquema. En primer lugar hay que hablar si hay rasgos de hepatopatía crónica o no. Si los hay me gusta la frase el hígado es de contornos lobulados y parénquima discretamente heterogéneo en relación con rasgos de hepatopatía crónica. Si no los hay me gusta la frase el hígado es de bordes lisos y densidad homogénea. Una de estas 2 frases ha de estar incluida necesariamente en el informe. A partir de ahí describe si existen lesiones ocupantes de espacio brevemente con las características radiológicas principales de forma concisa teniendo en cuenta si estamos dictando un TAC, una resonancia o una eco ( no más de una frase de las características de cada tipo de lesión) con las caracteristicas que tambien se te aporten en los hallazgos. Describe también cualquier hallazgo relativo a porta, vena esplénica, vena mesentérica y confluente esplenomesentérico venoso, sin añadir interpretaciones o elaboraciones. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Sé conciso y específico. Si no hay hallazgos, devuelve EXACTAMENTE: 'El hígado es de bordes lisos y densidad homogénea no identificándose lesiones ocupantes de espacio. Vena porta, esplénica y mesentérica de calibre normal, permeables.'",
-            6: "Describe SOLO los hallazgos mencionados en vesícula y vía biliar, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Vesícula biliar normodistendida, de paredes finas, sin evidencia de litiasis en su interior. Vía biliar intra y extrahepática no dilatada.'",
-            7: "Describe SOLO los hallazgos mencionados en el páncreas, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Páncreas homogéneo y bien definido sin lesiones focales ni dilatación del ducto pancreático principal.'",
-            8: "Describe SOLO los hallazgos mencionados en bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Bazo, glándulas suprarrenales y riñones de tamaño, morfología y densidad normales, sin evidencia de lesiones focales. Vías excretoras, uréteres y vejiga urinaria sin alteraciones radiológicas significativas.'",
-            9: "Describe SOLO los hallazgos mencionados en cámara gástrica y asas intestinales, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Cámara gástrica moderadamente distendida sin hallazgos relevantes. Asas intestinales de delgado y marco cólico sin engrosamientos parietales ni cambios de calibre significativos.'",
-            10: "Describe SOLO los hallazgos mencionados sobre líquido libre o adenopatías intra-abdominales, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se observa líquido libre ni adenopatías intra-abdominales de aspecto patológico.'",
-            11: "Describe SOLO los hallazgos mencionados en aorta y grandes vasos mesentéricos, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Aorta y grandes vasos mesentéricos de calibre normal, sin hallazgos significativos.'",
-            12: "Describe SOLO los hallazgos mencionados en el esqueleto axial, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Esqueleto axial incluido en el estudio sin lesiones focales ni anomalías morfológicas relevantes.'",
-            13: "Describe SOLO los hallazgos que no corresponden claramente a otras categorías anatómicas. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No hay otros hallazgos relevantes que reportar.'"
-        };
+        // --- State Variables ---
+        let recognition, isRecording = false, categorizedFindings = {};
+        const transcriptArea = document.getElementById('transcript');
+        const thoracicCats = [0, 1, 2, 3, 4], abdominalCats = [5, 6, 7, 8, 9, 10, 11, 12], otherCats = [13];
+        window.availableCategories = [];
 
-        let recognition, isRecording = false, transcriptArea; 
-
+        // --- Speech Recognition ---
         function initSpeechRecognition() {
-            // ... (función idéntica) ...
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                document.getElementById('microphone-btn').disabled = true;
+                document.getElementById('mic-text').textContent = "No Soportado";
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false;
+            recognition.lang = 'es-ES';
+            
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    finalTranscript += event.results[i][0].transcript + ' ';
+                }
+                const start = transcriptArea.selectionStart;
+                const end = transcriptArea.selectionEnd;
+                transcriptArea.value = transcriptArea.value.substring(0, start) + finalTranscript.trim() + ' ' + transcriptArea.value.substring(end);
+                transcriptArea.selectionStart = transcriptArea.selectionEnd = start + finalTranscript.length;
+            };
+
+            recognition.onend = () => { if (isRecording) recognition.start(); }; // Keep listening if active
+            recognition.onerror = (event) => { console.error('Error de reconocimiento de voz:', event.error); isRecording = false; updateMicButton(); };
         }
-        function insertAtCaret(textArea, text) {
-            // ... (función idéntica) ...
-        }
+
         function toggleRecording() {
-            // ... (función idéntica) ...
+            if (!recognition) return;
+            isRecording = !isRecording;
+            if (isRecording) recognition.start();
+            else recognition.stop();
+            updateMicButton();
         }
 
-        let categorizedFindings = {};
+        function updateMicButton() {
+            const micBtn = document.getElementById('microphone-btn');
+            const micText = document.getElementById('mic-text');
+            micBtn.classList.toggle('recording', isRecording);
+            micText.textContent = isRecording ? 'Detener Dictado' : 'Iniciar Dictado';
+        }
+
+        // --- API & Logic ---
         async function queryGeminiAPI(prompt) {
-            // ... (función idéntica) ...
-        }
-        async function categorizeFindings(availableCategories = []) {
-            // ... (función idéntica) ...
-        }
-        async function generateCompleteReport() {
-            // ... (función idéntica) ...
-        }
-        function teachFindingCategorization(finding, categoryId) {
-            // ... (función idéntica) ...
-        }
-        function displayCategorizedFindings() {
-            // ... (función idéntica) ...
+            try {
+                const result = await model.generateContent(prompt);
+                return result.response.text();
+            } catch (error) {
+                console.error('Error al consultar la API:', error);
+                alert("Error de comunicación con la API. Revisa la consola.");
+                return null;
+            }
         }
 
-        const thoracicCategories = [0, 1, 2, 3, 4];
-        const abdominalCategories = [5, 6, 7, 8, 9, 10, 11, 12];
-        const otherCategories = [13];
-
-        function updateAvailableCategories() {
-            // ... (función idéntica) ...
-        }
-        function updateContrastOptions() {
-            // ... (función idéntica) ...
-        }
-        function updateTechniqueDescription() {
-            // ... (función idéntica) ...
-        }
-        
-        /*********************
-         * EVENT LISTENERS
-         *********************/
-        document.addEventListener('DOMContentLoaded', () => {
-            const sharedTheme = localStorage.getItem('sharedThemePreference');
-            if (sharedTheme) {
-                applyThemeJuanizador(sharedTheme);
-                localStorage.setItem('themePreferenceJuanizador', sharedTheme); 
-            } else {
-                const savedTheme = localStorage.getItem('themePreferenceJuanizador') || 'light';
-                applyThemeJuanizador(savedTheme);
+        async function categorizeFindings() {
+            const transcript = transcriptArea.value.trim();
+            if (!transcript) {
+                alert('Por favor, dicte o escriba algún hallazgo primero.');
+                return;
             }
             
-            transcriptArea = document.getElementById('transcript');
+            setLoadingState('categorizing-loading', true);
+            const availableCats = window.availableCategories.includes(13) ? window.availableCategories : [...window.availableCategories, 13];
+            const filteredCategories = anatomicalCategories.filter(cat => availableCats.includes(cat.id));
+            const categoryNames = filteredCategories.map(cat => `${cat.id}. ${cat.name}`).join('\n');
+            const learningDict = JSON.parse(localStorage.getItem('findingsLearningDictionary')) || {};
+
+            const prompt = `Eres un radiólogo experto. Categoriza los siguientes hallazgos en las categorías disponibles.
+            Categorías Disponibles:\n${categoryNames}
+            Hallazgos a Categorizar:\n"${transcript}"
+            ${Object.keys(learningDict).length > 0 ? `Usa estos ejemplos de categorizaciones previas como guía:\n${Object.entries(learningDict).map(([f, c]) => `"${f}" => Categoría ${c}`).join('\n')}` : ''}
+            Devuelve un objeto JSON con claves de ID de categoría y valores como array de hallazgos. Incluye solo categorías con hallazgos. Devuelve SOLO el objeto JSON.`;
+            
+            try {
+                const response = await queryGeminiAPI(prompt);
+                if (!response) throw new Error('No se recibió respuesta de la API.');
+                
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('Respuesta no contiene un JSON válido.');
+
+                categorizedFindings = JSON.parse(jsonMatch[0]);
+                displayCategorizedFindings();
+            } catch (error) {
+                console.error('Error al categorizar:', error);
+                alert('Hubo un error al categorizar los hallazgos. Inténtelo de nuevo.');
+            } finally {
+                setLoadingState('categorizing-loading', false);
+            }
+        }
+
+        async function generateCompleteReport() {
+            if (Object.keys(categorizedFindings).length === 0) {
+                alert('Primero debe categorizar los hallazgos.');
+                return;
+            }
+            setLoadingState('report-loading', true);
+            document.getElementById('final-report').textContent = 'Generando informe...';
+            
+            let fullReport = '';
+            for (const category of anatomicalCategories.filter(c => window.availableCategories.includes(c.id))) {
+                const findings = categorizedFindings[category.id.toString()] || [];
+                const prompt = `${categoryPrompts[category.id]}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, sin mencionar la técnica de imagen.`;
+                const sectionReport = await queryGeminiAPI(prompt);
+                if (sectionReport) fullReport += `${sectionReport.trim()}\n`;
+            }
+            
+            const allFindings = Object.values(categorizedFindings).flat();
+            const conclusionPrompt = `Basado en estos hallazgos:\n${allFindings.join('. ')}\nGenera una conclusión concisa (máx. 2-3 líneas) con los 2-3 hallazgos más relevantes. Para el resto, usa "Ver informe descriptivo". No menciones la técnica. Si no hay hallazgos, devuelve: "No se observan alteraciones radiológicas significativas."`;
+            const conclusion = await queryGeminiAPI(conclusionPrompt);
+            if (conclusion) fullReport += `\n${conclusion.trim()}`;
+            
+            document.getElementById('final-report').textContent = fullReport;
+            setLoadingState('report-loading', false);
+        }
+
+        function teachFindingCategorization(finding, categoryId) {
+            let learningDict = JSON.parse(localStorage.getItem('findingsLearningDictionary')) || {};
+            learningDict[finding] = categoryId;
+            localStorage.setItem('findingsLearningDictionary', JSON.stringify(learningDict));
+            alert(`Aprendido: "${finding}" se asignará a "${anatomicalCategories.find(c => c.id == categoryId).name}".`);
+        }
+
+        // --- UI Functions ---
+        function setLoadingState(elementId, isLoading) { document.getElementById(elementId).style.display = isLoading ? 'block' : 'none'; }
+        function displayCategorizedFindings() {
+            const container = document.getElementById('categorized-content');
+            container.innerHTML = '';
+            if (Object.keys(categorizedFindings).length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No hay hallazgos categorizados.</p>';
+                return;
+            }
+            for (const catId in categorizedFindings) {
+                const category = anatomicalCategories.find(c => c.id == catId);
+                if (category && categorizedFindings[catId].length > 0) {
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'category';
+                    const findingsList = categorizedFindings[catId].map(finding => {
+                        if (parseInt(catId) === 13) {
+                            return `<li class="finding-item"><span class="finding-text">${finding}</span><select class="category-reassign" data-finding="${finding}"><option value="">Reasignar a...</option>${anatomicalCategories.filter(c=>c.id!==13).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></li>`;
+                        }
+                        return `<li>${finding}</li>`;
+                    }).join('');
+                    categoryDiv.innerHTML = `<h3>${category.name}</h3><ul>${findingsList}</ul>`;
+                    container.appendChild(categoryDiv);
+                }
+            }
+            container.querySelectorAll('.category-reassign').forEach(select => select.addEventListener('change', handleReassign));
+        }
+
+        function handleReassign(e) {
+            const finding = e.target.dataset.finding;
+            const newCatId = e.target.value;
+            if (newCatId) {
+                teachFindingCategorization(finding, newCatId);
+                categorizedFindings[newCatId] = [...(categorizedFindings[newCatId] || []), finding];
+                categorizedFindings[13] = categorizedFindings[13].filter(f => f !== finding);
+                if (categorizedFindings[13].length === 0) delete categorizedFindings[13];
+                displayCategorizedFindings();
+            }
+        }
+
+        function updateAvailableCategories() {
+            const tech = document.getElementById('imaging-technique').value;
+            const scope = document.getElementById('tac-scope').value;
+            const rmContainer = document.getElementById('rm-type-container');
+            const tacContainer = document.getElementById('tac-scope-container');
+            const contrastContainer = document.getElementById('contrast-container');
+            
+            tacContainer.style.display = tech === 'tac' ? 'flex' : 'none';
+            rmContainer.style.display = tech === 'rm' ? 'flex' : 'none';
+            contrastContainer.style.display = tech === 'tac' || tech === 'rm' ? 'flex' : 'none';
+            
+            if (tech === 'tac') {
+                if (scope === 'toracoabdominal') window.availableCategories = [...thoracicCats, ...abdominalCats, ...otherCats];
+                else if (scope === 'torax') window.availableCategories = [...thoracicCats, ...otherCats];
+                else window.availableCategories = [...abdominalCats, ...otherCats];
+            } else { // RM and Eco default to abdominal
+                window.availableCategories = [...abdominalCats, ...otherCats];
+            }
+            
+            categorizedFindings = {};
+            document.getElementById('categorized-content').innerHTML = '';
+            updateTechniqueDescription();
+        }
+
+        function updateContrastOptions() {
+            const tech = document.getElementById('imaging-technique').value;
+            const contrast = document.getElementById('contrast-use').value;
+            const phaseContainer = document.getElementById('phase-container');
+            phaseContainer.style.display = (tech === 'tac' && contrast === 'con') ? 'flex' : 'none';
+            if (phaseContainer.style.display === 'none') {
+                document.querySelectorAll('input[name="phase"]').forEach(cb => cb.checked = false);
+            }
+            updateTechniqueDescription();
+        }
+
+        function updateTechniqueDescription() {
+            const techSelect = document.getElementById('imaging-technique');
+            const techniqueTextEl = document.getElementById('technique-text');
+            const techniqueDescContainer = document.getElementById('technique-description');
+            
+            if (techSelect.value === 'eco') {
+                techniqueDescContainer.style.display = 'none';
+                return;
+            }
+            techniqueDescContainer.style.display = 'block';
+
+            let description = "";
+            if (techSelect.value === 'tac') {
+                const scope = document.getElementById('tac-scope').options[document.getElementById('tac-scope').selectedIndex].text;
+                const contrast = document.getElementById('contrast-use').value === 'con';
+                description = `Se realiza exploración ${scope} ${contrast ? 'tras la' : 'sin'} administración endovenosa de contraste`;
+                if (contrast) {
+                    const phases = Array.from(document.querySelectorAll('input[name="phase"]:checked')).map(cb => cb.value);
+                    if (phases.length > 0) description += ` con adquisición de imágenes en fase ${phases.join(' y ')}`;
+                }
+            } else { // RM
+                const rmType = document.getElementById('rm-type').value;
+                const contrast = document.getElementById('contrast-use').value === 'con';
+                const contrastText = contrast ? ' y estudio dinámico tras la administración endovenosa de contraste' : '';
+                const rmPrompts = {
+                    hepatica: `Se realiza exploración abdominal con secuencias potenciadas en T1 en fase y fuera de fase, T2 sin y con saturación grasa, difusión${contrastText}.`,
+                    colangio: `Se realiza exploración abdominal con secuencias potenciadas en T1, T2 y colangiopancreatografía por RM (CPRM).`,
+                    'pelvis-neo': `Se realiza exploración pélvica con secuencias T2 en los tres planos, difusión${contrastText}.`,
+                    'pelvis-fist': `Se realiza exploración pélvica con secuencias T2 sin y con saturación grasa y secuencias T1 tras contraste.`,
+                    entero: `Se realiza exploración de asas de intestino delgado con secuencias T2 y difusión ${contrastText} previa distensión de asas.`
+                };
+                description = rmPrompts[rmType] || "Descripción de RM no definida.";
+            }
+            techniqueTextEl.textContent = description.trim() + '.';
+        }
+
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Theme setup
+            const sharedTheme = localStorage.getItem('sharedThemePreference');
+            const localTheme = localStorage.getItem('themePreferenceJuanizador');
+            applyTheme(sharedTheme || localTheme || 'light');
+            
+            // Data from main page
             const inputTextFromIndex = localStorage.getItem('juanizadorInputText');
             if (inputTextFromIndex) {
                 transcriptArea.value = inputTextFromIndex;
                 localStorage.removeItem('juanizadorInputText'); 
             }
-            
-            const backToDictationBtn = document.getElementById('backToDictationBtn');
-            if (backToDictationBtn) { 
-                backToDictationBtn.addEventListener('click', () => {
-                    const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-                    localStorage.setItem('sharedThemePreference', currentTheme);
-                    window.location.href = 'index.html';
-                });
-            }
-            
-            // El resto de los listeners permanecen aquí...
-            const microphoneBtn = document.getElementById('microphone-btn');
-            const categorizeBtn = document.getElementById('categorize-btn');
-            const clearBtn = document.getElementById('clear-btn');
-            const generateReportBtn = document.getElementById('generate-report-btn');
-            const copyReportBtn = document.getElementById('copy-report-btn');
-            const imagingTechniqueSelect = document.getElementById('imaging-technique');
-            const tacScopeSelect = document.getElementById('tac-scope');
-            const rmTypeSelect = document.getElementById('rm-type');
-            const contrastUseSelect = document.getElementById('contrast-use');
-            
-            initSpeechRecognition();
-            updateAvailableCategories();
-            
-            imagingTechniqueSelect.addEventListener('change', updateAvailableCategories);
-            tacScopeSelect.addEventListener('change', updateAvailableCategories);
-            rmTypeSelect.addEventListener('change', updateTechniqueDescription);
-            contrastUseSelect.addEventListener('change', updateContrastOptions);
+
+            // Event Listeners
+            document.getElementById('backToDictationBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+            document.getElementById('microphone-btn').addEventListener('click', toggleRecording);
+            document.getElementById('categorize-btn').addEventListener('click', categorizeFindings);
+            document.getElementById('clear-btn').addEventListener('click', () => {
+                transcriptArea.value = '';
+                categorizedFindings = {};
+                document.getElementById('categorized-content').innerHTML = '';
+                document.getElementById('final-report').textContent = 'El informe generado aparecerá aquí...';
+            });
+            document.getElementById('generate-report-btn').addEventListener('click', generateCompleteReport);
+            document.getElementById('copy-report-btn').addEventListener('click', () => {
+                const techniqueContainer = document.getElementById('technique-description');
+                const techniqueText = techniqueContainer.style.display !== 'none' ? document.getElementById('technique-text').textContent : '';
+                const reportText = document.getElementById('final-report').textContent;
+                const fullText = (techniqueText ? techniqueText + "\n\n" : "") + reportText;
+                navigator.clipboard.writeText(fullText).then(() => alert('Informe completo copiado al portapapeles.'), () => alert('Error al copiar.'));
+            });
+
+            ['imaging-technique', 'tac-scope'].forEach(id => document.getElementById(id).addEventListener('change', updateAvailableCategories));
+            ['rm-type', 'contrast-use'].forEach(id => document.getElementById(id).addEventListener('change', updateContrastOptions));
             document.querySelectorAll('input[name="phase"]').forEach(cb => cb.addEventListener('change', updateTechniqueDescription));
             
-            microphoneBtn.addEventListener('click', toggleRecording);
-            categorizeBtn.addEventListener('click', () => categorizeFindings(window.availableCategories));
-            
-            clearBtn.addEventListener('click', () => {
-                transcriptArea.value = '';
-                document.getElementById('categorized-content').innerHTML = '';
-                categorizedFindings = {};
-            });
-            
-            generateReportBtn.addEventListener('click', generateCompleteReport);
-            
-            copyReportBtn.addEventListener('click', () => {
-                const techniqueDescText = document.getElementById('technique-description').textContent;
-                const reportText = document.getElementById('final-report').textContent;
-                let fullText = "";
-                if (techniqueDescText.trim()) {
-                    fullText += techniqueDescText + "\n\n";
-                }
-                fullText += reportText;
-                navigator.clipboard.writeText(fullText)
-                    .then(() => alert('Informe copiado al portapapeles'))
-                    .catch(err => console.error('Error al copiar: ', err));
-            });
+            // Initial state
+            initSpeechRecognition();
+            updateAvailableCategories();
         });
     </script>
 </body>

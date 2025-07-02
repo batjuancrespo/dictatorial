@@ -22,14 +22,15 @@ body[data-theme="dark"] {
     --btn-pause-bg: #d9971a; --btn-pause-bg-hover: #f0b72f; --btn-pause-text: #22272e; 
     --btn-stop-bg: #e5534b; --btn-stop-bg-hover: #f47067;
     --btn-retry-bg: #4387d9; --btn-retry-bg-hover: #539bf5;
-    --btn-copy-bg: #ffc107; --btn-copy-bg-hover: #e0a800; --btn-copy-text: #22272e; 
+    --btn-copy-bg: #d9971a; --btn-copy-bg-hover: #f0b72f; --btn-copy-text: #22272e; /* Cambiado a un amarillo más oscuro para diferenciar */
+    --btn-copy-synced-bg: #28a745; --btn-copy-synced-bg-hover: #218838; /* Color verde cuando está sincronizado */
     --btn-correct-bg: #28a745; --btn-correct-bg-hover: #218838;
     --btn-blue-bg: #377ef0; /* Definición para .btn-blue */
     --btn-blue-bg-hover: #539bf5;
     --btn-reset-bg: #8957e5; --btn-reset-bg-hover: #9b72f5; 
     --btn-technique-red-bg: #e5534b; --btn-technique-red-hover: #f47067;
     --btn-technique-yellow-bg: #d9971a; --btn-technique-yellow-hover: #f0b72f; --btn-technique-yellow-text: #22272e;
-    --btn-technique-blue-bg: #377ef0; /* Este es para los de técnica, puede ser el mismo que btn-blue-bg o diferente */
+    --btn-technique-blue-bg: #377ef0;
     --btn-technique-blue-hover: #539bf5;
     --btn-technique-gray-bg: #444c56; --btn-technique-gray-hover: #5d6774;
     --btn-technique-text: var(--accent-text-color); 
@@ -64,8 +65,8 @@ body[data-theme="light"] {
     --btn-pause-bg: #ffc107; --btn-pause-bg-hover: #e0a800; --btn-pause-text: #212529; 
     --btn-stop-bg: #dc3545; --btn-stop-bg-hover: #c82333;
     --btn-retry-bg: #17a2b8; --btn-retry-bg-hover: #138496;
-    --btn-copy-bg: #fd7e14;   
-    --btn-copy-bg-hover: #e66f0d; --btn-copy-text: #ffffff;
+    --btn-copy-bg: #fd7e14; --btn-copy-bg-hover: #e66f0d; --btn-copy-text: #ffffff;
+    --btn-copy-synced-bg: #28a745; --btn-copy-synced-bg-hover: #218838; /* Color verde cuando está sincronizado */
     --btn-correct-bg: #28a745; --btn-correct-bg-hover: #218838;
     --btn-blue-bg: #007bff; /* Definición para .btn-blue */
     --btn-blue-bg-hover: #0056b3;
@@ -93,7 +94,6 @@ body[data-theme="light"] {
     --modal-overlay-bg: rgba(0,0,0,0.6); --modal-content-bg: var(--bg-secondary);
 }
 
-/* ... (Resto de los estilos generales del body, auth, layout, container, title-frame, h1-h3, etc. SIN CAMBIOS) ... */
 body { font-family: var(--font-primary); line-height: var(--line-height-base); margin: 0; padding: 20px; background-color: var(--bg-primary); color: var(--text-primary); display: flex; justify-content: center; transition: background-color var(--transition-fast), color var(--transition-fast); box-sizing: border-box; }
 #auth-container { width: 100%; max-width: 450px; margin-top: 50px; }
 .auth-form-wrapper { background-color: var(--auth-form-bg); padding: 30px 40px; border-radius: var(--border-radius-medium); border: 1px solid var(--border-color); box-shadow: var(--shadow-soft); }
@@ -147,9 +147,11 @@ button:active:not(:disabled) { transform: translateY(1px);  }
 .btn-retry:hover:not(:disabled) { background-color: var(--btn-retry-bg-hover); }
 .btn-copy { background-color: var(--btn-copy-bg); color: var(--btn-copy-text); }
 .btn-copy:hover:not(:disabled) { background-color: var(--btn-copy-bg-hover); }
-.btn-correct { background-color: var(--btn-correct-bg); color: var(--accent-text-color); } /* Estilo para el botón Corregir */
+.btn-copy.synced { background-color: var(--btn-copy-synced-bg); color: var(--accent-text-color); }
+.btn-copy.synced:hover:not(:disabled) { background-color: var(--btn-copy-synced-bg-hover); }
+.btn-correct { background-color: var(--btn-correct-bg); color: var(--accent-text-color); }
 .btn-correct:hover:not(:disabled) { background-color: var(--btn-correct-bg-hover); }
-.btn-blue { background-color: var(--btn-blue-bg); color: var(--accent-text-color); } /* Estilo general para botones azules */
+.btn-blue { background-color: var(--btn-blue-bg); color: var(--accent-text-color); }
 .btn-blue:hover:not(:disabled) { background-color: var(--btn-blue-bg-hover); }
 .btn-reset { background-color: var(--btn-reset-bg); }
 .btn-reset:hover:not(:disabled) { background-color: var(--btn-reset-bg-hover); }

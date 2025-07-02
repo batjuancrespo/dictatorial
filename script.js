@@ -21,9 +21,9 @@ const userApiKey = 'AIzaSyASbB99MVIQ7dt3MzjhidgoHUlMXIeWvGc'; // API Key de Gemi
 
 // --- Variables para el Vocabulario del Usuario (estilo index (2).html) ---
 let currentUserId = null;      
-let customVocabulary = {};      // Corresponderá a rulesMap
-let learnedCorrections = {};    // Corresponderá a learnedMap 
-let commonMistakeNormalization = {}; // Corresponderá a normalizations
+let customVocabulary = {};
+let learnedCorrections = {};
+let commonMistakeNormalization = {};
 
 // --- Variables para Debounce y Dictado por Selección/Inserción ---
 let isProcessingClick = false; 
@@ -107,6 +107,7 @@ document.addEventListener('firebaseReady', () => {
 });
 
 function initializeAuthAndApp() {
+    // ... (Esta función entera permanece sin cambios)
     console.log("DEBUG: initializeAuthAndApp - INICIO de la función.");
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
@@ -226,14 +227,8 @@ function initializeAuthAndApp() {
 function initializeDictationAppLogic(userId) {
     console.log(`DEBUG: initializeDictationAppLogic para usuario: ${userId} - Asignando listeners.`);
     
-    function debounce(func, delay) {
-        let timeout;
-        return function(...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
-        };
-    }
-
+    // El 'debounce' ya no es necesario para el copiado
+    
     if (!startRecordBtn.dataset.listenerAttached) { 
         startRecordBtn.addEventListener('click', () => {
             if (isProcessingClick) { console.warn("DEBUG: startRecordBtn - Clic ignorado (debouncing)"); return; }
@@ -266,31 +261,47 @@ function initializeDictationAppLogic(userId) {
             if (confirm('¿Estás seguro de que quieres borrar TODO el informe y la técnica? Esta acción no se puede deshacer.')) {
                 headerArea.value = '';
                 polishedTextarea.value = '';
+                copyFullReportToClipboard(false); // Sincroniza el portapapeles vacío
                 setStatus('Informe reseteado.', 'success', 2000);
-                headerArea.dispatchEvent(new Event('input', { bubbles: true }));
             }
         });
         resetReportBtn.dataset.listenerAttached = 'true';
     }
     if (correctTextSelectionBtn && !correctTextSelectionBtn.dataset.listenerAttached) { correctTextSelectionBtn.addEventListener('click', handleCorrectTextSelection); correctTextSelectionBtn.dataset.listenerAttached = 'true';}
-    if (techniqueButtonsContainer && !techniqueButtonsContainer.dataset.listenerAttached) { techniqueButtonsContainer.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON' && e.target.dataset.techniqueText) { headerArea.value = e.target.dataset.techniqueText; headerArea.focus(); }}); techniqueButtonsContainer.dataset.listenerAttached = 'true';}
-    if (clearHeaderButton && !clearHeaderButton.dataset.listenerAttached) { clearHeaderButton.addEventListener('click', () => { headerArea.value = ""; headerArea.focus(); }); clearHeaderButton.dataset.listenerAttached = 'true';}
+    if (techniqueButtonsContainer && !techniqueButtonsContainer.dataset.listenerAttached) { 
+        techniqueButtonsContainer.addEventListener('click', (e) => { 
+            if (e.target.tagName === 'BUTTON' && e.target.dataset.techniqueText) { 
+                headerArea.value = e.target.dataset.techniqueText; 
+                headerArea.focus(); 
+                updateCopyButtonState(false); // Desincroniza el botón
+            }
+        }); 
+        techniqueButtonsContainer.dataset.listenerAttached = 'true';
+    }
+    if (clearHeaderButton && !clearHeaderButton.dataset.listenerAttached) { 
+        clearHeaderButton.addEventListener('click', () => { 
+            headerArea.value = ""; 
+            headerArea.focus();
+            updateCopyButtonState(false); // Desincroniza el botón
+        }); 
+        clearHeaderButton.dataset.listenerAttached = 'true';
+    }
+
+    // NUEVO: Listeners en los textareas para desincronizar el botón
+    if (headerArea && !headerArea.dataset.syncListener) {
+        headerArea.addEventListener('input', () => updateCopyButtonState(false));
+        headerArea.dataset.syncListener = 'true';
+    }
+    if (polishedTextarea && !polishedTextarea.dataset.syncListener) {
+        polishedTextarea.addEventListener('input', () => updateCopyButtonState(false));
+        polishedTextarea.dataset.syncListener = 'true';
+    }
+    
     if (manageVocabButton && !manageVocabButton.dataset.listenerAttached) { manageVocabButton.addEventListener('click', openVocabManager); manageVocabButton.dataset.listenerAttached = 'true'; manageVocabButton.disabled = false; }
     if (modalCloseButtonVocab && !modalCloseButtonVocab.dataset.listenerAttached) { modalCloseButtonVocab.addEventListener('click', closeVocabManager); modalCloseButtonVocab.dataset.listenerAttached = 'true'; }
     if (modalAddNewRuleButtonVocab && !modalAddNewRuleButtonVocab.dataset.listenerAttached) { modalAddNewRuleButtonVocab.addEventListener('click', handleAddNewVocabRule); modalAddNewRuleButtonVocab.dataset.listenerAttached = 'true'; }
     if (vocabManagerModal && !vocabManagerModal.dataset.listenerAttached) { vocabManagerModal.addEventListener('click', (e) => { if (e.target === vocabManagerModal) closeVocabManager(); }); vocabManagerModal.dataset.listenerAttached = 'true'; }
     
-    const debouncedAutoCopy = debounce(() => copyFullReportToClipboard(false), 500);
-
-    if (headerArea && !headerArea.dataset.autoCopyListener) {
-        headerArea.addEventListener('input', debouncedAutoCopy);
-        headerArea.dataset.autoCopyListener = 'true';
-    }
-    if (polishedTextarea && !polishedTextarea.dataset.autoCopyListener) {
-        polishedTextarea.addEventListener('input', debouncedAutoCopy);
-        polishedTextarea.dataset.autoCopyListener = 'true';
-    }
-
     if (!document.body.dataset.keydownListenerAttached) { 
         document.addEventListener('keydown', function(event) {
             if (event.shiftKey && (event.metaKey || event.ctrlKey) && event.key === 'Shift') {
@@ -314,7 +325,83 @@ function initializeDictationAppLogic(userId) {
     }
     
     updateButtonStates("initial"); 
+    updateCopyButtonState(true); // Al iniciar, asumimos que está sincronizado (con nada)
 } 
+
+function updateCopyButtonState(isSynced) {
+    if (!copyPolishedTextBtn) return;
+    if (isSynced) {
+        copyPolishedTextBtn.classList.add('synced');
+        copyPolishedTextBtn.textContent = '✓ Copiado';
+        copyPolishedTextBtn.title = 'El contenido está en el portapapeles.';
+    } else {
+        copyPolishedTextBtn.classList.remove('synced');
+        copyPolishedTextBtn.textContent = 'Copiar Todo';
+        copyPolishedTextBtn.title = 'Copiar texto completo';
+    }
+}
+
+async function copyFullReportToClipboard(showStatus = false) {
+    if (!headerArea || !polishedTextarea) return;
+
+    const h = headerArea.value.trim();
+    const r = polishedTextarea.value.trim();
+    let textToCopy = "";
+
+    if (h) {
+        textToCopy += h;
+    }
+    if (r) {
+        if (textToCopy) {
+            textToCopy += "\n\n";
+        }
+        textToCopy += r;
+    }
+
+    try {
+        await navigator.clipboard.writeText(textToCopy);
+        updateCopyButtonState(true); // Sincronizado!
+        if (showStatus) {
+            setStatus("¡Texto copiado!", "success", 2000);
+        }
+    } catch (e) {
+        console.error('Error al copiar el texto:', e);
+        updateCopyButtonState(false); // Hubo un error, no está sincronizado
+        if (showStatus) {
+            setStatus("Error al copiar el texto.", "error", 3000);
+        }
+    }
+}
+
+async function processAudioBlobAndInsertText(audioBlob) {
+    // ...
+    // DENTRO DEL TRY/CATCH, AL FINAL (ANTES DE CERRAR EL TRY)
+    try {
+        // ... toda la lógica existente de processAudioBlobAndInsertText ...
+        
+        // Al final, justo antes de "updateButtonStates"
+        updateCopyButtonState(false); // Desincroniza el botón porque el texto ha cambiado
+        updateButtonStates("success_processing");
+
+    } catch (error) {
+        // ... toda la lógica del catch ...
+    } finally {
+        isDictatingForReplacement = false; 
+    }
+}
+
+async function handleCorrectTextSelection() {
+    // ...
+    // Al final de la función
+    updateCopyButtonState(false); // Desincroniza el botón
+    polishedTextarea.focus();
+}
+
+// ... El resto de funciones (applyTheme, setAccentRGB, setStatus, etc. permanecen sin cambios) ...
+
+// Asegúrate de que las funciones `processAudioBlobAndInsertText` y `handleCorrectTextSelection`
+// llamen a `updateCopyButtonState(false)` después de modificar el textarea.
+// Aquí está el código completo de esas funciones modificadas:
 
 function applyTheme(theme) { document.body.setAttribute('data-theme', theme); localStorage.setItem('theme', theme); if (themeSwitch) themeSwitch.checked = theme === 'dark'; if (mainTitleImage && mainTitleImageDark) { mainTitleImage.style.display = theme === 'light' ? 'inline-block' : 'none'; mainTitleImageDark.style.display = theme === 'dark' ? 'inline-block' : 'none'; } }
 function setAccentRGB() { try { const bS = getComputedStyle(document.body); if (!bS) return; const aC = bS.getPropertyValue('--accent-color').trim(); if (aC.startsWith('#')) { const r = parseInt(aC.slice(1,3),16), g = parseInt(aC.slice(3,5),16), b = parseInt(aC.slice(5,7),16); document.documentElement.style.setProperty('--accent-color-rgb',`${r},${g},${b}`); } else if (aC.startsWith('rgb')) { const p = aC.match(/[\d.]+/g); if (p && p.length >=3) document.documentElement.style.setProperty('--accent-color-rgb',`${p[0]},${p[1]},${p[2]}`);}} catch (e) { console.warn("Failed to set --accent-color-rgb:", e); }}
@@ -449,6 +536,7 @@ async function processAudioBlobAndInsertText(audioBlob) {
             polishedTextarea.selectionStart = polishedTextarea.selectionEnd = newCursorPos;
             setStatus('Texto insertado/añadido.', 'success', 3000);
         }
+        updateCopyButtonState(false); // Desincroniza el botón porque el texto ha cambiado
         updateButtonStates("success_processing");
     } catch (error) {
         console.error('Error en processAudioBlobAndInsertText:', error);
@@ -463,49 +551,7 @@ async function processAudioBlobAndInsertText(audioBlob) {
 }
 function handlePauseResume() { if(!mediaRecorder||!isRecording)return;if(mediaRecorder.state==="recording"){mediaRecorder.pause();}else if(mediaRecorder.state==="paused"){mediaRecorder.resume();}}
 function updateButtonStates(state) { startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;copyPolishedTextBtn.disabled=false;correctTextSelectionBtn.disabled=true;startRecordBtn.textContent="Empezar Dictado";startRecordBtn.classList.remove("stop-style");pauseResumeBtn.textContent="Pausar";let showPlayer=false;if(currentAudioBlob){if(["initial","stopped_success","error_processing","success_processing","stopped_error"].includes(state)){showPlayer=true;}}if(audioPlaybackSection)audioPlaybackSection.style.display=showPlayer?'block':'none';else console.warn("audioPlaybackSection null en updateButtonStates");switch(state){case "initial":startRecordBtn.disabled=false;if(statusDiv&&statusDiv.textContent.toLowerCase()!=="listo"&&!statusDiv.textContent.toLowerCase().includes("error")&&!statusDiv.textContent.toLowerCase().includes("pausada")&&!statusDiv.textContent.toLowerCase().includes("reemplazo"))setStatus("Listo","idle");resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "recording":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='grabando...'&&statusDiv.textContent.toLowerCase()!=='dicte el reemplazo...')setStatus('Grabando...','processing');break;case "paused":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;pauseResumeBtn.textContent="Reanudar";retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='reemplazo pausado.'&&statusDiv.textContent.toLowerCase()!=='dictado pausado.')setStatus('Grabación pausada.','idle');break;case "stopped_success":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "stopped_error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;case "processing_audio":startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;break;case "error_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "success_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;default:startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;}}
-async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;polishedTextarea.focus();}
-
-async function copyFullReportToClipboard(showStatus = false) {
-    if (!headerArea || !polishedTextarea) return;
-
-    const h = headerArea.value.trim();
-    const r = polishedTextarea.value.trim();
-    let textToCopy = "";
-
-    if (h) {
-        textToCopy += h;
-    }
-    if (r) {
-        if (textToCopy) {
-            textToCopy += "\n\n";
-        }
-        textToCopy += r;
-    }
-
-    if (textToCopy === '') {
-        if (showStatus) {
-            setStatus("Nada que copiar.", "idle", 2000);
-        }
-        try {
-            await navigator.clipboard.writeText('');
-        } catch (e) {
-            // Ignoramos el error si no se puede escribir un string vacío
-        }
-        return;
-    }
-
-    try {
-        await navigator.clipboard.writeText(textToCopy);
-        if (showStatus) {
-            setStatus("¡Texto copiado!", "success", 2000);
-        }
-    } catch (e) {
-        console.error('Error al copiar el texto:', e);
-        if (showStatus) {
-            setStatus("Error al copiar el texto.", "error", 3000);
-        }
-    }
-}
+async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;updateCopyButtonState(false);polishedTextarea.focus();}
 
 function blobToBase64(b){return new Promise((res,rej)=>{if(!b||b.size===0)return rej(new Error("Blob nulo"));const r=new FileReader();r.onloadend=()=>{if(r.result){const s=r.result.toString().split(',')[1];if(!s)return rej(new Error("Fallo Base64"));res(s);}else rej(new Error("FileReader sin resultado"));};r.onerror=e=>rej(e);r.readAsDataURL(b);});}
 async function callGeminiAPI(p,isTxt=false){if(!userApiKey)throw new Error('No API Key');const u=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`;const t=isTxt?0.1:0.2;const y={contents:[{parts:p}],generationConfig:{temperature:t}};console.log(`Gemini (isTxt:${isTxt},temp:${t}). Prompt(inicio):`,JSON.stringify(p[0]).substring(0,200)+"...");const resp=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(y)});if(!resp.ok){const eD=await resp.json();console.error("Error Gemini API:",eD);throw new Error(`Error API:${eD.error?.message||resp.statusText}(${resp.status})`);}const d=await resp.json();if(d.candidates?.[0]?.content?.parts?.[0]?.text)return d.candidates[0].content.parts[0].text;if(d.promptFeedback?.blockReason)throw new Error(`Bloqueado:${d.promptFeedback.blockReason}.${d.promptFeedback.blockReasonMessage||''}`);if(d.candidates?.[0]?.finishReason&&d.candidates[0].finishReason!=="STOP")throw new Error(`Gemini fin:${d.candidates[0].finishReason}.`);if(d.candidates?.[0]?.finishReason==="STOP"&&!d.candidates?.[0]?.content?.parts?.[0]?.text)return"";throw new Error('Gemini respuesta inesperada.');}

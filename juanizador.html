@@ -40,14 +40,14 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 20px; /* Added padding similar to index.html body */
+            padding: 20px;
             background-color: var(--bg-color);
             color: var(--text-color);
             line-height: 1.6;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        #app-container-juanizador { /* New main wrapper */
+        #app-container-juanizador {
             max-width: 1200px;
             margin: 0 auto;
         }
@@ -77,8 +77,6 @@
             gap: 15px;
         }
 
-
-        /* Styling for container-like sections */
         .juanizador-section {
             background-color: var(--container-bg);
             border-radius: 8px;
@@ -97,9 +95,9 @@
         .section-title {
             margin-top: 0;
             padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-light-color); /* Matched to index.html h3 border */
+            border-bottom: 1px solid var(--border-light-color);
             color: var(--juanizador-primary-color);
-            font-size: 1.5em; /* Adjusted for consistency */
+            font-size: 1.5em;
         }
 
         .voice-input {
@@ -115,10 +113,9 @@
             border-radius: 50px;
             cursor: pointer;
             font-size: 16px;
-            display: inline-flex; /* Changed from flex to inline-flex for better centering with margin:auto */
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            /* margin: 0 auto; */ /* Centering done by text-align on parent */
             transition: all 0.3s ease;
         }
 
@@ -143,15 +140,15 @@
             100% { transform: scale(1); }
         }
 
-        #transcript, .category-reassign, .selector-group select { /* General input styling */
+        #transcript, .category-reassign, .selector-group select {
             width: 100%;
             padding: 10px;
             border: 1px solid var(--input-border);
-            border-radius: 5px; /* Matched to index.html */
+            border-radius: 5px;
             background-color: var(--input-bg);
             color: var(--input-text);
-            font-size: 1em; /* Matched to index.html */
-            box-sizing: border-box; /* Important for width 100% */
+            font-size: 1em;
+            box-sizing: border-box;
         }
         #transcript {
             min-height: 150px;
@@ -164,22 +161,22 @@
         }
 
         .category {
-            background-color: var(--header-area-bg); /* Light gray background */
+            background-color: var(--header-area-bg);
             border-left: 4px solid var(--juanizador-secondary-color);
-            padding: 15px; /* Increased padding */
+            padding: 15px;
             margin-bottom: 10px;
             border-radius: 0 5px 5px 0;
         }
 
         .category h3 {
             margin-top: 0;
-            margin-bottom: 8px; /* Added margin */
-            color: var(--heading-color); /* Matched to index.html */
+            margin-bottom: 8px;
+            color: var(--heading-color);
         }
 
         .category-content {
             margin-left: 10px;
-            color: var(--text-muted-color); /* Matched to index.html */
+            color: var(--text-muted-color);
         }
         .category-content ul {
             padding-left: 20px;
@@ -193,29 +190,28 @@
             padding: 15px;
             border-radius: 5px;
             border: 1px solid var(--border-color);
-            min-height: 100px; /* Ensure it has some height */
+            min-height: 100px;
             color: var(--text-color);
         }
 
-        .buttons-group { /* Renamed from .buttons to avoid potential global conflicts if styles were merged */
+        .buttons-group {
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
         }
 
-        .btn { /* General button styling from index.html */
+        .btn {
             color: var(--button-primary-text);
             border: none;
-            padding: 10px 15px; /* Adjusted padding */
+            padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 0.95em; /* Adjusted font size */
+            font-size: 0.95em;
             flex: 1;
             transition: background-color 0.3s ease;
             text-align: center;
-            min-width: 100px; /* Minimum width */
+            min-width: 100px;
         }
-        /* Specific button colors - mapping to index.html styles */
         .btn.btn-main { background-color: var(--button-primary-bg); }
         .btn.btn-main:hover { background-color: var(--button-primary-hover-bg); }
 
@@ -225,8 +221,8 @@
         .btn.btn-success { background-color: var(--button-success-bg); color: var(--button-success-text); }
         .btn.btn-success:hover { background-color: var(--button-success-hover-bg); }
 
-        #backToDictationBtn { /* Specific styling for this button if needed, inherits .btn and .btn-danger */
-            flex: 0 1 auto; /* Don't grow, allow shrink, auto basis */
+        #backToDictationBtn {
+            flex: 0 1 auto;
             padding: 8px 15px;
             font-size: 0.9em;
         }
@@ -243,7 +239,7 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            border-left-color: var(--juanizador-secondary-color); /* Use a theme color */
+            border-left-color: var(--juanizador-secondary-color);
             animation: spin 1s linear infinite;
             margin: 0 auto;
         }
@@ -259,11 +255,10 @@
             color: var(--text-muted-color);
         }
 
-        .technique-selector-grid { /* Changed from .technique-selector to use grid for better layout */
+        .technique-selector-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            /* margin-bottom: 20px; */ /* Handled by .juanizador-section */
         }
 
         .selector-group {
@@ -272,12 +267,10 @@
         }
 
         .selector-group label {
-            margin-bottom: 8px; /* Increased margin */
+            margin-bottom: 8px;
             font-weight: bold;
-            color: var(--heading-color); /* Matched to index.html */
+            color: var(--heading-color);
         }
-
-        /* .selector-group select styling is handled by the general input styling */
 
         .technique-description {
             margin-bottom: 20px;
@@ -301,13 +294,13 @@
         .checkbox-group {
             display: flex;
             flex-direction: column;
-            gap: 8px; /* Increased gap */
+            gap: 8px;
         }
 
         .checkbox-group label {
             display: flex;
             align-items: center;
-            gap: 8px; /* Increased gap */
+            gap: 8px;
             font-weight: normal;
             color: var(--text-color);
             cursor: pointer;
@@ -323,12 +316,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 5px 0; /* Added padding */
+            padding: 5px 0;
         }
 
         .finding-text {
             flex: 1;
-            margin-right: 10px; /* Added margin */
+            margin-right: 10px;
         }
 
         .finding-controls {
@@ -336,10 +329,10 @@
             gap: 5px;
         }
 
-        .category-reassign { /* Styling inherited from general input styling */
-            padding: 5px 8px; /* Adjusted padding */
-            font-size: 0.85em; /* Adjusted font size */
-            min-width: 150px; /* Minimum width */
+        .category-reassign {
+            padding: 5px 8px;
+            font-size: 0.85em;
+            min-width: 150px;
         }
 
         /* Theme Switch Styles from index.html */
@@ -353,7 +346,7 @@
         .theme-switch-wrapper span { margin-left: 8px; font-size: 0.9em; color: var(--text-muted-color); }
 
 
-        @media (max-width: 992px) { /* Adjusted breakpoint */
+        @media (max-width: 992px) {
             .main-content-grid {
                 grid-template-columns: 1fr;
             }
@@ -362,7 +355,7 @@
             .page-header {
                 flex-direction: column;
                 gap: 10px;
-                align-items: flex-start; /* Align items to start for column layout */
+                align-items: flex-start;
             }
             .page-header h1 {
                 text-align: left;
@@ -370,19 +363,18 @@
             }
             .header-controls {
                 width: 100%;
-                justify-content: space-between; /* Space out button and switch */
+                justify-content: space-between;
             }
             #backToDictationBtn {
-                 /* width: 100%; */ /* Allow button to size naturally */
                  margin-left: 0;
             }
             .technique-selector-grid {
-                grid-template-columns: 1fr; /* Stack selectors on small screens */
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
-<body class="light-mode"> <!-- Default to light mode -->
+<body class="light-mode">
     <div id="app-container-juanizador">
         <header class="page-header">
             <h1>Asistente de Informes Radiológicos</h1>
@@ -511,11 +503,14 @@
         const themeToggleCheckboxJuanizador = document.getElementById('themeToggleCheckboxJuanizador');
         const themeToggleLabelJuanizador = document.getElementById('themeToggleLabelJuanizador');
 
-        function applyThemeJuanizador(theme) {
-            const classToAdd = theme === 'dark' ? 'dark-mode' : 'light-mode';
-            const classToRemove = theme === 'dark' ? 'light-mode' : 'dark-mode';
-            document.body.classList.remove(classToRemove);
-            document.body.classList.add(classToAdd);
+        function applyThemeJuanizador(theme) { // 'theme' será 'light' o 'dark'
+            if (theme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.body.classList.remove('light-mode');
+            } else {
+                document.body.classList.add('light-mode');
+                document.body.classList.remove('dark-mode');
+            }
             if (themeToggleCheckboxJuanizador) themeToggleCheckboxJuanizador.checked = theme === 'dark';
             if (themeToggleLabelJuanizador) themeToggleLabelJuanizador.textContent = theme === 'dark' ? 'Tema Claro' : 'Tema Oscuro';
         }
@@ -523,14 +518,13 @@
         function toggleThemeJuanizador() {
             const currentTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
             applyThemeJuanizador(currentTheme);
-            localStorage.setItem('themePreferenceJuanizador', currentTheme);
+            localStorage.setItem('themePreferenceJuanizador', currentTheme); // Guarda preferencia local
         }
 
         if (themeToggleCheckboxJuanizador) {
             themeToggleCheckboxJuanizador.addEventListener('change', toggleThemeJuanizador);
         }
         // --- End Theme Toggle ---
-
 
         /*********************
          * CONFIG CONSTANTS
@@ -673,7 +667,7 @@
 
         async function categorizeFindings(availableCategories = []) {
             const transcript = document.getElementById('transcript').value.trim();
-            const categorizedContentEl = document.getElementById('categorized-content'); // Renamed for clarity
+            const categorizedContentEl = document.getElementById('categorized-content');
             const categorizingLoading = document.getElementById('categorizing-loading');
             const imagingTechniqueSelect = document.getElementById('imaging-technique');
             const tacScopeSelect = document.getElementById('tac-scope');
@@ -749,7 +743,7 @@
         }
 
         async function generateCompleteReport() {
-            const finalReportEl = document.getElementById('final-report'); // Renamed
+            const finalReportEl = document.getElementById('final-report');
             const reportLoading = document.getElementById('report-loading');
             const imagingTechniqueSelect = document.getElementById('imaging-technique');
             const tacScopeSelect = document.getElementById('tac-scope');
@@ -877,7 +871,7 @@
             
             tacScopeContainer.style.display = technique === 'tac' ? 'flex' : 'none';
             rmTypeContainer.style.display = technique === 'rm' ? 'flex' : 'none';
-            contrastContainer.style.display = technique === 'tac' ? 'flex' : 'none'; // Show for TAC
+            contrastContainer.style.display = technique === 'tac' ? 'flex' : 'none';
             phaseContainer.style.display = (technique === 'tac' && document.getElementById('contrast-use').value === 'con') ? 'flex' : 'none';
 
 
@@ -885,7 +879,7 @@
                 if (tacScope === 'toracoabdominal') window.availableCategories = [...thoracicCategories, ...abdominalCategories, ...otherCategories];
                 else if (tacScope === 'torax') window.availableCategories = [...thoracicCategories, ...otherCategories];
                 else if (tacScope === 'abdomen') window.availableCategories = [...abdominalCategories, ...otherCategories];
-            } else if (technique === 'rm' || technique === 'eco') { // RM and Eco use abdominal + others
+            } else if (technique === 'rm' || technique === 'eco') {
                 window.availableCategories = [...abdominalCategories, ...otherCategories];
             }
             
@@ -913,8 +907,8 @@
             const tacScopeSelect = document.getElementById('tac-scope');
             const rmTypeSelect = document.getElementById('rm-type');
             const contrastUseSelect = document.getElementById('contrast-use');
-            const techniqueTextEl = document.getElementById('technique-text'); // Renamed
-            const techniqueDescriptionEl = document.getElementById('technique-description'); // Renamed
+            const techniqueTextEl = document.getElementById('technique-text');
+            const techniqueDescriptionEl = document.getElementById('technique-description');
             
             const technique = imagingTechniqueSelect.value;
             
@@ -933,7 +927,7 @@
                     const phases = Array.from(document.querySelectorAll('input[name="phase"]:checked')).map(cb => cb.value);
                     if (phases.length > 0) {
                         let phaseText = phases.map(p => p === 'arterial' ? 'arterial' : p === 'portal' ? 'portal' : 'tardía').join(', ');
-                        if (phases.length > 1) phaseText = phaseText.replace(/,([^,]*)$/, ' y$1'); // Correct grammar for multiple phases
+                        if (phases.length > 1) phaseText = phaseText.replace(/,([^,]*)$/, ' y$1');
                         description += ` con adquisición de imágenes en fase ${phaseText}`;
                     }
                 }
@@ -954,10 +948,14 @@
          * EVENT LISTENERS
          *********************/
         document.addEventListener('DOMContentLoaded', () => {
-            // Apply saved theme first
-            const savedTheme = localStorage.getItem('themePreferenceJuanizador') || 'light';
-            applyThemeJuanizador(savedTheme);
-
+            const sharedTheme = localStorage.getItem('sharedThemePreference');
+            if (sharedTheme) {
+                applyThemeJuanizador(sharedTheme);
+            } else {
+                const savedTheme = localStorage.getItem('themePreferenceJuanizador') || 'light';
+                applyThemeJuanizador(savedTheme);
+            }
+            
             const microphoneBtn = document.getElementById('microphone-btn');
             transcriptArea = document.getElementById('transcript');
             const categorizeBtn = document.getElementById('categorize-btn');
@@ -978,13 +976,12 @@
             }
             
             initSpeechRecognition();
-            updateAvailableCategories(); // This also calls updateTechniqueDescription
-            // updateTechniqueDescription(); // Call explicitly to set initial state if needed
+            updateAvailableCategories();
             
             imagingTechniqueSelect.addEventListener('change', updateAvailableCategories);
-            tacScopeSelect.addEventListener('change', updateAvailableCategories); // This will also update technique description
+            tacScopeSelect.addEventListener('change', updateAvailableCategories);
             rmTypeSelect.addEventListener('change', updateTechniqueDescription);
-            contrastUseSelect.addEventListener('change', updateContrastOptions); // This will also update technique description
+            contrastUseSelect.addEventListener('change', updateContrastOptions);
             document.querySelectorAll('input[name="phase"]').forEach(cb => cb.addEventListener('change', updateTechniqueDescription));
             
             microphoneBtn.addEventListener('click', toggleRecording);

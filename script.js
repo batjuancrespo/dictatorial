@@ -581,64 +581,45 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === REEMPLAZA SOLO ESTA FUNCIÓN (VERSIÓN 9.0 - MANUAL Y EXPLÍCITA) ===
+// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN FINAL) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 9.0 - MÉTODO MANUAL Y EXPLÍCITO: Aplica reglas de puntuación.
- * Abandona las regex complejas en favor de un parseo explícito a prueba de errores.
+ * VERSIÓN FINAL - MÉTODO SIMPLE Y DIRECTO: Aplica reglas de puntuación.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    // Reemplazos iniciales para unificar términos.
-    let processedText = text.replace(/\bpunto y aparte\b/gi, 'puntoaparte');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, 'puntoseguido');
-    processedText = processedText.replace(/\bnueva línea\b/gi, 'nuevalinea');
+    let processedText = ` ${text} `;
 
-    const punctuationMap = {
-        "puntoaparte": ".\n",
-        "puntoseguido": ". ",
-        "punto": ". ",
-        "coma": ", ",
-        "nuevalinea": "\n",
-        "dospuntos": ": ",
-        "puntoycoma": "; "
-        // Añadir más si es necesario
-    };
-    
-    // Crear una expresión regular para dividir el texto por CUALQUIERA de nuestras palabras clave.
-    const splitRegex = new RegExp(`(\\b(?:${Object.keys(punctuationMap).join('|')})\\b)`, 'gi');
-    
-    const fragments = processedText.split(splitRegex);
+    // --- PASO 1: Reemplazar frases compuestas ---
+    // La regex busca la frase y OPCIONALMENTE una coma/punto y espacios antes.
+    // Al reemplazar todo el conjunto, eliminamos la puntuación redundante.
+    processedText = processedText.replace(/[,.]?\s*\bpunto y aparte\b/gi, '.\n');
+    processedText = processedText.replace(/[,.]?\s*\bpunto y seguido\b/gi, '. ');
+    processedText = processedText.replace(/[,.]?\s*\bnueva línea\b/gi, '\n');
 
-    let result = "";
-    for (let i = 0; i < fragments.length; i++) {
-        let fragment = fragments[i];
-        
-        if (punctuationMap[fragment.toLowerCase()]) {
-            // Es una palabra de puntuación.
-            
-            // 1. Limpiar el final del resultado anterior (quitar comas, puntos, espacios)
-            result = result.trim().replace(/[.,:;!?]$/, '').trim();
-            
-            // 2. Añadir la puntuación correcta.
-            result += punctuationMap[fragment.toLowerCase()];
-            
-        } else if (fragment.trim() !== "") {
-            // Es un fragmento de texto normal.
-            result += fragment;
-        }
-    }
+    // --- PASO 2: Reemplazar palabras simples ---
+    processedText = processedText.replace(/[,.]?\s*\bpunto\b/gi, '. ');
+    processedText = processedText.replace(/[,.]?\s*\bcoma\b/gi, ', ');
     
-    // Limpieza final de espaciado
-    result = result.replace(/\s+([.,:;!?\n])/g, '$1'); // Espacios antes de puntuación
-    result = result.replace(/ {2,}/g, ' '); // Dobles espacios
+    // --- PASO 3: Reemplazar el resto ---
+    processedText = processedText.replace(/\bdos puntos\b/gi, ': ');
+    processedText = processedText.replace(/\bpunto y coma\b/gi, '; ');
+    // Puedes añadir más reglas simples aquí
 
-    return result.trim();
+    // --- PASO 4: Limpieza final ---
+    // Esta sección limpia cualquier artefacto que las reglas anteriores puedan haber creado.
+    processedText = processedText.replace(/\s*([.,:;!?\n])\s*/g, '$1 '); // Normaliza el espacio alrededor de la puntuación
+    processedText = processedText.replace(/\n\s+/g, '\n'); // Elimina espacios al inicio de una nueva línea
+    processedText = processedText.replace(/ {2,}/g, ' '); // Elimina dobles espacios
+
+    return processedText.trim();
 }
+
+
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.
  * @param {string} modelName - El nombre del modelo a usar.

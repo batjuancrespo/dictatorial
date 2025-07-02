@@ -567,7 +567,7 @@ function capitalizeSentencesProperly(text) {
     if (!text || typeof text !== 'string' || text.trim() === "") {
         return text || ""; 
     }
-    let processedText = text.trim(); 
+    let processedText = text.trim();
     // Capitalize the very first letter of the entire text
     processedText = processedText.charAt(0).toUpperCase() + processedText.slice(1);
     // Capitalize after a sentence-ending punctuation mark followed by whitespace
@@ -581,92 +581,45 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN 4.0) ===
+// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN 5.0) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 4.0 - ROBUSTA Y EXPLÍCITA: Aplica reglas de puntuación.
- * Este método es mucho más literal y fácil de depurar.
+ * VERSIÓN 5.0 - REGEX ROBUSTA: Aplica reglas de puntuación de forma determinista.
+ * Este método usa expresiones regulares de forma correcta para un resultado limpio y predecible.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    // Dividimos el texto en palabras para un manejo más granular
-    const words = text.split(/\s+/);
-    const result = [];
-    let i = 0;
+    let processedText = ` ${text} `; // Añadir padding de espacios para que las regex de borde (\b) funcionen
 
-    while (i < words.length) {
-        let currentWord = words[i].toLowerCase();
-        let nextWord = (i + 1 < words.length) ? words[i+1].toLowerCase() : "";
-        let nextNextWord = (i + 2 < words.length) ? words[i+2].toLowerCase() : "";
+    // --- PASO 1: Reemplazos de más específico a más general ---
+    // Se busca la frase dictada, permitiendo opcionalmente un signo de puntuación y espacios antes.
+    
+    processedText = processedText.replace(/[.,;!?]?\s*\bpunto y aparte\b/gi, '.\n');
+    processedText = processedText.replace(/[.,;!?]?\s*\bpunto y seguido\b/gi, '. ');
+    processedText = processedText.replace(/[.,;!?]?\s*\bnueva línea\b/gi, '\n');
+    processedText = processedText.replace(/[.,;!?]?\s*\bpunto\b/gi, '. ');
+    processedText = processedText.replace(/[.,;!?]?\s*\bcoma\b/gi, ', ');
+    processedText = processedText.replace(/[.,;!?]?\s*\bdos puntos\b/gi, ': ');
+    processedText = processedText.replace(/[.,;!?]?\s*\bpunto y coma\b/gi, '; ');
+    processedText = processedText.replace(/[.,;!?]?\s*\binterrogación\b/gi, '? ');
+    processedText = processedText.replace(/[.,;!?]?\s*\bexclamación\b/gi, '! ');
 
-        // Detectar "punto y aparte" (3 palabras)
-        if (currentWord.replace(/[.,:;!?]$/, '') === "punto" && nextWord === "y" && nextNextWord.replace(/[.,:;!?]$/, '') === "aparte") {
-            // Elimina la puntuación anterior si existe (ej. una coma)
-            if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
-                let last = result.pop();
-                result.push(last.slice(0, -1));
-            }
-            result.push(".\n");
-            i += 3;
-            continue;
-        }
+    // --- PASO 2: Limpieza y Formateo Final ---
+    // Limpia los espacios antes de los signos de puntuación. Ej: "hola ." -> "hola."
+    processedText = processedText.replace(/\s+([.,:;!?\n])/g, '$1');
+    
+    // Elimina dobles saltos de línea.
+    processedText = processedText.replace(/\n\s*\n/g, '\n');
 
-        // Detectar "punto y seguido" (3 palabras)
-        if (currentWord.replace(/[.,:;!?]$/, '') === "punto" && nextWord === "y" && nextNextWord.replace(/[.,:;!?]$/, '') === "seguido") {
-            if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
-                let last = result.pop();
-                result.push(last.slice(0, -1));
-            }
-            result.push(". ");
-            i += 3;
-            continue;
-        }
-        
-        // Detectar "nueva línea" (2 palabras)
-        if (currentWord.replace(/[.,:;!?]$/, '') === "nueva" && nextWord.replace(/[.,:;!?]$/, '') === "línea") {
-            result.push("\n");
-            i += 2;
-            continue;
-        }
-
-        // Detectar palabras de una sola palabra
-        switch (currentWord.replace(/[.,:;!?]$/, '')) { // Quitamos puntuación para la comparación
-            case "punto":
-                if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
-                    let last = result.pop();
-                    result.push(last.slice(0, -1));
-                }
-                result.push(". ");
-                i++;
-                break;
-            case "coma":
-                 if (result.length > 0 && /[.,:;!?]$/.test(result[result.length - 1])) {
-                    let last = result.pop();
-                    result.push(last.slice(0, -1));
-                }
-                result.push(", ");
-                i++;
-                break;
-            // Añadir más casos de una palabra aquí si es necesario (dos puntos, etc.)
-            default:
-                result.push(words[i] + " ");
-                i++;
-                break;
-        }
-    }
-
-    // Unir todo y limpiar
-    let processedText = result.join('');
-    processedText = processedText.replace(/\s+([.,:;!?\n])/g, '$1'); // Limpiar espacios antes de la puntuación
-    processedText = processedText.replace(/ +/g, ' '); // Limpiar dobles espacios
+    // Elimina dobles espacios que puedan haber quedado.
+    processedText = processedText.replace(/ {2,}/g, ' ');
 
     return processedText.trim();
 }
-
 
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.

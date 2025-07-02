@@ -578,41 +578,51 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO ===
+// === REEMPLAZA SOLO ESTA FUNCIÓN EN script.js ===
 // ==============================================================================
 
 /**
- * NUEVA FUNCIÓN: Aplica reglas de puntuación de forma determinista.
- * Esto nos da 100% de control sobre el resultado, eliminando la aleatoriedad de la IA.
+ * VERSIÓN 2.0 - ROBUSTA: Aplica reglas de puntuación de forma determinista.
+ * Maneja la duplicación de signos de puntuación (ej. la IA transcribe "," y "coma").
  * @param {string} text - El texto transcrito literalmente.
- * @returns {string} - El texto con los comandos de puntuación reemplazados por sus caracteres.
+ * @returns {string} - El texto con la puntuación corregida y formateada.
  */
 function applyPunctuationRules(text) {
     if (!text) return "";
 
-    let processedText = ` ${text} `; // Añadimos espacios para asegurar que \b funcione en los bordes.
+    let processedText = text;
 
-    // Reemplazos de más específico a más general para evitar conflictos.
+    // --- PASO A: Limpieza Previa de Duplicados ---
+    // Elimina el signo de puntuación si va seguido de la palabra dictada.
+    // Ej: "homogénea, punto y aparte" -> "homogénea punto y aparte"
+    processedText = processedText.replace(/,\s*\b(punto y aparte|punto y seguido|punto|coma)\b/gi, ' $1');
+    processedText = processedText.replace(/\.\s*\b(punto y aparte|punto y seguido|punto)\b/gi, ' $1');
+    
+    // --- PASO B: Reemplazo de Palabras a Signos (de más específico a más general) ---
     processedText = processedText.replace(/\bpunto y aparte\b/gi, '.\n');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, '.');
-    processedText = processedText.replace(/\bpunto\b/gi, '.');
-    processedText = processedText.replace(/\bcoma\b/gi, ',');
+    processedText = processedText.replace(/\bpunto y seguido\b/gi, '. '); // Añadimos espacio para asegurar separación
+    processedText = processedText.replace(/\bpunto\b/gi, '. '); // Añadimos espacio
+    processedText = processedText.replace(/\bcoma\b/gi, ', '); // Añadimos espacio
     processedText = processedText.replace(/\bnueva línea\b/gi, '\n');
-    processedText = processedText.replace(/\bdos puntos\b/gi, ':');
-    processedText = processedText.replace(/\bpunto y coma\b/gi, ';');
-    processedText = processedText.replace(/\binterrogación\b/gi, '?');
-    processedText = processedText.replace(/\bexclamación\b/gi, '!');
+    processedText = processedText.replace(/\bdos puntos\b/gi, ': '); // Añadimos espacio
+    processedText = processedText.replace(/\bpunto y coma\b/gi, '; '); // Añadimos espacio
+    processedText = processedText.replace(/\binterrogación\b/gi, '? '); // Añadimos espacio
+    processedText = processedText.replace(/\bexclamación\b/gi, '! '); // Añadimos espacio
 
-    // Limpia los espacios antes de los signos de puntuación. Ej: "hola ." -> "hola."
+    // --- PASO C: Limpieza y Formateo Final ---
+    // Elimina espacios ANTES de los signos de puntuación. Ej: "hola ." -> "hola."
     processedText = processedText.replace(/\s+([.,:;!?])/g, '$1');
 
-    // Asegura un espacio después de la puntuación si le sigue una letra.
-    processedText = processedText.replace(/([.,:;!?])([a-zA-ZáéíóúÁÉÍÓÚñÑ])/g, '$1 $2');
-    
+    // Asegura que no haya dobles signos. Ej: ".. " -> ". "
+    processedText = processedText.replace(/([.,:;!?])\1+/g, '$1');
+
+    // Asegura que no haya dobles saltos de línea.
+    processedText = processedText.replace(/\n\s*\n/g, '\n');
+
     // Elimina dobles espacios que puedan haber quedado.
     processedText = processedText.replace(/ +/g, ' ');
 
-    return processedText.trim(); // Quitamos los espacios que añadimos al principio.
+    return processedText.trim();
 }
 
 

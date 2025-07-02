@@ -1,0 +1,1022 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asistente de Informes Radiológicos</title>
+    <style>
+        /* --- CSS Variables from index.html --- */
+        :root {
+            --bg-color: #f4f4f4; --container-bg: #fff; --text-color: #333; --text-muted-color: #555; --heading-color: #333; --border-color: #ccc; --border-light-color: #eee; --border-dashed-color: #ddd; --link-color: #007bff;
+            --button-primary-bg: #007bff; --button-primary-hover-bg: #0056b3; --button-primary-text: white; --button-secondary-bg: #6c757d; --button-secondary-hover-bg: #5a6268; --button-secondary-text: white;
+            --button-success-bg: #28a745; --button-success-hover-bg: #218838; --button-success-text: white; --button-danger-bg: #dc3545; --button-danger-hover-bg: #c82333; --button-danger-text: white; --button-warning-bg: #ffc107; --button-warning-hover-bg: #e0a800; --button-warning-text: #212529;
+            --button-info-bg: #17a2b8; --button-info-hover-bg: #138496; --button-info-text: white; --button-light-gray-bg: #e9e9e9; --button-light-gray-hover-bg: #d8d8d8; --button-light-gray-text: #333;
+            --button-violet-bg: #6f42c1; --button-violet-hover-bg: #5a349b; --button-violet-text: white;
+            --button-suggestion-bg: #f8f8f8; --button-suggestion-hover-bg: #e8e8e8; --button-suggestion-border: #ccc; --button-disabled-bg: #cccccc; --button-disabled-opacity: 0.7;
+            --input-bg: white; --input-border: #ccc; --input-text: #333; --header-area-bg: #f9f9f9; --header-area-border: #eee; --status-listening-color: #777; --status-base-color: #555;
+            --slider-thumb-bg: #007bff; --slider-track-bg: #ddd; --switch-bg: #ccc; --switch-thumb-bg: white; --switch-checked-bg: #007bff;
+            /* Specific to juanizador, but using index.html theme variables */
+            --juanizador-accent-color: var(--button-danger-bg); /* Was --accent-color: #e74c3c; */
+            --juanizador-secondary-color: var(--button-primary-bg); /* Was --secondary-color: #3498db; */
+            --juanizador-primary-color: var(--heading-color); /* Was --primary-color: #2c3e50; */
+            --juanizador-dark-color: #34495e; /* A darker shade, can be derived or kept specific if needed */
+        }
+
+        body.dark-mode {
+             --bg-color: #22272e; --container-bg: #2d333b; --text-color: #adbac7; --text-muted-color: #768390; --heading-color: #adbac7; --border-color: #444c56; --border-light-color: #373e47; --border-dashed-color: #444c56; --link-color: #539bf5;
+             --button-primary-bg: #377ef0; --button-primary-hover-bg: #539bf5; --button-secondary-bg: #444c56; --button-secondary-hover-bg: #5d6774; --button-secondary-text: #adbac7;
+             --button-success-bg: #347d39; --button-success-hover-bg: #46954a; --button-danger-bg: #e5534b; --button-danger-hover-bg: #f47067;
+             --button-warning-bg: #d9971a; --button-warning-hover-bg: #f0b72f; --button-warning-text: #22272e; --button-info-bg: #4387d9; --button-info-hover-bg: #539bf5; --button-light-gray-bg: #373e47; --button-light-gray-hover-bg: #444c56; --button-light-gray-text: #adbac7;
+             --button-violet-bg: #8a63d2; --button-violet-hover-bg: #9b7ae0;
+             --button-suggestion-bg: #373e47; --button-suggestion-hover-bg: #444c56; --button-suggestion-border: #5d6774; --button-disabled-bg: #444c56; --input-bg: #22272e; --input-border: #444c56; --input-text: #adbac7;
+             --header-area-bg: #22272e; --header-area-border: #373e47; --status-listening-color: #768390; --status-base-color: #768390;
+             --slider-thumb-bg: #539bf5; --slider-track-bg: #444c56; --switch-bg: #444c56; --switch-thumb-bg: #768390; --switch-checked-bg: #377ef0;
+            /* Specific to juanizador, dark mode adaptations */
+            --juanizador-accent-color: var(--button-danger-bg);
+            --juanizador-secondary-color: var(--button-primary-bg);
+            --juanizador-primary-color: var(--heading-color);
+            --juanizador-dark-color: #5d6774; /* Darker shade for dark mode */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px; /* Added padding similar to index.html body */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        #app-container-juanizador { /* New main wrapper */
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            background-color: var(--container-bg);
+            color: var(--heading-color);
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 1.8em;
+            flex-grow: 1;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+
+        /* Styling for container-like sections */
+        .juanizador-section {
+            background-color: var(--container-bg);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-light-color);
+        }
+
+        .main-content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .section-title {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-light-color); /* Matched to index.html h3 border */
+            color: var(--juanizador-primary-color);
+            font-size: 1.5em; /* Adjusted for consistency */
+        }
+
+        .voice-input {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #microphone-btn {
+            background-color: var(--juanizador-secondary-color);
+            color: var(--button-primary-text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            display: inline-flex; /* Changed from flex to inline-flex for better centering with margin:auto */
+            align-items: center;
+            justify-content: center;
+            /* margin: 0 auto; */ /* Centering done by text-align on parent */
+            transition: all 0.3s ease;
+        }
+
+        #microphone-btn:hover {
+            background-color: var(--juanizador-dark-color);
+        }
+
+        #microphone-btn svg {
+            margin-right: 10px;
+            height: 20px;
+            width: 20px;
+        }
+
+        #microphone-btn.recording {
+            background-color: var(--juanizador-accent-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        #transcript, .category-reassign, .selector-group select { /* General input styling */
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 5px; /* Matched to index.html */
+            background-color: var(--input-bg);
+            color: var(--input-text);
+            font-size: 1em; /* Matched to index.html */
+            box-sizing: border-box; /* Important for width 100% */
+        }
+        #transcript {
+            min-height: 150px;
+            resize: vertical;
+            margin-bottom: 20px;
+        }
+
+        .categorized-content {
+            margin-bottom: 20px;
+        }
+
+        .category {
+            background-color: var(--header-area-bg); /* Light gray background */
+            border-left: 4px solid var(--juanizador-secondary-color);
+            padding: 15px; /* Increased padding */
+            margin-bottom: 10px;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .category h3 {
+            margin-top: 0;
+            margin-bottom: 8px; /* Added margin */
+            color: var(--heading-color); /* Matched to index.html */
+        }
+
+        .category-content {
+            margin-left: 10px;
+            color: var(--text-muted-color); /* Matched to index.html */
+        }
+        .category-content ul {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+
+
+        #final-report {
+            white-space: pre-wrap;
+            background-color: var(--header-area-bg);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            min-height: 100px; /* Ensure it has some height */
+            color: var(--text-color);
+        }
+
+        .buttons-group { /* Renamed from .buttons to avoid potential global conflicts if styles were merged */
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn { /* General button styling from index.html */
+            color: var(--button-primary-text);
+            border: none;
+            padding: 10px 15px; /* Adjusted padding */
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em; /* Adjusted font size */
+            flex: 1;
+            transition: background-color 0.3s ease;
+            text-align: center;
+            min-width: 100px; /* Minimum width */
+        }
+        /* Specific button colors - mapping to index.html styles */
+        .btn.btn-main { background-color: var(--button-primary-bg); }
+        .btn.btn-main:hover { background-color: var(--button-primary-hover-bg); }
+
+        .btn.btn-danger { background-color: var(--button-danger-bg); color: var(--button-danger-text); }
+        .btn.btn-danger:hover { background-color: var(--button-danger-hover-bg); }
+
+        .btn.btn-success { background-color: var(--button-success-bg); color: var(--button-success-text); }
+        .btn.btn-success:hover { background-color: var(--button-success-hover-bg); }
+
+        #backToDictationBtn { /* Specific styling for this button if needed, inherits .btn and .btn-danger */
+            flex: 0 1 auto; /* Don't grow, allow shrink, auto basis */
+            padding: 8px 15px;
+            font-size: 0.9em;
+        }
+
+
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--juanizador-secondary-color); /* Use a theme color */
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            margin-top: 10px;
+            font-style: italic;
+            color: var(--text-muted-color);
+        }
+
+        .technique-selector-grid { /* Changed from .technique-selector to use grid for better layout */
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
+            gap: 20px;
+            /* margin-bottom: 20px; */ /* Handled by .juanizador-section */
+        }
+
+        .selector-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .selector-group label {
+            margin-bottom: 8px; /* Increased margin */
+            font-weight: bold;
+            color: var(--heading-color); /* Matched to index.html */
+        }
+
+        /* .selector-group select styling is handled by the general input styling */
+
+        .technique-description {
+            margin-bottom: 20px;
+            background-color: var(--header-area-bg);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid var(--juanizador-secondary-color);
+        }
+
+        .technique-description h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--heading-color);
+        }
+
+        .technique-description p {
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px; /* Increased gap */
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px; /* Increased gap */
+            font-weight: normal;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 5px;
+            accent-color: var(--juanizador-secondary-color);
+        }
+
+
+        .finding-item {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0; /* Added padding */
+        }
+
+        .finding-text {
+            flex: 1;
+            margin-right: 10px; /* Added margin */
+        }
+
+        .finding-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .category-reassign { /* Styling inherited from general input styling */
+            padding: 5px 8px; /* Adjusted padding */
+            font-size: 0.85em; /* Adjusted font size */
+            min-width: 150px; /* Minimum width */
+        }
+
+        /* Theme Switch Styles from index.html */
+        .theme-switch-wrapper { display: flex; align-items: center; justify-content: center; }
+        .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; }
+        .theme-switch input { display: none; }
+        .slider.round { background-color: var(--switch-bg); bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; }
+        .slider.round:before { background-color: var(--switch-thumb-bg); bottom: 3px; content: ""; height: 18px; left: 3px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; }
+        input:checked + .slider.round { background-color: var(--switch-checked-bg); }
+        input:checked + .slider.round:before { transform: translateX(24px); }
+        .theme-switch-wrapper span { margin-left: 8px; font-size: 0.9em; color: var(--text-muted-color); }
+
+
+        @media (max-width: 992px) { /* Adjusted breakpoint */
+            .main-content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start; /* Align items to start for column layout */
+            }
+            .page-header h1 {
+                text-align: left;
+                 margin-bottom: 10px;
+            }
+            .header-controls {
+                width: 100%;
+                justify-content: space-between; /* Space out button and switch */
+            }
+            #backToDictationBtn {
+                 /* width: 100%; */ /* Allow button to size naturally */
+                 margin-left: 0;
+            }
+            .technique-selector-grid {
+                grid-template-columns: 1fr; /* Stack selectors on small screens */
+            }
+        }
+    </style>
+</head>
+<body class="light-mode"> <!-- Default to light mode -->
+    <div id="app-container-juanizador">
+        <header class="page-header">
+            <h1>Asistente de Informes Radiológicos</h1>
+            <div class="header-controls">
+                <button id="backToDictationBtn" class="btn btn-danger">Volver a dictado</button>
+                <div class="theme-switch-wrapper">
+                    <label class="theme-switch" for="themeToggleCheckboxJuanizador">
+                        <input type="checkbox" id="themeToggleCheckboxJuanizador">
+                        <span class="slider round"></span>
+                    </label>
+                    <span id="themeToggleLabelJuanizador">Tema Oscuro</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="juanizador-section technique-selector">
+            <div class="technique-selector-grid">
+                <div class="selector-group">
+                    <label for="imaging-technique">Técnica de Imagen:</label>
+                    <select id="imaging-technique">
+                        <option value="tac">TAC</option>
+                        <option value="rm">RM</option>
+                        <option value="eco">Ecografía</option>
+                    </select>
+                </div>
+                
+                <div class="selector-group" id="tac-scope-container">
+                    <label for="tac-scope">Alcance del TAC:</label>
+                    <select id="tac-scope">
+                        <option value="toracoabdominal">Toracoabdominal</option>
+                        <option value="torax">Torácico</option>
+                        <option value="abdomen">Abdominal</option>
+                    </select>
+                </div>
+                
+                <div class="selector-group" id="rm-type-container" style="display: none;">
+                    <label for="rm-type">Tipo de RM:</label>
+                    <select id="rm-type">
+                        <option value="hepatica">RM Hepática</option>
+                        <option value="colangio">ColangioRM</option>
+                        <option value="pelvis-neo">RM Pelvis NEO</option>
+                        <option value="pelvis-fist">RM Pelvis FIST</option>
+                        <option value="entero">EnteroRM</option>
+                    </select>
+                </div>
+                
+                <div class="selector-group" id="contrast-container">
+                    <label for="contrast-use">Contraste:</label>
+                    <select id="contrast-use">
+                        <option value="sin">Sin contraste</option>
+                        <option value="con">Con contraste</option>
+                    </select>
+                </div>
+                
+                <div class="selector-group" id="phase-container" style="display: none;">
+                    <label for="contrast-phase">Fase:</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="phase" value="arterial"> Arterial</label>
+                        <label><input type="checkbox" name="phase" value="portal"> Portal</label>
+                        <label><input type="checkbox" name="phase" value="tardia"> Tardía</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content-grid">
+            <div class="juanizador-section input-section">
+                <h2 class="section-title">Entrada de Hallazgos</h2>
+                
+                <div class="voice-input">
+                    <button id="microphone-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                        Iniciar Dictado
+                    </button>
+                </div>
+                
+                <textarea id="transcript" placeholder="Los hallazgos dictados aparecerán aquí..."></textarea>
+                
+                <div class="buttons-group">
+                    <button id="categorize-btn" class="btn btn-main">Categorizar Hallazgos</button>
+                    <button id="clear-btn" class="btn btn-danger">Limpiar</button>
+                </div>
+                
+                <div class="loading" id="categorizing-loading">
+                    <div class="spinner"></div>
+                    <p class="status-message">Categorizando hallazgos...</p>
+                </div>
+                
+                <div class="categorized-content" id="categorized-content">
+                    <!-- Categorías generadas dinámicamente -->
+                </div>
+            </div>
+            
+            <div class="juanizador-section output-section">
+                <h2 class="section-title">Informe Final</h2>
+                
+                <div class="buttons-group">
+                    <button id="generate-report-btn" class="btn btn-success">Generar Informe</button>
+                    <button id="copy-report-btn" class="btn btn-main">Copiar Informe</button>
+                </div>
+                
+                <div class="loading" id="report-loading">
+                    <div class="spinner"></div>
+                    <p class="status-message">Generando informe completo...</p>
+                </div>
+                
+                <div class="technique-description" id="technique-description" style="display:none;">
+                    <h3>Técnica</h3>
+                    <p id="technique-text"></p>
+                </div>
+                
+                <div id="final-report">
+                    El informe generado aparecerá aquí...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+        // --- Theme Toggle Logic ---
+        const themeToggleCheckboxJuanizador = document.getElementById('themeToggleCheckboxJuanizador');
+        const themeToggleLabelJuanizador = document.getElementById('themeToggleLabelJuanizador');
+
+        function applyThemeJuanizador(theme) {
+            const classToAdd = theme === 'dark' ? 'dark-mode' : 'light-mode';
+            const classToRemove = theme === 'dark' ? 'light-mode' : 'dark-mode';
+            document.body.classList.remove(classToRemove);
+            document.body.classList.add(classToAdd);
+            if (themeToggleCheckboxJuanizador) themeToggleCheckboxJuanizador.checked = theme === 'dark';
+            if (themeToggleLabelJuanizador) themeToggleLabelJuanizador.textContent = theme === 'dark' ? 'Tema Claro' : 'Tema Oscuro';
+        }
+
+        function toggleThemeJuanizador() {
+            const currentTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+            applyThemeJuanizador(currentTheme);
+            localStorage.setItem('themePreferenceJuanizador', currentTheme);
+        }
+
+        if (themeToggleCheckboxJuanizador) {
+            themeToggleCheckboxJuanizador.addEventListener('change', toggleThemeJuanizador);
+        }
+        // --- End Theme Toggle ---
+
+
+        /*********************
+         * CONFIG CONSTANTS
+         *********************/
+        // API Configuration
+        const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0'; 
+        const MODEL_NAME = 'gemini-1.5-flash';
+
+        // Initialize the Google GenAI API
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+        // Definición de las categorías anatómicas
+        const anatomicalCategories = [
+            { id: 0, name: "Tiroides/glándula tiroidea" },
+            { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" },
+            { id: 2, name: "Adenopatías mediastínicas" },
+            { id: 3, name: "Parénquima pulmonar" },
+            { id: 4, name: "Derrame pleural y cambios secundarios" },
+            { id: 5, name: "Hígado, porta y confluente esplenomesentérico venoso" },
+            { id: 6, name: "Vesícula y vía biliar" },
+            { id: 7, name: "Páncreas" },
+            { id: 8, name: "Bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria" },
+            { id: 9, name: "Cámara gástrica, asas intestinales" },
+            { id: 10, name: "Líquido libre o adenopatías intra-abdominales" },
+            { id: 11, name: "Aorta y grandes vasos mesentéricos" },
+            { id: 12, name: "Esqueleto axial" },
+            { id: 13, name: "Otros hallazgos" }
+        ];
+
+        // Prompts específicos para cada categoría
+        const categoryPrompts = {
+            0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'",
+            1: "Describe SOLO los hallazgos mencionados en estructuras mediastínicas vasculares y/o corazón, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'",
+            2: "Describe SOLO los hallazgos mencionados en adenopatías mediastínicas, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se identifican adenopatías mediastínicas de tamaño significativo.'",
+            3: "Describe SOLO los hallazgos mencionados en el parénquima pulmonar, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el parénquima pulmonar no existen imágenes nodulares ni aumentos de densidad sugestivos de afectación patológica'",
+            4: "Describe SOLO los hallazgos mencionados sobre derrame pleural, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se objetiva derrame pleural.'",
+            5: " A la hora de describir los hallazgos en el hígado, porta y confluente esplenomesentérico venoso me gusta seguir un esquema. En primer lugar hay que hablar si hay rasgos de hepatopatía crónica o no. Si los hay me gusta la frase el hígado es de contornos lobulados y parénquima discretamente heterogéneo en relación con rasgos de hepatopatía crónica. Si no los hay me gusta la frase el hígado es de bordes lisos y densidad homogénea. Una de estas 2 frases ha de estar incluida necesariamente en el informe. A partir de ahí describe si existen lesiones ocupantes de espacio brevemente con las características radiológicas principales de forma concisa teniendo en cuenta si estamos dictando un TAC, una resonancia o una eco ( no más de una frase de las características de cada tipo de lesión) con las caracteristicas que tambien se te aporten en los hallazgos. Describe también cualquier hallazgo relativo a porta, vena esplénica, vena mesentérica y confluente esplenomesentérico venoso, sin añadir interpretaciones o elaboraciones. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Sé conciso y específico. Si no hay hallazgos, devuelve EXACTAMENTE: 'El hígado es de bordes lisos y densidad homogénea no identificándose lesiones ocupantes de espacio. Vena porta, esplénica y mesentérica de calibre normal, permeables.'",
+            6: "Describe SOLO los hallazgos mencionados en vesícula y vía biliar, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Vesícula biliar normodistendida, de paredes finas, sin evidencia de litiasis en su interior. Vía biliar intra y extrahepática no dilatada.'",
+            7: "Describe SOLO los hallazgos mencionados en el páncreas, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Páncreas homogéneo y bien definido sin lesiones focales ni dilatación del ducto pancreático principal.'",
+            8: "Describe SOLO los hallazgos mencionados en bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Bazo, glándulas suprarrenales y riñones de tamaño, morfología y densidad normales, sin evidencia de lesiones focales. Vías excretoras, uréteres y vejiga urinaria sin alteraciones radiológicas significativas.'",
+            9: "Describe SOLO los hallazgos mencionados en cámara gástrica y asas intestinales, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Cámara gástrica moderadamente distendida sin hallazgos relevantes. Asas intestinales de delgado y marco cólico sin engrosamientos parietales ni cambios de calibre significativos.'",
+            10: "Describe SOLO los hallazgos mencionados sobre líquido libre o adenopatías intra-abdominales, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se observa líquido libre ni adenopatías intra-abdominales de aspecto patológico.'",
+            11: "Describe SOLO los hallazgos mencionados en aorta y grandes vasos mesentéricos, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Aorta y grandes vasos mesentéricos de calibre normal, sin hallazgos significativos.'",
+            12: "Describe SOLO los hallazgos mencionados en el esqueleto axial, sin añadir interpretaciones o elaboraciones. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'Esqueleto axial incluido en el estudio sin lesiones focales ni anomalías morfológicas relevantes.'",
+            13: "Describe SOLO los hallazgos que no corresponden claramente a otras categorías anatómicas. Sé conciso y específico. NO menciones la técnica de imagen utilizada (TAC, RM, etc.) en tu descripción. Si no hay hallazgos, devuelve EXACTAMENTE: 'No hay otros hallazgos relevantes que reportar.'"
+        };
+
+        /*********************
+         * SPEECH RECOGNITION
+         *********************/
+        let recognition;
+        let isRecording = false;
+        let transcriptArea; 
+
+        function initSpeechRecognition() {
+            const microphoneBtn = document.getElementById('microphone-btn');
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'es-ES';
+                
+                recognition.onresult = (event) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            let transcript = event.results[i][0].transcript;
+                            transcript = transcript.replace(/\s+punto(\s+|$)/gi, '. ');
+                            transcript = transcript.replace(/\s+coma(\s+|$)/gi, ', ');
+                            finalTranscript += transcript;
+                        }
+                    }
+                    if (finalTranscript) insertAtCaret(transcriptArea, finalTranscript);
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Error en reconocimiento de voz:', event.error);
+                    if (isRecording) toggleRecording(); // Stop if it was recording
+                };
+            } else {
+                microphoneBtn.innerHTML = '<span>Reconocimiento no soportado</span>';
+                microphoneBtn.disabled = true;
+            }
+        }
+
+        function insertAtCaret(textArea, text) {
+            const start = textArea.selectionStart;
+            const end = textArea.selectionEnd;
+            textArea.value = textArea.value.substring(0, start) + text + textArea.value.substring(end);
+            textArea.selectionStart = textArea.selectionEnd = start + text.length;
+            if (text === "." || text === ",") {
+                textArea.value = textArea.value.substring(0, start + 1) + " " + textArea.value.substring(start + 1);
+                textArea.selectionStart = textArea.selectionEnd = start + 2;
+            }
+        }
+
+        function toggleRecording() {
+            const microphoneBtn = document.getElementById('microphone-btn');
+            if (!recognition) return;
+            if (isRecording) {
+                recognition.stop();
+                microphoneBtn.classList.remove('recording');
+                microphoneBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                    Iniciar Dictado
+                `;
+            } else {
+                recognition.start();
+                microphoneBtn.classList.add('recording');
+                microphoneBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                    Detener Dictado
+                `;
+            }
+            isRecording = !isRecording;
+        }
+
+        /*********************
+         * API SERVICE
+         *********************/
+        let categorizedFindings = {};
+
+        async function queryGeminiAPI(prompt) {
+            try {
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                return response.text();
+            } catch (error) {
+                console.error('Error al consultar la API:', error);
+                return null;
+            }
+        }
+
+        async function categorizeFindings(availableCategories = []) {
+            const transcript = document.getElementById('transcript').value.trim();
+            const categorizedContentEl = document.getElementById('categorized-content'); // Renamed for clarity
+            const categorizingLoading = document.getElementById('categorizing-loading');
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const tacScopeSelect = document.getElementById('tac-scope');
+            
+            if (!transcript) {
+                alert('Por favor, dicte o escriba algún hallazgo primero.');
+                return;
+            }
+            
+            categorizingLoading.style.display = 'block';
+            if (!availableCategories.includes(13)) availableCategories.push(13);
+            
+            const filteredCategories = anatomicalCategories.filter(cat => 
+                availableCategories.length === 0 || availableCategories.includes(cat.id)
+            );
+            
+            const categoryNames = filteredCategories.map(cat => `${cat.id}. ${cat.name}`).join('\n');
+            const technique = imagingTechniqueSelect.value;
+            const tacScope = technique === 'tac' ? tacScopeSelect.value : null;
+            let learningDictionary = JSON.parse(localStorage.getItem('findingsLearningDictionary')) || {};
+            
+            const prompt = `
+            Eres un radiólogo experto que debe categorizar los siguientes hallazgos radiológicos en las categorías anatómicas apropiadas.
+            La técnica de imagen es: ${technique.toUpperCase()}${tacScope ? ` (${tacScope})` : ''}
+            Las categorías disponibles son:\n${categoryNames}
+            Hallazgos a categorizar:\n${transcript}
+            ${Object.keys(learningDictionary).length > 0 ? `Aquí hay ejemplos de hallazgos y cómo han sido categorizados previamente:\n${Object.entries(learningDictionary).map(([finding, categoryId]) => `"${finding}" => Categoría ${categoryId}`).join('\n')}` : ''}
+            Por favor, asigna cada hallazgo a la categoría más apropiada. Devuelve un JSON con la siguiente estructura:
+            { "1": ["hallazgo 1", "hallazgo 2"], "2": ["hallazgo 3"], ... }
+            Donde las claves son los números de las categorías y los valores son arrays de hallazgos asignados a esas categorías.
+            Incluye solo las categorías disponibles que tienen hallazgos. 
+            Si un hallazgo no corresponde claramente a ninguna categoría anatómica, asígnalo a la categoría 13 "Otros hallazgos".
+            Intenta utilizar los ejemplos previos para categorizar hallazgos similares de manera consistente.
+            Devuelve SOLO el objeto JSON, sin texto adicional.`;
+            
+            try {
+                const response = await queryGeminiAPI(prompt);
+                if (!response) throw new Error('No se recibió respuesta de la API');
+                
+                let jsonStr = response.trim();
+                if (jsonStr.includes('{') && jsonStr.includes('}')) {
+                    jsonStr = jsonStr.substring(jsonStr.indexOf('{'), jsonStr.lastIndexOf('}') + 1);
+                }
+                
+                try {
+                    categorizedFindings = JSON.parse(jsonStr);
+                    displayCategorizedFindings();
+                } catch (parseError) {
+                    console.error('Error al parsear JSON:', parseError, 'JSON:', jsonStr);
+                    const alternativeJson = {};
+                    const categoryRegex = /"(\d+)":\s*\[(.*?)\]/gs;
+                    let match;
+                    while ((match = categoryRegex.exec(jsonStr)) !== null) {
+                        const findings = [];
+                        const findingsRegex = /"(.*?)"/g;
+                        let findingMatch;
+                        while ((findingMatch = findingsRegex.exec(match[2])) !== null) findings.push(findingMatch[1]);
+                        if (findings.length > 0) alternativeJson[match[1]] = findings;
+                    }
+                    if (Object.keys(alternativeJson).length > 0) {
+                        categorizedFindings = alternativeJson;
+                        displayCategorizedFindings();
+                    } else {
+                        throw new Error('No se pudo extraer información válida del JSON');
+                    }
+                }
+            } catch (error) {
+                console.error('Error al categorizar hallazgos:', error);
+                alert('Error al categorizar hallazgos. Por favor, intente nuevamente.');
+            } finally {
+                categorizingLoading.style.display = 'none';
+            }
+        }
+
+        async function generateCompleteReport() {
+            const finalReportEl = document.getElementById('final-report'); // Renamed
+            const reportLoading = document.getElementById('report-loading');
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const tacScopeSelect = document.getElementById('tac-scope');
+            const rmTypeSelect = document.getElementById('rm-type');
+            
+            if (Object.keys(categorizedFindings).length === 0) {
+                alert('Primero debe categorizar los hallazgos.');
+                return;
+            }
+            
+            reportLoading.style.display = 'block';
+            finalReportEl.textContent = 'Generando informe...';
+            
+            const technique = imagingTechniqueSelect.value.toUpperCase();
+            const tacScope = technique === 'TAC' ? tacScopeSelect.value : null;
+            const rmType = technique === 'RM' ? rmTypeSelect.value : null;
+            let fullReport = '';
+            const availableCategories = window.availableCategories || [];
+            
+            for (const category of anatomicalCategories) {
+                const categoryId = category.id.toString();
+                if (!availableCategories.includes(category.id)) continue;
+                
+                const findings = categorizedFindings[categoryId] || [];
+                const prompt = `${categoryPrompts[categoryId]}\nTécnica de imagen: ${technique}${tacScope ? ` (${tacScope})` : ''}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, usando terminología radiológica adecuada específica para ${technique}. MUY IMPORTANTE: NO menciones la técnica de imagen (TAC, RM, eco, etc.) en tu descripción de hallazgos.`;
+                
+                try {
+                    const sectionReport = await queryGeminiAPI(prompt);
+                    if (sectionReport) fullReport += `${sectionReport.trim()}\n`;
+                } catch (error) {
+                    console.error(`Error generando para cat ${categoryId}:`, error);
+                    fullReport += `Error al generar esta sección.\n`;
+                }
+            }
+            
+            try {
+                const allFindings = [];
+                for (const categoryId in categorizedFindings) {
+                    if (availableCategories.includes(parseInt(categoryId))) {
+                        allFindings.push(...categorizedFindings[categoryId]);
+                    }
+                }
+                
+                const conclusionPrompt = `Técnica de imagen: ${technique}${tacScope ? ` (${tacScope})` : ''}${rmType ? ` (${rmType})` : ''}\nBasado en estos hallazgos radiológicos exactos:\n${allFindings.join('. ')}\nGenera una conclusión muy concisa (máximo 2-3 líneas) que describa SOLO los 2-3 hallazgos más relevantes o significativos. Para hallazgos menores adicionales, sustituye todos ellos por la frase "Ver informe descriptivo." Limítate a los datos proporcionados, sin añadir interpretaciones o elaboraciones creativas. MUY IMPORTANTE: NO menciones la técnica de imagen (TAC, RM, eco, etc.) en tu conclusión. Si no hay hallazgos significativos, devuelve EXACTAMENTE: "No se observan alteraciones radiológicas significativas."`;
+                const conclusion = await queryGeminiAPI(conclusionPrompt);
+                if (conclusion) fullReport += `\n${conclusion.trim()}`;
+            } catch (error) {
+                console.error('Error al generar conclusión:', error);
+                fullReport += '\nError al generar conclusión.';
+            }
+            
+            finalReportEl.textContent = fullReport;
+            reportLoading.style.display = 'none';
+        }
+
+        function teachFindingCategorization(finding, categoryId) {
+            let learningDictionary = JSON.parse(localStorage.getItem('findingsLearningDictionary')) || {};
+            learningDictionary[finding] = categoryId;
+            localStorage.setItem('findingsLearningDictionary', JSON.stringify(learningDictionary));
+            alert(`La app ha aprendido que "${finding}" pertenece a la categoría "${anatomicalCategories.find(cat => cat.id === parseInt(categoryId)).name}"`);
+        }
+
+        /*********************
+         * UI FUNCTIONS
+         *********************/
+        function displayCategorizedFindings() {
+            const categorizedContentEl = document.getElementById('categorized-content');
+            categorizedContentEl.innerHTML = '';
+            if (Object.keys(categorizedFindings).length === 0) {
+                categorizedContentEl.innerHTML = '<p>No hay hallazgos categorizados.</p>';
+                return;
+            }
+            const availableCategories = window.availableCategories || [];
+            
+            for (const categoryId in categorizedFindings) {
+                if (availableCategories.includes(parseInt(categoryId)) && categorizedFindings[categoryId].length > 0) {
+                    const category = anatomicalCategories.find(cat => cat.id === parseInt(categoryId));
+                    if (category) {
+                        const categoryDiv = document.createElement('div');
+                        categoryDiv.className = 'category';
+                        let findingsHtml = '';
+                        for (const finding of categorizedFindings[categoryId]) {
+                            if (parseInt(categoryId) === 13) {
+                                findingsHtml += `<li class="finding-item"><div class="finding-text">${finding}</div><div class="finding-controls"><select class="category-reassign" data-finding="${finding}"><option value="">Reasignar a...</option>${anatomicalCategories.filter(cat => cat.id !== 13).map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('')}</select></div></li>`;
+                            } else {
+                                findingsHtml += `<li>${finding}</li>`;
+                            }
+                        }
+                        categoryDiv.innerHTML = `<h3>${category.name}</h3><div class="category-content"><ul>${findingsHtml}</ul></div>`;
+                        categorizedContentEl.appendChild(categoryDiv);
+                    }
+                }
+            }
+            
+            document.querySelectorAll('.category-reassign').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const finding = e.target.dataset.finding;
+                    const newCategoryId = e.target.value;
+                    if (newCategoryId) {
+                        teachFindingCategorization(finding, newCategoryId);
+                        if (!categorizedFindings[newCategoryId]) categorizedFindings[newCategoryId] = [];
+                        categorizedFindings[newCategoryId].push(finding);
+                        categorizedFindings[13] = categorizedFindings[13].filter(f => f !== finding);
+                        if (categorizedFindings[13].length === 0) delete categorizedFindings[13];
+                        displayCategorizedFindings();
+                    }
+                });
+            });
+        }
+
+        const thoracicCategories = [0, 1, 2, 3, 4];
+        const abdominalCategories = [5, 6, 7, 8, 9, 10, 11, 12];
+        const otherCategories = [13];
+
+        function updateAvailableCategories() {
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const tacScopeSelect = document.getElementById('tac-scope');
+            const rmTypeContainer = document.getElementById('rm-type-container');
+            const tacScopeContainer = document.getElementById('tac-scope-container');
+            const contrastContainer = document.getElementById('contrast-container');
+            const phaseContainer = document.getElementById('phase-container');
+            
+            const technique = imagingTechniqueSelect.value;
+            const tacScope = tacScopeSelect.value;
+            
+            tacScopeContainer.style.display = technique === 'tac' ? 'flex' : 'none';
+            rmTypeContainer.style.display = technique === 'rm' ? 'flex' : 'none';
+            contrastContainer.style.display = technique === 'tac' ? 'flex' : 'none'; // Show for TAC
+            phaseContainer.style.display = (technique === 'tac' && document.getElementById('contrast-use').value === 'con') ? 'flex' : 'none';
+
+
+            if (technique === 'tac') {
+                if (tacScope === 'toracoabdominal') window.availableCategories = [...thoracicCategories, ...abdominalCategories, ...otherCategories];
+                else if (tacScope === 'torax') window.availableCategories = [...thoracicCategories, ...otherCategories];
+                else if (tacScope === 'abdomen') window.availableCategories = [...abdominalCategories, ...otherCategories];
+            } else if (technique === 'rm' || technique === 'eco') { // RM and Eco use abdominal + others
+                window.availableCategories = [...abdominalCategories, ...otherCategories];
+            }
+            
+            document.getElementById('categorized-content').innerHTML = '';
+            categorizedFindings = {};
+            updateTechniqueDescription();
+        }
+
+        function updateContrastOptions() {
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const contrastUseSelect = document.getElementById('contrast-use');
+            const phaseContainer = document.getElementById('phase-container');
+            
+            if (imagingTechniqueSelect.value === 'tac' && contrastUseSelect.value === 'con') {
+                phaseContainer.style.display = 'flex';
+            } else {
+                phaseContainer.style.display = 'none';
+                document.querySelectorAll('input[name="phase"]').forEach(cb => cb.checked = false);
+            }
+            updateTechniqueDescription();
+        }
+
+        function updateTechniqueDescription() {
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const tacScopeSelect = document.getElementById('tac-scope');
+            const rmTypeSelect = document.getElementById('rm-type');
+            const contrastUseSelect = document.getElementById('contrast-use');
+            const techniqueTextEl = document.getElementById('technique-text'); // Renamed
+            const techniqueDescriptionEl = document.getElementById('technique-description'); // Renamed
+            
+            const technique = imagingTechniqueSelect.value;
+            
+            if (technique !== 'tac' && technique !== 'rm') {
+                techniqueDescriptionEl.style.display = 'none';
+                return;
+            }
+            techniqueDescriptionEl.style.display = 'block';
+            
+            let description = "";
+            if (technique === 'tac') {
+                const scope = tacScopeSelect.value === 'toracoabdominal' ? 'toracoabdominal' : tacScopeSelect.value === 'torax' ? 'torácica' : 'abdominal';
+                const contrast = contrastUseSelect.value === 'con' ? 'tras la' : 'sin la';
+                description = `Se realiza exploración TAC ${scope} ${contrast} administración de contraste endovenoso`;
+                if (contrastUseSelect.value === 'con') {
+                    const phases = Array.from(document.querySelectorAll('input[name="phase"]:checked')).map(cb => cb.value);
+                    if (phases.length > 0) {
+                        let phaseText = phases.map(p => p === 'arterial' ? 'arterial' : p === 'portal' ? 'portal' : 'tardía').join(', ');
+                        if (phases.length > 1) phaseText = phaseText.replace(/,([^,]*)$/, ' y$1'); // Correct grammar for multiple phases
+                        description += ` con adquisición de imágenes en fase ${phaseText}`;
+                    }
+                }
+                description += '.';
+            } else if (technique === 'rm') {
+                switch(rmTypeSelect.value) {
+                    case 'hepatica': description = 'Se realiza estudio de RM hepática con secuencias ponderadas en T1, T2, difusión y posterior a la administración de contraste hepatoespecífico.'; break;
+                    case 'colangio': description = 'Se realiza estudio de ColangioRM con secuencias ponderadas en T2 y secuencias MRCP (colangiopancreatografía por resonancia magnética).'; break;
+                    case 'pelvis-neo': description = 'Se realiza estudio de RM pélvica para valoración de neoplasia con secuencias ponderadas en T1, T2, difusión y posterior a la administración de contraste intravenoso.'; break;
+                    case 'pelvis-fist': description = 'Se realiza estudio de RM pélvica para valoración de fístulas perianales con secuencias ponderadas en T1, T2, STIR y posterior a la administración de contraste intravenoso.'; break;
+                    case 'entero': description = 'Se realiza estudio de EnteroRM con secuencias ponderadas en T1, T2, difusión y posterior a la administración de contraste intravenoso tras la adecuada distensión de asas intestinales mediante contraste oral.'; break;
+                }
+            }
+            techniqueTextEl.textContent = description;
+        }
+
+        /*********************
+         * EVENT LISTENERS
+         *********************/
+        document.addEventListener('DOMContentLoaded', () => {
+            // Apply saved theme first
+            const savedTheme = localStorage.getItem('themePreferenceJuanizador') || 'light';
+            applyThemeJuanizador(savedTheme);
+
+            const microphoneBtn = document.getElementById('microphone-btn');
+            transcriptArea = document.getElementById('transcript');
+            const categorizeBtn = document.getElementById('categorize-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const generateReportBtn = document.getElementById('generate-report-btn');
+            const copyReportBtn = document.getElementById('copy-report-btn');
+            const imagingTechniqueSelect = document.getElementById('imaging-technique');
+            const tacScopeSelect = document.getElementById('tac-scope');
+            const rmTypeSelect = document.getElementById('rm-type');
+            const contrastUseSelect = document.getElementById('contrast-use');
+            const techniqueDescriptionEl = document.getElementById('technique-description');
+            const backToDictationBtn = document.getElementById('backToDictationBtn');
+
+            const inputTextFromIndex = localStorage.getItem('juanizadorInputText');
+            if (inputTextFromIndex) {
+                transcriptArea.value = inputTextFromIndex;
+                localStorage.removeItem('juanizadorInputText'); 
+            }
+            
+            initSpeechRecognition();
+            updateAvailableCategories(); // This also calls updateTechniqueDescription
+            // updateTechniqueDescription(); // Call explicitly to set initial state if needed
+            
+            imagingTechniqueSelect.addEventListener('change', updateAvailableCategories);
+            tacScopeSelect.addEventListener('change', updateAvailableCategories); // This will also update technique description
+            rmTypeSelect.addEventListener('change', updateTechniqueDescription);
+            contrastUseSelect.addEventListener('change', updateContrastOptions); // This will also update technique description
+            document.querySelectorAll('input[name="phase"]').forEach(cb => cb.addEventListener('change', updateTechniqueDescription));
+            
+            microphoneBtn.addEventListener('click', toggleRecording);
+            categorizeBtn.addEventListener('click', () => categorizeFindings(window.availableCategories));
+            
+            clearBtn.addEventListener('click', () => {
+                transcriptArea.value = '';
+                document.getElementById('categorized-content').innerHTML = '';
+                categorizedFindings = {};
+            });
+            
+            generateReportBtn.addEventListener('click', generateCompleteReport);
+            
+            copyReportBtn.addEventListener('click', () => {
+                const techniqueDescText = document.getElementById('technique-text').textContent;
+                const reportText = document.getElementById('final-report').textContent;
+                let fullText = "";
+                if (techniqueDescText.trim() && techniqueDescriptionEl.style.display !== 'none') {
+                    fullText += techniqueDescText + "\n\n";
+                }
+                fullText += reportText;
+                navigator.clipboard.writeText(fullText)
+                    .then(() => alert('Informe copiado al portapapeles'))
+                    .catch(err => console.error('Error al copiar: ', err));
+            });
+
+            if (backToDictationBtn) { 
+                backToDictationBtn.addEventListener('click', () => {
+                    window.location.href = 'index.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

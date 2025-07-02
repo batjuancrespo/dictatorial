@@ -561,7 +561,7 @@ async function transcribeAndPolishAudio(base64Audio){
     try{
         setStatus('Transcribiendo...','processing');
         const transcriptPromptParts = [
-            {text:"Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Ignora sonidos de respiración o carraspeos. Si el hablante dice 'coma', 'punto', etc., transcríbelo tal cual como texto, no como el signo de puntuación. El objetivo es una transcripción fiel palabra por palabra. Si el audio termina abruptly sin una palabra de puntuación, NO añadas ninguna."},
+            {text:"Transcribe el siguiente audio a texto con la MÁXIMA LITERALIDAD POSIBLE. Ignora sonidos de respiración o carraspeos. Si el hablante dice 'coma', 'punto', etc., transcríbelo tal cual como texto, no como el signo de puntuación. El objetivo es una transcripción fiel palabra por palabra. Si el audio termina abruptamente sin una palabra de puntuación, NO añadas ninguna."},
             {inline_data:{mime_type:"audio/webm",data:base64Audio}}
         ];
         transcribedText = await callGeminiAPI(transcriptPromptParts, false); 

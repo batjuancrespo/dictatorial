@@ -19,20 +19,20 @@ let recordingTimerInterval;
 let recordingSeconds = 0;  
 const userApiKey = 'AIzaSyASbB99MVIQ7dt3MzjhidgoHUlMXIeWvGc'; // API Key de Gemini
 
-// --- Variables para el Vocabulario del Usuario (estilo index (2).html) ---
+// --- Variables para el Vocabulario del Usuario ---
 let currentUserId = null;      
 let customVocabulary = {};
 let learnedCorrections = {};
 let commonMistakeNormalization = {};
 
-// --- Variables para Debounce y Dictado por Selección/Inserción ---
+// --- Variables de Estado y UI ---
 let isProcessingClick = false; 
 const CLICK_DEBOUNCE_MS = 300; 
 let isDictatingForReplacement = false;
 let replacementSelectionStart = 0;
 let replacementSelectionEnd = 0;
 let insertionPoint = 0; 
-
+let lastCopiedText = ''; // Variable para el estado del botón de copiar
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DEBUG: DOMContentLoaded event fired.");
@@ -107,7 +107,6 @@ document.addEventListener('firebaseReady', () => {
 });
 
 function initializeAuthAndApp() {
-    // ... (Esta función entera permanece sin cambios)
     console.log("DEBUG: initializeAuthAndApp - INICIO de la función.");
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
@@ -227,8 +226,6 @@ function initializeAuthAndApp() {
 function initializeDictationAppLogic(userId) {
     console.log(`DEBUG: initializeDictationAppLogic para usuario: ${userId} - Asignando listeners.`);
     
-    // El 'debounce' ya no es necesario para el copiado
-    
     if (!startRecordBtn.dataset.listenerAttached) { 
         startRecordBtn.addEventListener('click', () => {
             if (isProcessingClick) { console.warn("DEBUG: startRecordBtn - Clic ignorado (debouncing)"); return; }
@@ -273,7 +270,7 @@ function initializeDictationAppLogic(userId) {
             if (e.target.tagName === 'BUTTON' && e.target.dataset.techniqueText) { 
                 headerArea.value = e.target.dataset.techniqueText; 
                 headerArea.focus(); 
-                updateCopyButtonState(false); // Desincroniza el botón
+                updateCopyButtonState();
             }
         }); 
         techniqueButtonsContainer.dataset.listenerAttached = 'true';
@@ -282,18 +279,16 @@ function initializeDictationAppLogic(userId) {
         clearHeaderButton.addEventListener('click', () => { 
             headerArea.value = ""; 
             headerArea.focus();
-            updateCopyButtonState(false); // Desincroniza el botón
+            updateCopyButtonState();
         }); 
         clearHeaderButton.dataset.listenerAttached = 'true';
     }
-
-    // NUEVO: Listeners en los textareas para desincronizar el botón
     if (headerArea && !headerArea.dataset.syncListener) {
-        headerArea.addEventListener('input', () => updateCopyButtonState(false));
+        headerArea.addEventListener('input', updateCopyButtonState);
         headerArea.dataset.syncListener = 'true';
     }
     if (polishedTextarea && !polishedTextarea.dataset.syncListener) {
-        polishedTextarea.addEventListener('input', () => updateCopyButtonState(false));
+        polishedTextarea.addEventListener('input', updateCopyButtonState);
         polishedTextarea.dataset.syncListener = 'true';
     }
     
@@ -325,11 +320,27 @@ function initializeDictationAppLogic(userId) {
     }
     
     updateButtonStates("initial"); 
-    updateCopyButtonState(true); // Al iniciar, asumimos que está sincronizado (con nada)
+    updateCopyButtonState();
 } 
 
-function updateCopyButtonState(isSynced) {
+function getCombinedText() {
+    if (!headerArea || !polishedTextarea) return "";
+    const h = headerArea.value.trim();
+    const r = polishedTextarea.value.trim();
+    let text = "";
+    if (h) text += h;
+    if (r) {
+        if (text) text += "\n\n";
+        text += r;
+    }
+    return text;
+}
+
+function updateCopyButtonState() {
     if (!copyPolishedTextBtn) return;
+    const currentText = getCombinedText();
+    const isSynced = (currentText === lastCopiedText);
+
     if (isSynced) {
         copyPolishedTextBtn.classList.add('synced');
         copyPolishedTextBtn.textContent = '✓ Copiado';
@@ -342,66 +353,23 @@ function updateCopyButtonState(isSynced) {
 }
 
 async function copyFullReportToClipboard(showStatus = false) {
-    if (!headerArea || !polishedTextarea) return;
-
-    const h = headerArea.value.trim();
-    const r = polishedTextarea.value.trim();
-    let textToCopy = "";
-
-    if (h) {
-        textToCopy += h;
-    }
-    if (r) {
-        if (textToCopy) {
-            textToCopy += "\n\n";
-        }
-        textToCopy += r;
-    }
+    const textToCopy = getCombinedText();
 
     try {
         await navigator.clipboard.writeText(textToCopy);
-        updateCopyButtonState(true); // Sincronizado!
+        lastCopiedText = textToCopy; // Actualiza el estado de lo último copiado
+        updateCopyButtonState(); // Refleja el cambio en el botón
         if (showStatus) {
             setStatus("¡Texto copiado!", "success", 2000);
         }
     } catch (e) {
         console.error('Error al copiar el texto:', e);
-        updateCopyButtonState(false); // Hubo un error, no está sincronizado
+        updateCopyButtonState(); // Asegura que el botón muestre el estado correcto (no sincronizado)
         if (showStatus) {
             setStatus("Error al copiar el texto.", "error", 3000);
         }
     }
 }
-
-async function processAudioBlobAndInsertText(audioBlob) {
-    // ...
-    // DENTRO DEL TRY/CATCH, AL FINAL (ANTES DE CERRAR EL TRY)
-    try {
-        // ... toda la lógica existente de processAudioBlobAndInsertText ...
-        
-        // Al final, justo antes de "updateButtonStates"
-        updateCopyButtonState(false); // Desincroniza el botón porque el texto ha cambiado
-        updateButtonStates("success_processing");
-
-    } catch (error) {
-        // ... toda la lógica del catch ...
-    } finally {
-        isDictatingForReplacement = false; 
-    }
-}
-
-async function handleCorrectTextSelection() {
-    // ...
-    // Al final de la función
-    updateCopyButtonState(false); // Desincroniza el botón
-    polishedTextarea.focus();
-}
-
-// ... El resto de funciones (applyTheme, setAccentRGB, setStatus, etc. permanecen sin cambios) ...
-
-// Asegúrate de que las funciones `processAudioBlobAndInsertText` y `handleCorrectTextSelection`
-// llamen a `updateCopyButtonState(false)` después de modificar el textarea.
-// Aquí está el código completo de esas funciones modificadas:
 
 function applyTheme(theme) { document.body.setAttribute('data-theme', theme); localStorage.setItem('theme', theme); if (themeSwitch) themeSwitch.checked = theme === 'dark'; if (mainTitleImage && mainTitleImageDark) { mainTitleImage.style.display = theme === 'light' ? 'inline-block' : 'none'; mainTitleImageDark.style.display = theme === 'dark' ? 'inline-block' : 'none'; } }
 function setAccentRGB() { try { const bS = getComputedStyle(document.body); if (!bS) return; const aC = bS.getPropertyValue('--accent-color').trim(); if (aC.startsWith('#')) { const r = parseInt(aC.slice(1,3),16), g = parseInt(aC.slice(3,5),16), b = parseInt(aC.slice(5,7),16); document.documentElement.style.setProperty('--accent-color-rgb',`${r},${g},${b}`); } else if (aC.startsWith('rgb')) { const p = aC.match(/[\d.]+/g); if (p && p.length >=3) document.documentElement.style.setProperty('--accent-color-rgb',`${p[0]},${p[1]},${p[2]}`);}} catch (e) { console.warn("Failed to set --accent-color-rgb:", e); }}
@@ -536,7 +504,7 @@ async function processAudioBlobAndInsertText(audioBlob) {
             polishedTextarea.selectionStart = polishedTextarea.selectionEnd = newCursorPos;
             setStatus('Texto insertado/añadido.', 'success', 3000);
         }
-        updateCopyButtonState(false); // Desincroniza el botón porque el texto ha cambiado
+        updateCopyButtonState(); 
         updateButtonStates("success_processing");
     } catch (error) {
         console.error('Error en processAudioBlobAndInsertText:', error);
@@ -551,11 +519,9 @@ async function processAudioBlobAndInsertText(audioBlob) {
 }
 function handlePauseResume() { if(!mediaRecorder||!isRecording)return;if(mediaRecorder.state==="recording"){mediaRecorder.pause();}else if(mediaRecorder.state==="paused"){mediaRecorder.resume();}}
 function updateButtonStates(state) { startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;copyPolishedTextBtn.disabled=false;correctTextSelectionBtn.disabled=true;startRecordBtn.textContent="Empezar Dictado";startRecordBtn.classList.remove("stop-style");pauseResumeBtn.textContent="Pausar";let showPlayer=false;if(currentAudioBlob){if(["initial","stopped_success","error_processing","success_processing","stopped_error"].includes(state)){showPlayer=true;}}if(audioPlaybackSection)audioPlaybackSection.style.display=showPlayer?'block':'none';else console.warn("audioPlaybackSection null en updateButtonStates");switch(state){case "initial":startRecordBtn.disabled=false;if(statusDiv&&statusDiv.textContent.toLowerCase()!=="listo"&&!statusDiv.textContent.toLowerCase().includes("error")&&!statusDiv.textContent.toLowerCase().includes("pausada")&&!statusDiv.textContent.toLowerCase().includes("reemplazo"))setStatus("Listo","idle");resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "recording":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='grabando...'&&statusDiv.textContent.toLowerCase()!=='dicte el reemplazo...')setStatus('Grabando...','processing');break;case "paused":startRecordBtn.disabled=false;startRecordBtn.textContent=isDictatingForReplacement?"Detener Reemplazo":"Detener Dictado";startRecordBtn.classList.add("stop-style");pauseResumeBtn.disabled=false;pauseResumeBtn.textContent="Reanudar";retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";if(!isDictatingForReplacement&&statusDiv.textContent.toLowerCase()!=='reemplazo pausado.'&&statusDiv.textContent.toLowerCase()!=='dictado pausado.')setStatus('Grabación pausada.','idle');break;case "stopped_success":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "stopped_error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;case "processing_audio":startRecordBtn.disabled=true;pauseResumeBtn.disabled=true;retryProcessBtn.disabled=true;correctTextSelectionBtn.disabled=true;break;case "error_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "success_processing":startRecordBtn.disabled=false;retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;case "error":startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=true;break;default:startRecordBtn.disabled=false;resetRecordingTimerDisplay();stopVolumeMeter();retryProcessBtn.disabled=!currentAudioBlob;correctTextSelectionBtn.disabled=polishedTextarea.value.trim()==="";break;}}
-async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;updateCopyButtonState(false);polishedTextarea.focus();}
-
+async function handleCorrectTextSelection(){if(!polishedTextarea)return;const sS=polishedTextarea.selectionStart;const sE=polishedTextarea.selectionEnd;const sT=polishedTextarea.value.substring(sS,sE).trim();if(!sT){setStatus("Selecciona texto.","idle",3000);return;}const cTU=prompt(`Corregir:\n"${sT}"\n\nCorrección:` ,sT);if(cTU===null){setStatus("Cancelado.","idle",2000);return;}const fCT=cTU.trim();const ruleKey = sT.toLowerCase(); if(sT.toLowerCase()===fCT.toLowerCase()&&sT!==fCT){}else if(sT.toLowerCase()!==fCT.toLowerCase()||fCT==="" || !customVocabulary.hasOwnProperty(ruleKey) || customVocabulary[ruleKey] !== fCT ){customVocabulary[ruleKey]=fCT;await saveUserVocabularyToFirestore();setStatus(`Regla guardada: "${ruleKey}"➔"${fCT}"`,"success",3000);}else{setStatus("No cambios para guardar.","idle",2000);}const tB=polishedTextarea.value.substring(0,sS);const tA=polishedTextarea.value.substring(sE);polishedTextarea.value=tB+fCT+tA;polishedTextarea.selectionStart=polishedTextarea.selectionEnd=sS+fCT.length;updateCopyButtonState();polishedTextarea.focus();}
 function blobToBase64(b){return new Promise((res,rej)=>{if(!b||b.size===0)return rej(new Error("Blob nulo"));const r=new FileReader();r.onloadend=()=>{if(r.result){const s=r.result.toString().split(',')[1];if(!s)return rej(new Error("Fallo Base64"));res(s);}else rej(new Error("FileReader sin resultado"));};r.onerror=e=>rej(e);r.readAsDataURL(b);});}
 async function callGeminiAPI(p,isTxt=false){if(!userApiKey)throw new Error('No API Key');const u=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`;const t=isTxt?0.1:0.2;const y={contents:[{parts:p}],generationConfig:{temperature:t}};console.log(`Gemini (isTxt:${isTxt},temp:${t}). Prompt(inicio):`,JSON.stringify(p[0]).substring(0,200)+"...");const resp=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(y)});if(!resp.ok){const eD=await resp.json();console.error("Error Gemini API:",eD);throw new Error(`Error API:${eD.error?.message||resp.statusText}(${resp.status})`);}const d=await resp.json();if(d.candidates?.[0]?.content?.parts?.[0]?.text)return d.candidates[0].content.parts[0].text;if(d.promptFeedback?.blockReason)throw new Error(`Bloqueado:${d.promptFeedback.blockReason}.${d.promptFeedback.blockReasonMessage||''}`);if(d.candidates?.[0]?.finishReason&&d.candidates[0].finishReason!=="STOP")throw new Error(`Gemini fin:${d.candidates[0].finishReason}.`);if(d.candidates?.[0]?.finishReason==="STOP"&&!d.candidates?.[0]?.content?.parts?.[0]?.text)return"";throw new Error('Gemini respuesta inesperada.');}
-
 function cleanupArtifacts(text) {
     if (!text || typeof text !== 'string') return text || "";
     let cleanedText = text;
@@ -587,7 +553,6 @@ function cleanupArtifacts(text) {
     console.log("DEBUG cleanupArtifacts: Texto SALIENTE después de limpieza:", JSON.stringify(cleanedText.trim()));
     return cleanedText.trim(); 
 }
-
 function capitalizeSentencesProperly(text) {
     if (!text || typeof text !== 'string' || text.trim() === "") {
         return text || ""; 
@@ -601,7 +566,6 @@ function capitalizeSentencesProperly(text) {
     );
     return processedText;
 }
-
 async function transcribeAndPolishAudio(base64Audio){
     let transcribedText = '';
     try{
@@ -655,7 +619,6 @@ Texto a procesar:
     console.log("DEBUG transcribeAndPolishAudio: Texto FINAL (antes de capitalización contextual de inserción):", JSON.stringify(finalText));
     return finalText;
 }
-
 async function loadUserVocabularyFromFirestore(userId) { if (!userId || !window.db) { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; return; } console.log(`DEBUG: Cargando vocabulario (estilo index(2).html) para usuario: ${userId}`); const vocabDocRef = window.doc(window.db, "userVocabularies", userId); try { const docSnap = await window.getDoc(vocabDocRef); if (docSnap.exists()) { const firestoreData = docSnap.data(); customVocabulary = firestoreData.rulesMap || {}; learnedCorrections = firestoreData.learnedMap || {}; commonMistakeNormalization = firestoreData.normalizations || {}; console.log("DEBUG: Vocabulario cargado. Reglas:", Object.keys(customVocabulary).length, "Aprendidas:", Object.keys(learnedCorrections).length, "Normaliz.:", Object.keys(commonMistakeNormalization).length); } else { customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; console.log("DEBUG: No doc de vocabulario. Usando vacíos."); } } catch (error) { console.error("Error cargando vocabulario:", error); customVocabulary = {}; learnedCorrections = {}; commonMistakeNormalization = {}; setStatus("Error al cargar personalizaciones.", "error", 3000); } }
 async function saveUserVocabularyToFirestore() { if (!currentUserId || !window.db) { console.error("DEBUG: No hay userId o DB para guardar vocabulario."); return; } const vocabToSaveForLog = JSON.parse(JSON.stringify(customVocabulary)); console.log(`DEBUG: Guardando vocabulario para ${currentUserId}. Contenido de customVocabulary (rulesMap) a guardar:`, vocabToSaveForLog); const vocabDocRef = window.doc(window.db, "userVocabularies", currentUserId); const dataToSave = { rulesMap: customVocabulary, learnedMap: learnedCorrections, normalizations: commonMistakeNormalization }; try { await window.setDoc(vocabDocRef, dataToSave); console.log("DEBUG: Vocabulario del usuario SOBRESCRITO en Firestore con el estado actual de los 3 mapas."); } catch (error) { console.error("Error guardando vocabulario del usuario:", error); setStatus("Error al guardar personalizaciones.", "error", 3000); } }
 function applyAllUserCorrections(text) { if (!text) return ""; let processedText = text; if (Object.keys(customVocabulary).length > 0) { console.log("DEBUG: Aplicando vocabulario personalizado (rulesMap)..."); const sortedCustomKeys = Object.keys(customVocabulary).sort((a, b) => b.length - a.length); for (const errorKey of sortedCustomKeys) { const correctValue = customVocabulary[errorKey]; try { const regex = new RegExp(`\\b${escapeRegExp(errorKey)}\\b`, 'gi'); processedText = processedText.replace(regex, correctValue); } catch (e) { console.error(`Error regex (custom): "${errorKey}"`, e); } } } return processedText; }

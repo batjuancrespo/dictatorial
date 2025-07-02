@@ -625,7 +625,7 @@ function applyPunctuationRules(text) {
                 break;
             // Añade más casos si es necesario
             default:
-                // Si la palabra no es un comando, la añadimos tal cual.
+                // Si no es un comando, la añadimos tal cual.
                 result.push(word);
                 break;
         }

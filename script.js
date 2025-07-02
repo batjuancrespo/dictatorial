@@ -581,12 +581,12 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN 6.0) ===
+// === REEMPLAZA SOLO ESTA FUNCIÓN (VERSIÓN 7.0 - LIMPIEZA ESPECÍFICA) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 6.0 - MÉTODO DE LIMPIEZA: Aplica reglas de puntuación de forma determinista.
- * Este método primero aplica todas las reglas y luego limpia los resultados incorrectos.
+ * VERSIÓN 7.0 - MÉTODO DE LIMPIEZA ESPECÍFICA: Aplica reglas de puntuación.
+ * Este método refina la limpieza para evitar borrar puntuación legítima.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
@@ -595,34 +595,33 @@ function applyPunctuationRules(text) {
 
     let processedText = ` ${text} `;
 
-    // --- PASO 1: Reemplazo simple y directo. Aceptamos que creará duplicados. ---
+    // --- PASO 1: Reemplazo simple y directo. ---
     processedText = processedText.replace(/\bpunto y aparte\b/gi, '.\n');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, '.');
-    processedText = processedText.replace(/\bpunto\b/gi, '.');
-    processedText = processedText.replace(/\bcoma\b/gi, ',');
+    processedText = processedText.replace(/\bpunto y seguido\b/gi, '. ');
+    processedText = processedText.replace(/\bpunto\b/gi, '. ');
+    processedText = processedText.replace(/\bcoma\b/gi, ', ');
     processedText = processedText.replace(/\bnueva línea\b/gi, '\n');
-    processedText = processedText.replace(/\bdos puntos\b/gi, ':');
-    processedText = processedText.replace(/\bpunto y coma\b/gi, ';');
-    processedText = processedText.replace(/\binterrogación\b/gi, '?');
-    processedText = processedText.replace(/\bexclamación\b/gi, '!');
-
-    // --- PASO 2: Limpieza exhaustiva de patrones incorrectos. ---
-    // Esta es la parte clave. Limpiamos cualquier combinación de signos.
+    processedText = processedText.replace(/\bdos puntos\b/gi, ': ');
+    processedText = processedText.replace(/\bpunto y coma\b/gi, '; ');
+    processedText = processedText.replace(/\binterrogación\b/gi, '? ');
+    processedText = processedText.replace(/\bexclamación\b/gi, '! ');
     
-    // Quitar comas o puntos antes de un punto final o salto de línea.
-    processedText = processedText.replace(/([,.]\s*)(?=[.\n])/g, '');
-
-    // Limpiar dobles puntos o combinaciones de punto y coma.
-    processedText = processedText.replace(/\.{2,}/g, '.'); // ".." o "..." se convierte en "."
-    processedText = processedText.replace(/,+/g, ',');   // ",," se convierte en ","
-    processedText = processedText.replace(/;+/g, ';');   // ";;" se convierte en ";"
+    // --- PASO 2: Limpieza de patrones incorrectos. ---
+    // Este es el cambio clave. Solo eliminamos un punto si está seguido de otro signo de puntuación final.
+    // Esto previene que "coma punto" se convierta en "coma" en lugar de "coma.".
     
+    // Reemplaza ",." o ", ." por solo "."
+    processedText = processedText.replace(/,\s*\./g, '.');
+    
+    // Reemplaza ".." o ". ." por solo "."
+    processedText = processedText.replace(/\.\s*\./g, '.');
+
     // --- PASO 3: Formateo final del espaciado. ---
     // Elimina espacios ANTES de los signos de puntuación.
     processedText = processedText.replace(/\s+([.,:;!?\n])/g, '$1');
     
-    // Asegura un espacio DESPUÉS de la puntuación, si no es un salto de línea.
-    processedText = processedText.replace(/([.,:;!?])([a-zA-ZáéíóúüñÁÉÍÓÚÑ])/g, '$1 $2');
+    // Asegura un espacio DESPUÉS de la puntuación, si no es un salto de línea o el final del texto.
+    processedText = processedText.replace(/([,;!?])([a-zA-ZáéíóúüñÁÉÍÓÚÑ])/g, '$1 $2');
     
     // Elimina dobles saltos de línea.
     processedText = processedText.replace(/\n\s*\n/g, '\n');

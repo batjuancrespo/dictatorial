@@ -259,7 +259,7 @@ function initializeDictationAppLogic(userId) {
             if (confirm('¿Estás seguro de que quieres borrar TODO el informe y la técnica? Esta acción no se puede deshacer.')) {
                 headerArea.value = '';
                 polishedTextarea.value = '';
-                copyFullReportToClipboard(false); // Sincroniza el portapapeles vacío
+                copyFullReportToClipboard(false); 
                 setStatus('Informe reseteado.', 'success', 2000);
             }
         });
@@ -273,6 +273,8 @@ function initializeDictationAppLogic(userId) {
                 return;
             }
             localStorage.setItem('juanizadorInputText', textToJuanize);
+            const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+            localStorage.setItem('sharedThemePreference', currentTheme);
             window.location.href = 'juanizador.html';
         });
         juanizarBtn.dataset.listenerAttached = 'true';

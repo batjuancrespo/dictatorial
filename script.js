@@ -581,7 +581,7 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === REEMPLAZA SOLO ESTA FUNCIÓN EN script.js (VERSIÓN 6.0 - MÉTODO DE LIMPIEZA) ===
+// === INICIO DEL BLOQUE DE CÓDIGO ACTUALIZADO (VERSIÓN 6.0) ===
 // ==============================================================================
 
 /**
@@ -608,7 +608,6 @@ function applyPunctuationRules(text) {
 
     // --- PASO 2: Limpieza exhaustiva de patrones incorrectos. ---
     // Esta es la parte clave. Limpiamos cualquier combinación de signos.
-    // Ej: ",." -> "." | ", ." -> "." | ".." -> "." | ".\n" -> ".\n" (correcto)
     
     // Quitar comas o puntos antes de un punto final o salto de línea.
     processedText = processedText.replace(/([,.]\s*)(?=[.\n])/g, '');
@@ -633,6 +632,7 @@ function applyPunctuationRules(text) {
 
     return processedText.trim();
 }
+
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.
  * @param {string} modelName - El nombre del modelo a usar.
@@ -679,7 +679,8 @@ async function callGeminiAPI(modelName, promptParts, isTextPrompt = false) {
 
 
 /**
- * VERSIÓN 4.0 CON FLUJO CORREGIDO: Proceso completo de transcripción y pulido.
+ * VERSIÓN 5.0 CON FLUJO CORREGIDO: Proceso completo de transcripción y pulido.
+ * Mueve la limpieza de artefactos ANTES de aplicar las reglas de puntuación.
  * @param {string} base64Audio - El audio codificado en Base64.
  * @returns {Promise<string>} - El texto final procesado.
  */
@@ -724,19 +725,22 @@ async function transcribeAndPolishAudio(base64Audio) {
         polishedByAI = transcribedText;
     }
 
-    // --- PASO 3: Aplicar Puntuación con Reglas (Determinista) ---
-    const textWithPunctuation = applyPunctuationRules(polishedByAI);
-    console.log("%c[PASO 3] Texto después de aplicar reglas de puntuación (JS):", "font-weight: bold; color: green;", JSON.stringify(textWithPunctuation));
+    // --- PASO 3: LIMPIEZA DE ARTEFACTOS (MOVIDO AQUÍ) ---
+    // ¡CRUCIAL! Limpiamos las comillas y saltos de línea de la IA ANTES de aplicar nuestras reglas.
+    const cleanedText = cleanupArtifacts(polishedByAI);
+    console.log("%c[PASO 3] Texto limpio de artefactos de IA:", "font-weight: bold; color: teal;", JSON.stringify(cleanedText));
 
-    // --- PASO 4: Limpiezas y Capitalización Finales ---
-    let finalProcessing = cleanupArtifacts(textWithPunctuation);
-    console.log("%c[PASO 4.1] Después de limpieza de artefactos:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
-    
-    finalProcessing = capitalizeSentencesProperly(finalProcessing);
-    console.log("%c[PASO 4.2] Después de capitalización:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
+
+    // --- PASO 4: Aplicar Puntuación con Reglas (Determinista) ---
+    const textWithPunctuation = applyPunctuationRules(cleanedText);
+    console.log("%c[PASO 4] Texto después de aplicar reglas de puntuación (JS):", "font-weight: bold; color: green;", JSON.stringify(textWithPunctuation));
+
+    // --- PASO 5: Capitalización y Correcciones Finales ---
+    let finalProcessing = capitalizeSentencesProperly(textWithPunctuation);
+    console.log("%c[PASO 5.1] Después de capitalización:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
     
     finalProcessing = applyAllUserCorrections(finalProcessing);
-    console.log("%c[PASO 4.3] Después de correcciones de usuario:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
+    console.log("%c[PASO 5.2] Después de correcciones de usuario:", "font-weight: bold; color: orange;", JSON.stringify(finalProcessing));
     
     console.log("%c[PASO FINAL] Texto listo para insertar:", "font-weight: bold; color: red;", JSON.stringify(finalProcessing));
     

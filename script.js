@@ -578,12 +578,12 @@ function capitalizeSentencesProperly(text) {
 }
 
 // ==============================================================================
-// === REEMPLAZA SOLO ESTA FUNCIÓN EN script.js ===
+// === REEMPLAZA SOLO ESTA FUNCIÓN EN script.js (VERSIÓN 3.0 - DEFINITIVA) ===
 // ==============================================================================
 
 /**
- * VERSIÓN 2.0 - ROBUSTA: Aplica reglas de puntuación de forma determinista.
- * Maneja la duplicación de signos de puntuación (ej. la IA transcribe "," y "coma").
+ * VERSIÓN 3.0 - DEFINITIVA: Aplica reglas de puntuación de forma determinista usando marcadores temporales.
+ * Este método es inmune a los problemas de duplicación y orden de las reglas.
  * @param {string} text - El texto transcrito literalmente.
  * @returns {string} - El texto con la puntuación corregida y formateada.
  */
@@ -592,40 +592,49 @@ function applyPunctuationRules(text) {
 
     let processedText = text;
 
-    // --- PASO A: Limpieza Previa de Duplicados ---
-    // Elimina el signo de puntuación si va seguido de la palabra dictada.
-    // Ej: "homogénea, punto y aparte" -> "homogénea punto y aparte"
-    processedText = processedText.replace(/,\s*\b(punto y aparte|punto y seguido|punto|coma)\b/gi, ' $1');
-    processedText = processedText.replace(/\.\s*\b(punto y aparte|punto y seguido|punto)\b/gi, ' $1');
-    
-    // --- PASO B: Reemplazo de Palabras a Signos (de más específico a más general) ---
-    processedText = processedText.replace(/\bpunto y aparte\b/gi, '.\n');
-    processedText = processedText.replace(/\bpunto y seguido\b/gi, '. '); // Añadimos espacio para asegurar separación
-    processedText = processedText.replace(/\bpunto\b/gi, '. '); // Añadimos espacio
-    processedText = processedText.replace(/\bcoma\b/gi, ', '); // Añadimos espacio
-    processedText = processedText.replace(/\bnueva línea\b/gi, '\n');
-    processedText = processedText.replace(/\bdos puntos\b/gi, ': '); // Añadimos espacio
-    processedText = processedText.replace(/\bpunto y coma\b/gi, '; '); // Añadimos espacio
-    processedText = processedText.replace(/\binterrogación\b/gi, '? '); // Añadimos espacio
-    processedText = processedText.replace(/\bexclamación\b/gi, '! '); // Añadimos espacio
+    // --- PASO 1: Reemplazar palabras de puntuación por MARCADORES ÚNICOS ---
+    // Usamos marcadores que no aparecerán en el texto normal. Ej: %%PUNTO_APARTE%%
+    processedText = processedText.replace(/\bpunto y aparte\b/gi, '%%PUNTO_APARTE%%');
+    processedText = processedText.replace(/\bpunto y seguido\b/gi, '%%PUNTO_SEGUIDO%%');
+    processedText = processedText.replace(/\bpunto\b/gi, '%%PUNTO%%');
+    processedText = processedText.replace(/\bcoma\b/gi, '%%COMA%%');
+    processedText = processedText.replace(/\bnueva línea\b/gi, '%%NUEVA_LINEA%%');
+    processedText = processedText.replace(/\bdos puntos\b/gi, '%%DOS_PUNTOS%%');
+    processedText = processedText.replace(/\bpunto y coma\b/gi, '%%PUNTO_Y_COMA%%');
+    processedText = processedText.replace(/\binterrogación\b/gi, '%%INTERROGACION%%');
+    processedText = processedText.replace(/\bexclamación\b/gi, '%%EXCLAMACION%%');
 
-    // --- PASO C: Limpieza y Formateo Final ---
-    // Elimina espacios ANTES de los signos de puntuación. Ej: "hola ." -> "hola."
+    // --- PASO 2: Eliminar signos de puntuación redundantes que estén junto a los marcadores ---
+    // Ej: ", %%PUNTO_APARTE%%" -> "%%PUNTO_APARTE%%"
+    // Ej: ".%%PUNTO%%" -> "%%PUNTO%%"
+    processedText = processedText.replace(/[.,:;!?]\s*(%%[A-Z_]+%%)/g, '$1');
+
+    // --- PASO 3: Reemplazar los marcadores por los caracteres finales ---
+    processedText = processedText.replace(/%%PUNTO_APARTE%%/g, '.\n');
+    processedText = processedText.replace(/%%PUNTO_SEGUIDO%%/g, '. ');
+    processedText = processedText.replace(/%%PUNTO%%/g, '. ');
+    processedText = processedText.replace(/%%COMA%%/g, ', ');
+    processedText = processedText.replace(/%%NUEVA_LINEA%%/g, '\n');
+    processedText = processedText.replace(/%%DOS_PUNTOS%%/g, ': ');
+    processedText = processedText.replace(/%%PUNTO_Y_COMA%%/g, '; ');
+    processedText = processedText.replace(/%%INTERROGACION%%/g, '? ');
+    processedText = processedText.replace(/%%EXCLAMACION%%/g, '! ');
+
+    // --- PASO 4: Limpieza y Formateo Final (igual que antes) ---
+    // Elimina espacios ANTES de los signos de puntuación.
     processedText = processedText.replace(/\s+([.,:;!?])/g, '$1');
-
-    // Asegura que no haya dobles signos. Ej: ".. " -> ". "
-    processedText = processedText.replace(/([.,:;!?])\1+/g, '$1');
+    
+    // Elimina espacios en blanco al final de una línea antes de un salto.
+    processedText = processedText.replace(/\s+\n/g, '\n');
 
     // Asegura que no haya dobles saltos de línea.
     processedText = processedText.replace(/\n\s*\n/g, '\n');
 
-    // Elimina dobles espacios que puedan haber quedado.
+    // Elimina dobles espacios en el resto del texto.
     processedText = processedText.replace(/ +/g, ' ');
 
     return processedText.trim();
 }
-
-
 /**
  * VERSIÓN MEJORADA CON LOGS: Llama a la API de Gemini.
  * Ahora usa el modelo gemini-2.0-flash-lite.

@@ -1,5 +1,5 @@
 // --- Variables Globales de la App de Dictado (declaradas una vez) ---
-let startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn,
+let startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn, juanizarBtn,
     statusDiv, polishedTextarea, audioPlayback, audioPlaybackSection, 
     themeSwitch, volumeMeterBar, volumeMeterContainer, recordingTimeDisplay, 
     headerArea, techniqueButtonsContainer, clearHeaderButton, 
@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyPolishedTextBtn = document.getElementById('copyPolishedTextBtn'); 
     correctTextSelectionBtn = document.getElementById('correctTextSelectionBtn');
     resetReportBtn = document.getElementById('resetReportBtn');
+    juanizarBtn = document.getElementById('juanizarBtn');
     statusDiv = document.getElementById('status');
     polishedTextarea = document.getElementById('polishedText');
     audioPlayback = document.getElementById('audioPlayback');
@@ -63,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modalAddNewRuleButtonVocab = document.getElementById('modalAddNewRuleButtonVocab');
 
     const elementsMap = {
-        startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn,
+        startRecordBtn, pauseResumeBtn, retryProcessBtn, copyPolishedTextBtn, correctTextSelectionBtn, resetReportBtn, juanizarBtn,
         statusDiv, polishedTextarea, audioPlayback, audioPlaybackSection, themeSwitch,
         volumeMeterBar, volumeMeterContainer, recordingTimeDisplay, headerArea,
         techniqueButtonsContainer, clearHeaderButton, mainTitleImage, mainTitleImageDark,
@@ -264,6 +265,18 @@ function initializeDictationAppLogic(userId) {
         });
         resetReportBtn.dataset.listenerAttached = 'true';
     }
+    if (juanizarBtn && !juanizarBtn.dataset.listenerAttached) {
+        juanizarBtn.addEventListener('click', () => {
+            const textToJuanize = polishedTextarea.value.trim();
+            if (!textToJuanize) {
+                alert('No hay texto en el informe para analizar. Por favor, dicte algo primero.');
+                return;
+            }
+            localStorage.setItem('juanizadorInputText', textToJuanize);
+            window.location.href = 'juanizador.html';
+        });
+        juanizarBtn.dataset.listenerAttached = 'true';
+    }
     if (correctTextSelectionBtn && !correctTextSelectionBtn.dataset.listenerAttached) { correctTextSelectionBtn.addEventListener('click', handleCorrectTextSelection); correctTextSelectionBtn.dataset.listenerAttached = 'true';}
     if (techniqueButtonsContainer && !techniqueButtonsContainer.dataset.listenerAttached) { 
         techniqueButtonsContainer.addEventListener('click', (e) => { 
@@ -357,14 +370,14 @@ async function copyFullReportToClipboard(showStatus = false) {
 
     try {
         await navigator.clipboard.writeText(textToCopy);
-        lastCopiedText = textToCopy; // Actualiza el estado de lo último copiado
-        updateCopyButtonState(); // Refleja el cambio en el botón
+        lastCopiedText = textToCopy;
+        updateCopyButtonState();
         if (showStatus) {
             setStatus("¡Texto copiado!", "success", 2000);
         }
     } catch (e) {
         console.error('Error al copiar el texto:', e);
-        updateCopyButtonState(); // Asegura que el botón muestre el estado correcto (no sincronizado)
+        updateCopyButtonState();
         if (showStatus) {
             setStatus("Error al copiar el texto.", "error", 3000);
         }

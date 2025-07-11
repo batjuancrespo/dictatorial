@@ -241,18 +241,56 @@
         if (themeToggle) themeToggle.addEventListener('change', toggleTheme);
         
         // --- Configuration Constants ---
-        const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0'; // WARNING: Exposed API Key
+        // ATENCIÓN: Esta clave de API está expuesta en el lado del cliente.
+        // Se recomienda mover la lógica de llamada a la API a un backend seguro.
+        const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0';
         const MODEL_NAME = 'gemini-2.0-flash-lite';
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-        const anatomicalCategories = [ { id: 0, name: "Tiroides/glándula tiroidea" }, { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" }, { id: 2, name: "Adenopatías mediastínicas" }, { id: 3, name: "Parénquima pulmonar" }, { id: 4, name: "Derrame pleural y cambios secundarios" }, { id: 5, name: "Hígado, porta y confluente esplenomesentérico venoso" }, { id: 6, name: "Vesícula y vía biliar" }, { id: 7, name: "Páncreas" }, { id: 8, name: "Bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria" }, { id: 9, name: "Cámara gástrica, asas intestinales" }, { id: 10, name: "Líquido libre o adenopatías intra-abdominales" }, { id: 11, name: "Aorta y grandes vasos mesentéricos" }, { id: 12, name: "Esqueleto axial" }, { id: 13, name: "Otros hallazgos" } ];
-        const categoryPrompts = { 0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'", 1: "Describe SOLO los hallazgos en estructuras mediastínicas vasculares y/o corazón. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'", 2: "Describe SOLO los hallazgos en adenopatías mediastínicas. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se identifican adenopatías mediastínicas de tamaño significativo.'", 3: "Describe SOLO los hallazgos en el parénquima pulmonar. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el parénquima pulmonar no existen imágenes nodulares ni aumentos de densidad sugestivos de afectación patológica.'", 4: "Describe SOLO los hallazgos sobre derrame pleural. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se objetiva derrame pleural.'", 5: "Sigue este esquema para hígado, porta y confluente venoso: 1. Rasgos de hepatopatía crónica (si los hay, usa 'el hígado es de contornos lobulados y parénquima discretamente heterogéneo'; si no, usa 'el hígado es de bordes lisos y densidad homogénea'). 2. Describe lesiones ocupantes de espacio de forma concisa. 3. Describe hallazgos en porta, vena esplénica y mesentérica. Si no hay hallazgos, devuelve EXACTAMENTE: 'El hígado es de bordes lisos y densidad homogénea no identificándose lesiones ocupantes de espacio. Vena porta, esplénica y mesentérica de calibre normal, permeables.'", 6: "Describe SOLO los hallazgos en vesícula y vía biliar. Si no hay hallazgos, devuelve EXACTAMENTE: 'Vesícula biliar normodistendida, de paredes finas, sin evidencia de litiasis en su interior. Vía biliar intra y extrahepática no dilatada.'", 7: "Describe SOLO los hallazgos en el páncreas. Si no hay hallazgos, devuelve EXACTAMENTE: 'Páncreas homogéneo y bien definido sin lesiones focales ni dilatación del ducto pancreático principal.'", 8: "Describe SOLO los hallazgos en bazo, suprarrenales, riñones, vías excretoras y vejiga. Si no hay hallazgos, devuelve EXACTAMENTE: 'Bazo, glándulas suprarrenales y riñones de tamaño, morfología y densidad normales, sin evidencia de lesiones focales. Vías excretoras, uréteres y vejiga urinaria sin alteraciones radiológicas significativas.'", 9: "Describe SOLO los hallazgos en cámara gástrica y asas intestinales. Si no hay hallazgos, devuelve EXACTAMENTE: 'Cámara gástrica moderadamente distendida sin hallazgos relevantes. Asas intestinales de delgado y marco cólico sin engrosamientos parietales ni cambios de calibre significativos.'", 10: "Describe SOLO líquido libre o adenopatías intra-abdominales. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se observa líquido libre ni adenopatías intra-abdominales de aspecto patológico.'", 11: "Describe SOLO hallazgos en aorta y grandes vasos mesentéricos. Si no hay hallazgos, devuelve EXACTAMENTE: 'Aorta y grandes vasos mesentéricos de calibre normal, sin hallazgos significativos.'", 12: "Describe SOLO hallazgos en el esqueleto axial. Si no hay hallazgos, devuelve EXACTAMENTE: 'Esqueleto axial incluido en el estudio sin lesiones focales ni anomalías morfológicas relevantes.'", 13: "Describe SOLO hallazgos que no correspondan a otras categorías. Si no hay hallazgos, devuelve EXACTAMENTE: 'No hay otros hallazgos relevantes que reportar.'" };
+        // --- MODIFICADO: Lista de categorías anatómicas actualizada ---
+        const anatomicalCategories = [
+            { id: 0, name: "Tiroides/glándula tiroidea" },
+            { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" },
+            { id: 2, name: "Adenopatías mediastínicas" },
+            { id: 3, name: "Parénquima pulmonar" },
+            { id: 4, name: "Derrame pleural y cambios secundarios" },
+            { id: 5, name: "Hígado, porta y confluente esplenomesentérico venoso" },
+            { id: 6, name: "Vesícula y vía biliar" },
+            { id: 7, name: "Páncreas" },
+            { id: 8, name: "Bazo, glándulas suprarrenales, riñones, vías excretoras, uréteres y vejiga urinaria" },
+            { id: 9, name: "Cámara gástrica, asas intestinales" },
+            { id: 10, name: "Líquido libre o adenopatías intra-abdominales" },
+            { id: 11, name: "Aorta y grandes vasos mesentéricos" },
+            { id: 12, name: "Esqueleto axial" },
+            { id: 13, name: "Otros hallazgos" },
+            { id: 14, name: "Bases pulmonares incluidas en el estudio" }, // NUEVA
+            { id: 15, name: "Hemiabdomen superior incluido en el estudio" } // NUEVA
+        ];
+        
+        // --- MODIFICADO: Prompts de categorías actualizados ---
+        const categoryPrompts = {
+            0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'",
+            1: "Describe SOLO los hallazgos en estructuras mediastínicas vasculares y/o corazón. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'",
+            2: "Describe SOLO los hallazgos en adenopatías mediastínicas. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se identifican adenopatías mediastínicas de tamaño significativo.'",
+            3: "Describe SOLO los hallazgos en el parénquima pulmonar. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el parénquima pulmonar no existen imágenes nodulares ni aumentos de densidad sugestivos de afectación patológica.'",
+            4: "Describe SOLO los hallazgos sobre derrame pleural. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se objetiva derrame pleural.'",
+            5: "Sigue este esquema para hígado, porta y confluente venoso: 1. Rasgos de hepatopatía crónica (si los hay, usa 'el hígado es de contornos lobulados y parénquima discretamente heterogéneo'; si no, usa 'el hígado es de bordes lisos y densidad homogénea'). 2. Describe lesiones ocupantes de espacio de forma concisa. 3. Describe hallazgos en porta, vena esplénica y mesentérica. Si no hay hallazgos, devuelve EXACTAMENTE: 'El hígado es de bordes lisos y densidad homogénea no identificándose lesiones ocupantes de espacio. Vena porta, esplénica y mesentérica de calibre normal, permeables.'",
+            6: "Describe SOLO los hallazgos en vesícula y vía biliar. Si no hay hallazgos, devuelve EXACTAMENTE: 'Vesícula biliar normodistendida, de paredes finas, sin evidencia de litiasis en su interior. Vía biliar intra y extrahepática no dilatada.'",
+            7: "Describe SOLO los hallazgos en el páncreas. Si no hay hallazgos, devuelve EXACTAMENTE: 'Páncreas homogéneo y bien definido sin lesiones focales ni dilatación del ducto pancreático principal.'",
+            8: "Describe SOLO los hallazgos en bazo, suprarrenales, riñones, vías excretoras y vejiga. Si no hay hallazgos, devuelve EXACTAMENTE: 'Bazo, glándulas suprarrenales y riñones de tamaño, morfología y densidad normales, sin evidencia de lesiones focales. Vías excretoras, uréteres y vejiga urinaria sin alteraciones radiológicas significativas.'",
+            9: "Describe SOLO los hallazgos en cámara gástrica y asas intestinales. Si no hay hallazgos, devuelve EXACTAMENTE: 'Cámara gástrica moderadamente distendida sin hallazgos relevantes. Asas intestinales de delgado y marco cólico sin engrosamientos parietales ni cambios de calibre significativos.'",
+            10: "Describe SOLO líquido libre o adenopatías intra-abdominales. Si no hay hallazgos, devuelve EXACTAMENTE: 'No se observa líquido libre ni adenopatías intra-abdominales de aspecto patológico.'",
+            11: "Describe SOLO hallazgos en aorta y grandes vasos mesentéricos. Si no hay hallazgos, devuelve EXACTAMENTE: 'Aorta y grandes vasos mesentéricos de calibre normal, sin hallazgos significativos.'",
+            12: "Describe SOLO hallazgos en el esqueleto axial. Si no hay hallazgos, devuelve EXACTAMENTE: 'Esqueleto axial incluido en el estudio sin lesiones focales ni anomalías morfológicas relevantes.'",
+            13: "Describe SOLO hallazgos que no correspondan a otras categorías. Si no hay hallazgos, devuelve EXACTAMENTE: 'No hay otros hallazgos relevantes que reportar.'",
+            14: "Describe SOLO hallazgos en las bases pulmonares visibles. Si no hay hallazgos, devuelve EXACTAMENTE: 'En las bases pulmonares incluidas en el estudio no se observan hallazgos patológicos de significación.'",
+            15: "Describe SOLO hallazgos en el hemiabdomen superior visible. Si no hay hallazgos, devuelve EXACTAMENTE: 'En el hemiabdomen superior incluido en el estudio no se objetivan hallazgos relevantes.'"
+        };
 
         // --- State Variables ---
         let recognition, isRecording = false, categorizedFindings = {};
         const transcriptArea = document.getElementById('transcript');
-        const thoracicCats = [0, 1, 2, 3, 4], abdominalCats = [5, 6, 7, 8, 9, 10, 11, 12], otherCats = [13];
         window.availableCategories = [];
 
         // --- Speech Recognition ---
@@ -279,7 +317,7 @@
                 transcriptArea.selectionStart = transcriptArea.selectionEnd = start + finalTranscript.length;
             };
 
-            recognition.onend = () => { if (isRecording) recognition.start(); }; // Keep listening if active
+            recognition.onend = () => { if (isRecording) recognition.start(); };
             recognition.onerror = (event) => { console.error('Error de reconocimiento de voz:', event.error); isRecording = false; updateMicButton(); };
         }
 
@@ -305,7 +343,7 @@
                 return result.response.text();
             } catch (error) {
                 console.error('Error al consultar la API:', error);
-                alert("Error de comunicación con la API. Revisa la consola.");
+                alert("Error de comunicación con la API. Revisa la consola y asegúrate de que la clave de API es correcta y no tiene restricciones.");
                 return null;
             }
         }
@@ -318,7 +356,7 @@
             }
             
             setLoadingState('categorizing-loading', true);
-            const availableCats = window.availableCategories.includes(13) ? window.availableCategories : [...window.availableCategories, 13];
+            const availableCats = window.availableCategories;
             const filteredCategories = anatomicalCategories.filter(cat => availableCats.includes(cat.id));
             const categoryNames = filteredCategories.map(cat => `${cat.id}. ${cat.name}`).join('\n');
             const learningDict = JSON.parse(localStorage.getItem('findingsLearningDictionary')) || {};
@@ -355,6 +393,7 @@
             document.getElementById('final-report').textContent = 'Generando informe...';
             
             let fullReport = '';
+            // Iterar sobre las categorías en el orden correcto definido en anatomicalCategories
             for (const category of anatomicalCategories.filter(c => window.availableCategories.includes(c.id))) {
                 const findings = categorizedFindings[category.id.toString()] || [];
                 const prompt = `${categoryPrompts[category.id]}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, sin mencionar la técnica de imagen.`;
@@ -365,7 +404,7 @@
             const allFindings = Object.values(categorizedFindings).flat();
             const conclusionPrompt = `Basado en estos hallazgos:\n${allFindings.join('. ')}\nGenera una conclusión concisa (máx. 2-3 líneas) con los 2-3 hallazgos más relevantes. Para el resto, usa "Ver informe descriptivo". No menciones la técnica. Si no hay hallazgos, devuelve: "No se observan alteraciones radiológicas significativas."`;
             const conclusion = await queryGeminiAPI(conclusionPrompt);
-            if (conclusion) fullReport += `\n${conclusion.trim()}`;
+            if (conclusion) fullReport += `\nCONCLUSIÓN:\n${conclusion.trim()}`;
             
             document.getElementById('final-report').textContent = fullReport;
             setLoadingState('report-loading', false);
@@ -380,6 +419,7 @@
 
         // --- UI Functions ---
         function setLoadingState(elementId, isLoading) { document.getElementById(elementId).style.display = isLoading ? 'block' : 'none'; }
+        
         function displayCategorizedFindings() {
             const container = document.getElementById('categorized-content');
             container.innerHTML = '';
@@ -387,14 +427,18 @@
                 container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No hay hallazgos categorizados.</p>';
                 return;
             }
-            for (const catId in categorizedFindings) {
-                const category = anatomicalCategories.find(c => c.id == catId);
-                if (category && categorizedFindings[catId].length > 0) {
+            // Muestra las categorías en el orden correcto
+            const orderedCatIds = anatomicalCategories.map(c => c.id.toString());
+            for (const catId of orderedCatIds) {
+                if (categorizedFindings[catId] && categorizedFindings[catId].length > 0) {
+                    const category = anatomicalCategories.find(c => c.id == catId);
                     const categoryDiv = document.createElement('div');
                     categoryDiv.className = 'category';
                     const findingsList = categorizedFindings[catId].map(finding => {
-                        if (parseInt(catId) === 13) {
-                            return `<li class="finding-item"><span class="finding-text">${finding}</span><select class="category-reassign" data-finding="${finding}"><option value="">Reasignar a...</option>${anatomicalCategories.filter(c=>c.id!==13).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></li>`;
+                        // Solo permite reasignar desde "Otros hallazgos"
+                        if (parseInt(catId) === 13) { 
+                            const availableReassignCats = anatomicalCategories.filter(c => window.availableCategories.includes(c.id) && c.id !== 13);
+                            return `<li class="finding-item"><span class="finding-text">${finding}</span><select class="category-reassign" data-finding="${finding}"><option value="">Reasignar a...</option>${availableReassignCats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></li>`;
                         }
                         return `<li>${finding}</li>`;
                     }).join('');
@@ -417,9 +461,10 @@
             }
         }
 
+        // --- REEMPLAZADO: Función con lógica de selección dinámica ---
         function updateAvailableCategories() {
             const tech = document.getElementById('imaging-technique').value;
-            const scope = document.getElementById('tac-scope').value;
+            const rmType = document.getElementById('rm-type').value;
             const rmContainer = document.getElementById('rm-type-container');
             const tacContainer = document.getElementById('tac-scope-container');
             const contrastContainer = document.getElementById('contrast-container');
@@ -428,12 +473,44 @@
             rmContainer.style.display = tech === 'rm' ? 'flex' : 'none';
             contrastContainer.style.display = tech === 'tac' || tech === 'rm' ? 'flex' : 'none';
             
+            // IDs 12 (Esqueleto axial) y 13 (Otros) siempre están disponibles como base.
+            const baseCategories = [12, 13];
+            
             if (tech === 'tac') {
-                if (scope === 'toracoabdominal') window.availableCategories = [...thoracicCats, ...abdominalCats, ...otherCats];
-                else if (scope === 'torax') window.availableCategories = [...thoracicCats, ...otherCats];
-                else window.availableCategories = [...abdominalCats, ...otherCats];
-            } else { // RM and Eco default to abdominal
-                window.availableCategories = [...abdominalCats, ...otherCats];
+                const tacScope = document.getElementById('tac-scope').value;
+                switch(tacScope) {
+                    case 'toracoabdominal':
+                        // Categorías torácicas + abdominales completas
+                        window.availableCategories = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ...baseCategories];
+                        break;
+                    case 'torax':
+                        // Categorías torácicas + Hemiabdomen superior (15)
+                        window.availableCategories = [0, 1, 2, 3, 4, 15, ...baseCategories];
+                        break;
+                    case 'abdomen':
+                        // Categorías abdominales + Bases pulmonares (14)
+                        window.availableCategories = [5, 6, 7, 8, 9, 10, 11, 14, ...baseCategories];
+                        break;
+                }
+            } else if (tech === 'rm') {
+                const rmType = document.getElementById('rm-type').value;
+                switch(rmType) {
+                    case 'hepatica':
+                    case 'colangio':
+                        // Hígado, vía biliar, páncreas, bazo/suprarrenales/riñones, líquido libre
+                        window.availableCategories = [5, 6, 7, 8, 10, ...baseCategories];
+                        break;
+                    case 'pelvis-neo':
+                    case 'pelvis-fist':
+                    case 'entero':
+                    default:
+                        // Por defecto, RMs no especificadas usan el set abdominal
+                        window.availableCategories = [5, 6, 7, 8, 9, 10, 11, ...baseCategories];
+                        break;
+                }
+            } else { // Ecografía
+                // Por defecto, usa las categorías abdominales
+                window.availableCategories = [5, 6, 7, 8, 9, 10, 11, ...baseCategories];
             }
             
             categorizedFindings = {};
@@ -467,7 +544,7 @@
             if (techSelect.value === 'tac') {
                 const scope = document.getElementById('tac-scope').options[document.getElementById('tac-scope').selectedIndex].text;
                 const contrast = document.getElementById('contrast-use').value === 'con';
-                description = `Se realiza exploración ${scope} ${contrast ? 'tras la' : 'sin'} administración endovenosa de contraste`;
+                description = `Se realiza exploración ${scope.toLowerCase()} ${contrast ? 'tras la' : 'sin la'} administración endovenosa de contraste`;
                 if (contrast) {
                     const phases = Array.from(document.querySelectorAll('input[name="phase"]:checked')).map(cb => cb.value);
                     if (phases.length > 0) description += ` con adquisición de imágenes en fase ${phases.join(' y ')}`;
@@ -490,19 +567,16 @@
 
         // --- Initial Setup ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Theme setup
             const sharedTheme = localStorage.getItem('sharedThemePreference');
             const localTheme = localStorage.getItem('themePreferenceJuanizador');
             applyTheme(sharedTheme || localTheme || 'light');
             
-            // Data from main page
             const inputTextFromIndex = localStorage.getItem('juanizadorInputText');
             if (inputTextFromIndex) {
                 transcriptArea.value = inputTextFromIndex;
                 localStorage.removeItem('juanizadorInputText'); 
             }
 
-            // Event Listeners
             document.getElementById('backToDictationBtn').addEventListener('click', () => {
                 window.location.href = 'index.html';
             });
@@ -519,15 +593,14 @@
                 const techniqueContainer = document.getElementById('technique-description');
                 const techniqueText = techniqueContainer.style.display !== 'none' ? document.getElementById('technique-text').textContent : '';
                 const reportText = document.getElementById('final-report').textContent;
-                const fullText = (techniqueText ? techniqueText + "\n\n" : "") + reportText;
+                const fullText = (techniqueText ? `TÉCNICA:\n${techniqueText}\n\nHALLAZGOS:\n` : "") + reportText;
                 navigator.clipboard.writeText(fullText).then(() => alert('Informe completo copiado al portapapeles.'), () => alert('Error al copiar.'));
             });
 
-            ['imaging-technique', 'tac-scope'].forEach(id => document.getElementById(id).addEventListener('change', updateAvailableCategories));
-            ['rm-type', 'contrast-use'].forEach(id => document.getElementById(id).addEventListener('change', updateContrastOptions));
+            ['imaging-technique', 'tac-scope', 'rm-type'].forEach(id => document.getElementById(id).addEventListener('change', updateAvailableCategories));
+            document.getElementById('contrast-use').addEventListener('change', updateContrastOptions);
             document.querySelectorAll('input[name="phase"]').forEach(cb => cb.addEventListener('change', updateTechniqueDescription));
             
-            // Initial state
             initSpeechRecognition();
             updateAvailableCategories();
         });

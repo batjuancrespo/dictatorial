@@ -71,7 +71,7 @@
         /* --- Contenido Categorizado y Final --- */
         .category { background-color: var(--bg-primary); border-left: 4px solid var(--accent-color); padding: 15px; margin-bottom: 10px; border-radius: 0 5px 5px 0; }
         .category h3 { margin-top: 0; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; font-size: 1.1em; }
-        .category ul { padding-left: 20px; margin: 5px 0 0 0; color: var(--text-secondary); }
+        .category ul { padding-left: 20px; margin: 5px 0 0 0; color: var(--text-secondary); list-style-position: inside; }
         .finding-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; }
         .finding-text { flex: 1; }
         .category-reassign { padding: 5px 8px; font-size: 0.85em; min-width: 150px; }
@@ -79,6 +79,11 @@
         .technique-description { margin-bottom: 20px; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border-left: 4px solid var(--accent-color); }
         .technique-description h3 { margin-top: 0; margin-bottom: 10px; font-weight: 500; }
         
+        /* --- NUEVO: Estilos para controles de hallazgos --- */
+        .finding-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .btn-omit { padding: 4px 8px; font-size: 0.8em; font-weight: 500; background-color: var(--text-secondary); color: var(--bg-secondary); border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; }
+        .btn-omit:hover { background-color: var(--btn-danger-bg); color: var(--accent-text-color); }
+
         /* --- Indicadores de Carga --- */
         .loading { text-align: center; margin: 20px 0; display: none; }
         .spinner { border: 4px solid var(--border-light-color); width: 36px; height: 36px; border-radius: 50%; border-left-color: var(--accent-color); animation: spin 1s linear infinite; margin: 0 auto 10px; }
@@ -242,13 +247,12 @@
         
         // --- Configuration Constants ---
         // ATENCIÓN: Esta clave de API está expuesta en el lado del cliente.
-        // Se recomienda mover la lógica de llamada a la API a un backend seguro.
+        // Se recomienda mover la lógica de llamada a la API a un backend seguro para evitar su uso indebido.
         const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0';
         const MODEL_NAME = 'gemini-2.0-flash-lite';
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-        // --- MODIFICADO: Lista de categorías anatómicas actualizada ---
         const anatomicalCategories = [
             { id: 0, name: "Tiroides/glándula tiroidea" },
             { id: 1, name: "Estructuras mediastínicas vasculares y/o corazón" },
@@ -264,11 +268,10 @@
             { id: 11, name: "Aorta y grandes vasos mesentéricos" },
             { id: 12, name: "Esqueleto axial" },
             { id: 13, name: "Otros hallazgos" },
-            { id: 14, name: "Bases pulmonares incluidas en el estudio" }, // NUEVA
-            { id: 15, name: "Hemiabdomen superior incluido en el estudio" } // NUEVA
+            { id: 14, name: "Bases pulmonares incluidas en el estudio" },
+            { id: 15, name: "Hemiabdomen superior incluido en el estudio" }
         ];
         
-        // --- MODIFICADO: Prompts de categorías actualizados ---
         const categoryPrompts = {
             0: "Describe SOLO los hallazgos mencionados en la glándula tiroidea. Si no hay hallazgos, devuelve EXACTAMENTE: 'Glándula tiroidea de tamaño y morfología normales, sin nódulos ni otras alteraciones radiológicas significativas.'",
             1: "Describe SOLO los hallazgos en estructuras mediastínicas vasculares y/o corazón. Si no hay hallazgos, devuelve EXACTAMENTE: 'Estructuras mediastinicas vasculares sin hallazgos morfológicos de interés.'",
@@ -393,7 +396,6 @@
             document.getElementById('final-report').textContent = 'Generando informe...';
             
             let fullReport = '';
-            // Iterar sobre las categorías en el orden correcto definido en anatomicalCategories
             for (const category of anatomicalCategories.filter(c => window.availableCategories.includes(c.id))) {
                 const findings = categorizedFindings[category.id.toString()] || [];
                 const prompt = `${categoryPrompts[category.id]}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, sin mencionar la técnica de imagen.`;
@@ -427,26 +429,39 @@
                 container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">No hay hallazgos categorizados.</p>';
                 return;
             }
-            // Muestra las categorías en el orden correcto
+            
             const orderedCatIds = anatomicalCategories.map(c => c.id.toString());
             for (const catId of orderedCatIds) {
                 if (categorizedFindings[catId] && categorizedFindings[catId].length > 0) {
                     const category = anatomicalCategories.find(c => c.id == catId);
                     const categoryDiv = document.createElement('div');
                     categoryDiv.className = 'category';
+                    
                     const findingsList = categorizedFindings[catId].map(finding => {
-                        // Solo permite reasignar desde "Otros hallazgos"
-                        if (parseInt(catId) === 13) { 
+                        if (parseInt(catId) === 13) {
                             const availableReassignCats = anatomicalCategories.filter(c => window.availableCategories.includes(c.id) && c.id !== 13);
-                            return `<li class="finding-item"><span class="finding-text">${finding}</span><select class="category-reassign" data-finding="${finding}"><option value="">Reasignar a...</option>${availableReassignCats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></li>`;
+                            return `
+                                <li class="finding-item">
+                                    <span class="finding-text">${finding}</span>
+                                    <div class="finding-controls">
+                                        <select class="category-reassign" data-finding="${finding}">
+                                            <option value="">Reasignar a...</option>
+                                            ${availableReassignCats.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
+                                        </select>
+                                        <button class="btn-omit" data-finding="${finding}">Omitir</button>
+                                    </div>
+                                </li>`;
                         }
                         return `<li>${finding}</li>`;
                     }).join('');
+                    
                     categoryDiv.innerHTML = `<h3>${category.name}</h3><ul>${findingsList}</ul>`;
                     container.appendChild(categoryDiv);
                 }
             }
+            
             container.querySelectorAll('.category-reassign').forEach(select => select.addEventListener('change', handleReassign));
+            container.querySelectorAll('.btn-omit').forEach(button => button.addEventListener('click', handleOmit));
         }
 
         function handleReassign(e) {
@@ -460,11 +475,21 @@
                 displayCategorizedFindings();
             }
         }
+        
+        // --- NUEVO: Función para omitir hallazgos ---
+        function handleOmit(e) {
+            const finding = e.target.dataset.finding;
+            if (!finding || !categorizedFindings[13]) return;
 
-        // --- REEMPLAZADO: Función con lógica de selección dinámica ---
+            categorizedFindings[13] = categorizedFindings[13].filter(f => f !== finding);
+            if (categorizedFindings[13].length === 0) {
+                delete categorizedFindings[13];
+            }
+            displayCategorizedFindings();
+        }
+
         function updateAvailableCategories() {
             const tech = document.getElementById('imaging-technique').value;
-            const rmType = document.getElementById('rm-type').value;
             const rmContainer = document.getElementById('rm-type-container');
             const tacContainer = document.getElementById('tac-scope-container');
             const contrastContainer = document.getElementById('contrast-container');
@@ -473,22 +498,18 @@
             rmContainer.style.display = tech === 'rm' ? 'flex' : 'none';
             contrastContainer.style.display = tech === 'tac' || tech === 'rm' ? 'flex' : 'none';
             
-            // IDs 12 (Esqueleto axial) y 13 (Otros) siempre están disponibles como base.
             const baseCategories = [12, 13];
             
             if (tech === 'tac') {
                 const tacScope = document.getElementById('tac-scope').value;
                 switch(tacScope) {
                     case 'toracoabdominal':
-                        // Categorías torácicas + abdominales completas
                         window.availableCategories = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, ...baseCategories];
                         break;
                     case 'torax':
-                        // Categorías torácicas + Hemiabdomen superior (15)
                         window.availableCategories = [0, 1, 2, 3, 4, 15, ...baseCategories];
                         break;
                     case 'abdomen':
-                        // Categorías abdominales + Bases pulmonares (14)
                         window.availableCategories = [5, 6, 7, 8, 9, 10, 11, 14, ...baseCategories];
                         break;
                 }
@@ -497,19 +518,16 @@
                 switch(rmType) {
                     case 'hepatica':
                     case 'colangio':
-                        // Hígado, vía biliar, páncreas, bazo/suprarrenales/riñones, líquido libre
                         window.availableCategories = [5, 6, 7, 8, 10, ...baseCategories];
                         break;
                     case 'pelvis-neo':
                     case 'pelvis-fist':
                     case 'entero':
                     default:
-                        // Por defecto, RMs no especificadas usan el set abdominal
                         window.availableCategories = [5, 6, 7, 8, 9, 10, 11, ...baseCategories];
                         break;
                 }
             } else { // Ecografía
-                // Por defecto, usa las categorías abdominales
                 window.availableCategories = [5, 6, 7, 8, 9, 10, 11, ...baseCategories];
             }
             

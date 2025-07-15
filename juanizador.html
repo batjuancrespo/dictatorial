@@ -392,9 +392,15 @@
             setLoadingState('report-loading', true);
             document.getElementById('final-report').textContent = 'Generando informe...';
 
-            // --- Lógica para ordenar las secciones del informe ---
             const tech = document.getElementById('imaging-technique').value;
             const tacScope = document.getElementById('tac-scope').value;
+
+            const vocabularyInstructions = {
+                'tac': "Utiliza terminología de Tomografía Computarizada (TAC). Describe los hallazgos en términos de densidad (ej: hipodenso, hiperdenso) y realce tras el contraste.",
+                'rm': "Utiliza terminología de Resonancia Magnética (RM). Describe los hallazgos en términos de intensidad de señal (ej: hipointenso, hiperintenso) y su comportamiento en las diferentes secuencias.",
+                'eco': "Utiliza terminología de Ecografía. Describe los hallazgos en términos de ecogenicidad (ej: hipoecoico, anecoico, hiperecogénico) y menciona artefactos relevantes como sombra o refuerzo."
+            };
+            const modalityInstruction = vocabularyInstructions[tech] || "Redacta un párrafo conciso y profesional.";
 
             let reportOrder = anatomicalCategories.filter(c => window.availableCategories.includes(c.id));
 
@@ -417,7 +423,11 @@
             let fullReport = '';
             for (const category of reportOrder) {
                 const findings = categorizedFindings[category.id.toString()] || [];
-                const prompt = `${categoryPrompts[category.id]}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, sin mencionar la técnica de imagen.`;
+                const prompt = `${categoryPrompts[category.id]}
+Instrucción de estilo: ${modalityInstruction}
+Hallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}
+Ahora, redacta el párrafo final de forma profesional y concisa, aplicando estrictamente la instrucción de estilo.`;
+                
                 const sectionReport = await queryGeminiAPI(prompt);
                 if (sectionReport && sectionReport.trim()) {
                     fullReport += `${sectionReport.trim()}\n`;
@@ -425,7 +435,12 @@
             }
             
             const allFindings = Object.values(categorizedFindings).flat();
-            const conclusionPrompt = `Basado en estos hallazgos:\n${allFindings.join('. ')}\nGenera una conclusión concisa (máx. 2-3 líneas) con los 2-3 hallazgos más relevantes. Para el resto, usa "Ver informe descriptivo". No menciones la técnica. Si no hay hallazgos, devuelve: "No se observan alteraciones radiológicas significativas."`;
+            const conclusionPrompt = `Eres un radiólogo experto.
+Instrucción de estilo: ${modalityInstruction}
+Basado en estos hallazgos:
+${allFindings.join('. ')}
+Genera una conclusión concisa (máx. 2-3 líneas) con los 2-3 hallazgos más relevantes, usando el vocabulario correcto según la instrucción de estilo. Para el resto, usa "Ver informe descriptivo". Si no hay hallazgos, devuelve: "No se observan alteraciones radiológicas significativas."`;
+            
             const conclusion = await queryGeminiAPI(conclusionPrompt);
             if (conclusion) fullReport += `\nCONCLUSIÓN:\n${conclusion.trim()}`;
             

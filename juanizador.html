@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Asistente de Informes Radiológicos</title>
     <style>
-        /* --- CSS Unificado (Basado en style.css) --- */
         :root {
             --bg-primary: #f4f8fa; --bg-secondary: #ffffff; --text-primary: #2f363d; --text-secondary: #5c6975; --border-color: #d0d7de; --border-light-color: #e9ecef; --accent-color: #007bff; --accent-text-color: #ffffff;
             --btn-record-bg: #28a745; --btn-record-bg-hover: #218838; --btn-stop-bg: #dc3545; --btn-stop-bg-hover: #c82333; --btn-copy-bg: #fd7e14; --btn-copy-bg-hover: #e66f0d; --btn-copy-text: #ffffff; --btn-success-bg: var(--btn-record-bg); --btn-success-bg-hover: var(--btn-record-bg-hover); --btn-danger-bg: var(--btn-stop-bg); --btn-danger-bg-hover: var(--btn-stop-bg-hover);
@@ -14,7 +13,7 @@
             --juanizador-accent-color: var(--btn-danger-bg);
             --juanizador-secondary-color: var(--accent-color);
             --juanizador-primary-color: var(--text-primary);
-            --juanizador-dark-color: #0056b3; /* Darker primary for hover */
+            --juanizador-dark-color: #0056b3;
             --accent-color-rgb: 0, 123, 255;
         }
 
@@ -26,7 +25,7 @@
             --juanizador-accent-color: var(--btn-danger-bg);
             --juanizador-secondary-color: var(--accent-color);
             --juanizador-primary-color: var(--text-primary);
-            --juanizador-dark-color: #2188ff; /* Darker primary for hover in dark mode */
+            --juanizador-dark-color: #2188ff;
             --accent-color-rgb: 83, 155, 245;
         }
 
@@ -36,7 +35,14 @@
         .page-header { background-color: var(--bg-secondary); padding: 15px 25px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .page-header h1 { margin: 0; font-size: 1.8em; font-weight: 500; }
         .header-controls { display: flex; align-items: center; gap: 20px; }
-        .juanizador-section { background-color: var(--bg-secondary); border-radius: 8px; padding: 20px 25px; border: 1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .juanizador-section {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px 25px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            min-width: 0; /* CLAVE para evitar overflow en grid */
+        }
         .main-content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .section-title { font-size: 1.5em; color: var(--text-primary); font-weight: 500; margin-top: 0; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-light-color); }
         
@@ -72,13 +78,29 @@
         .category { background-color: var(--bg-primary); border-left: 4px solid var(--accent-color); padding: 15px; margin-bottom: 10px; border-radius: 0 5px 5px 0; }
         .category h3 { margin-top: 0; margin-bottom: 8px; color: var(--text-primary); font-weight: 500; font-size: 1.1em; }
         .category ul { padding-left: 20px; margin: 5px 0 0 0; color: var(--text-secondary); list-style-position: inside; }
-        .finding-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 5px 0; }
-        .finding-text { flex: 1; }
-        .category-reassign { padding: 5px 8px; font-size: 0.85em; min-width: 150px; }
+        .finding-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 8px 0;
+            flex-wrap: wrap;
+        }
+        .finding-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow-wrap: break-word;
+            text-align: left;
+        }
+        .category-reassign {
+            padding: 5px 8px;
+            font-size: 0.85em;
+            max-width: 160px;
+            flex-shrink: 0;
+        }
         #final-report { white-space: pre-wrap; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border: 1px solid var(--border-light-color); min-height: 100px; color: var(--text-primary); }
         .technique-description { margin-bottom: 20px; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border-left: 4px solid var(--accent-color); }
         .technique-description h3 { margin-top: 0; margin-bottom: 10px; font-weight: 500; }
-        
         .finding-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .btn-omit { padding: 4px 8px; font-size: 0.8em; font-weight: 500; background-color: var(--text-secondary); color: var(--bg-secondary); border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; }
         .btn-omit:hover { background-color: var(--btn-danger-bg); color: var(--accent-text-color); }

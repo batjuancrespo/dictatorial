@@ -79,7 +79,6 @@
         .technique-description { margin-bottom: 20px; background-color: var(--bg-primary); padding: 15px; border-radius: 4px; border-left: 4px solid var(--accent-color); }
         .technique-description h3 { margin-top: 0; margin-bottom: 10px; font-weight: 500; }
         
-        /* --- NUEVO: Estilos para controles de hallazgos --- */
         .finding-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .btn-omit { padding: 4px 8px; font-size: 0.8em; font-weight: 500; background-color: var(--text-secondary); color: var(--bg-secondary); border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.2s ease; }
         .btn-omit:hover { background-color: var(--btn-danger-bg); color: var(--accent-text-color); }
@@ -246,8 +245,6 @@
         if (themeToggle) themeToggle.addEventListener('change', toggleTheme);
         
         // --- Configuration Constants ---
-        // ATENCIÓN: Esta clave de API está expuesta en el lado del cliente.
-        // Se recomienda mover la lógica de llamada a la API a un backend seguro para evitar su uso indebido.
         const API_KEY = 'AIzaSyBsKWbE6KgNaolK9BxDNDdviNw3pM7sOv0';
         const MODEL_NAME = 'gemini-2.0-flash-lite';
         const genAI = new GoogleGenerativeAI(API_KEY);
@@ -394,13 +391,37 @@
             }
             setLoadingState('report-loading', true);
             document.getElementById('final-report').textContent = 'Generando informe...';
+
+            // --- Lógica para ordenar las secciones del informe ---
+            const tech = document.getElementById('imaging-technique').value;
+            const tacScope = document.getElementById('tac-scope').value;
+
+            let reportOrder = anatomicalCategories.filter(c => window.availableCategories.includes(c.id));
+
+            if (tech === 'tac') {
+                if (tacScope === 'abdomen') {
+                    const index = reportOrder.findIndex(c => c.id === 14);
+                    if (index > -1) {
+                        const [categoryToMove] = reportOrder.splice(index, 1);
+                        reportOrder.unshift(categoryToMove);
+                    }
+                } else if (tacScope === 'torax') {
+                    const index = reportOrder.findIndex(c => c.id === 15);
+                    if (index > -1) {
+                        const [categoryToMove] = reportOrder.splice(index, 1);
+                        reportOrder.push(categoryToMove);
+                    }
+                }
+            }
             
             let fullReport = '';
-            for (const category of anatomicalCategories.filter(c => window.availableCategories.includes(c.id))) {
+            for (const category of reportOrder) {
                 const findings = categorizedFindings[category.id.toString()] || [];
                 const prompt = `${categoryPrompts[category.id]}\nHallazgos encontrados: ${findings.length > 0 ? findings.join('. ') : 'Ninguno'}\nRedacta un párrafo conciso y profesional, sin mencionar la técnica de imagen.`;
                 const sectionReport = await queryGeminiAPI(prompt);
-                if (sectionReport) fullReport += `${sectionReport.trim()}\n`;
+                if (sectionReport && sectionReport.trim()) {
+                    fullReport += `${sectionReport.trim()}\n`;
+                }
             }
             
             const allFindings = Object.values(categorizedFindings).flat();
@@ -476,7 +497,6 @@
             }
         }
         
-        // --- NUEVO: Función para omitir hallazgos ---
         function handleOmit(e) {
             const finding = e.target.dataset.finding;
             if (!finding || !categorizedFindings[13]) return;
